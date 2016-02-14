@@ -1,0 +1,45 @@
+#!/bin/bash
+set -eux
+
+# Stop X
+sudo systemctl stop sddm
+
+sleep 5
+
+# Unbind HDA subdevice
+echo 0000:05:00.1 | sudo tee /sys/bus/pci/drivers/snd_hda_intel/unbind
+
+sleep 1
+
+# Unbind vtcon (vtcon0 is virtual)
+echo 0 | sudo tee /sys/class/vtconsole/vtcon1/bind
+
+sleep 1
+
+# Unbind EFI framebuffer
+echo efi-framebuffer.0 | sudo tee /sys/bus/platform/drivers/efi-framebuffer/unbind
+
+lsmod | grep nvidia
+
+sleep 5
+
+lsmod | grep nvidia
+
+# Disable the GPU
+echo 0 | sudo tee /sys/bus/pci/devices/0000:05:00.0/enable
+
+lsmod | grep nvidia
+
+# Finally, unbind GPU from NVIDIA driver
+echo 0000:05:00.0 | sudo tee /sys/bus/pci/drivers/nvidia/unbind
+
+# Unload the drivers
+sudo modprobe -r nvidia_modeset
+sudo modprobe -r nvidia
+
+# Load VFIO meta-driver
+sudo modprobe vfio-pci
+
+# Assign devices to VFIO
+echo 10de 1005 | sudo tee /sys/bus/pci/drivers/vfio-pci/new_id
+echo 10de 0e1a | sudo tee /sys/bus/pci/drivers/vfio-pci/new_id
