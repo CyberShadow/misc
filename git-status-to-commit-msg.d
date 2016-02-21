@@ -14,7 +14,7 @@ void main(string[] args)
 {
 	string prefix = args.length > 1
 		? args[1]
-		: environment.get("GIT_DIR", getcwd.buildPath(".git")).dirName().baseName() ~ ".";
+		: getcwd.buildNormalizedPath(environment.get("GIT_DIR", ".git")).dirName().baseName() ~ ".";
 
 	string packStaged, packWD;
 	while (!stdin.eof)
