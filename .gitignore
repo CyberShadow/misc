@@ -1,4 +1,4 @@
 *
 !.gitignore
 !*.d
-!*.sh
+!/git-prepare-commit-msg
