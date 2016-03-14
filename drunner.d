@@ -32,5 +32,11 @@ if exist "%~f1.exe" start "%~f1" /B /WAIT "%~f1.exe"
 	auto result = spawnProcess([builder] ~ buildOptions ~ [source]).wait();
 	if (result || !exists(exe) || getSize(exe)==0 || (cast(ubyte[])read(exe))[0]==0)
 		return 1;
-	return spawnProcess([exe] ~ args[1..$]).wait();
+	version (Windows)
+		return spawnProcess([exe.absolutePath] ~ args[1..$]).wait();
+	else
+	{
+		execv(exe, [exe] ~ args[1..$]);
+		assert(false);
+	}
 }
