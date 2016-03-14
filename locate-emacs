@@ -1,0 +1,4 @@
+#!/bin/bash
+locate --regex "$@" | \
+	grep --line-buffered -vFf \
+		 /home/vladimir/work/misc/locate-emacs-exclusions.txt

@@ -1,0 +1,8 @@
+/home/ircd/
+/home/vladimir/Downloads/!dmd/
+/home/vladimir/opt/dmd/
+/home/vladimir/work/Digger/work/
+/home/vladimir/work/extern/arch/aur/
+/home/vladimir/work/extern/arch/aur-mirror/
+/usr/include/dlang/
+/home/vladimir/tmp/
