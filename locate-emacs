@@ -1,4 +1,14 @@
 #!/bin/bash
-locate --regex "$@" | \
-	grep --line-buffered -vFf \
-		 /home/vladimir/work/misc/locate-emacs-exclusions.txt
+TMPFILE=/tmp/locate-emacs.$PID
+unbuffer locate --regex "$@" \
+	| grep --line-buffered -vFf \
+		 /home/vladimir/work/misc/locate-emacs-exclusions.txt \
+	| tee "$TMPFILE" \
+	| grep --line-buffered -vFf \
+		 /home/vladimir/work/misc/locate-emacs-lowprio.txt
+
+grep --line-buffered -Ff \
+	 /home/vladimir/work/misc/locate-emacs-lowprio.txt \
+	 < "$TMPFILE"
+
+rm -f "$TMPFILE"
