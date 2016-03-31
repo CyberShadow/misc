@@ -16,11 +16,12 @@ enum BASE = `/home/vladimir/Downloads/!dmd/`;
 
 int main(string[] args)
 {
-	bool download, verbose;
+	bool download, verbose, wine;
 	getopt(args,
 		config.stopOnFirstNonOption,
 		"d|dl", &download,
 		"v|verbose", &verbose,
+		"wine", &wine,
 	);
 
 	enforce(args.length >= 3, "Usage: dver [-d] DVERSION COMMAND [COMMAND-ARGS...]");
@@ -62,17 +63,36 @@ int main(string[] args)
 	}
 	enforce(dir.exists, "Directory doesn't exist: " ~ dir);
 
-	foreach (binDir; [`dmd2/linux/bin64`, `dmd2/linux/bin`, `dmd/linux/bin`, `dmd/bin`])
+	string[] binDirs;
+	string binExt;
+
+	if (wine)
+	{
+		binDirs = [`dmd2/windows/bin`, `dmd/windows/bin`, `dmd/bin`];
+		binExt = ".exe";
+	}
+	else
+	{
+		binDirs = [`dmd2/linux/bin64`, `dmd2/linux/bin`, `dmd/linux/bin`, `dmd/bin`];
+		binExt = "";
+	}
+
+	foreach (binDir; binDirs)
 	{
 		auto binPath = dir ~ `/` ~ binDir;
-		if (binPath.exists && (binPath ~ `/dmd`).exists)
+		auto dmd = binPath ~ "/dmd" ~ binExt;
+		if (dmd.exists)
 		{
-			auto dmd = binPath ~ `/dmd`;
-			auto attributes = dmd.getAttributes();
-			if (!(attributes & octal!111))
-				dmd.setAttributes((attributes & octal!444) >> 2);
-			environment["PATH"] = binPath ~ `:` ~ environment["PATH"];
-			if (verbose) stderr.writefln("PATH=%s", environment["PATH"]);
+			if (wine)
+				command = ["wine"] ~ binPath.buildPath(command[0]) ~ command[1..$];
+			else
+			{
+				auto attributes = dmd.getAttributes();
+				if (!(attributes & octal!111))
+					dmd.setAttributes((attributes & octal!444) >> 2);
+				environment["PATH"] = binPath ~ `:` ~ environment["PATH"];
+				if (verbose) stderr.writefln("PATH=%s", environment["PATH"]);
+			}
 			auto pid = spawnProcess(command);
 			return pid.wait();
 		}
