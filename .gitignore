@@ -1,6 +1,7 @@
 *
-!.gitignore
-!*.d
-!*.txt
+!/**/
+!*.*
 !/git-prepare-commit-msg
 !/locate-emacs
+/-/
+*.o
