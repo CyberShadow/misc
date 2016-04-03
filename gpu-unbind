@@ -43,3 +43,14 @@ sudo modprobe vfio-pci
 # Assign devices to VFIO
 echo 10de 1005 | sudo tee /sys/bus/pci/drivers/vfio-pci/new_id
 #echo 10de 0e1a | sudo tee /sys/bus/pci/drivers/vfio-pci/new_id
+
+sleep 1
+
+# Dump GPU
+#virsh nodedev-dumpxml pci_0000_05_00_0 > gpu.xml
+
+# Assign devices to VM
+for D in gpu gpu-audio mouse keyboard
+do
+	sudo virsh attach-device win hostdev/$D.xml
+done
