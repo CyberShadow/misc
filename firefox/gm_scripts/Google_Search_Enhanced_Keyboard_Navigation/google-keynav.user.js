@@ -9,6 +9,8 @@
 //
 // @version        1.3a
 // @creator        Patrick C. McGinty
+//
+// @run-at         document-start
 // ==/UserScript==
 //
 // Quick Usage Instructions
@@ -393,4 +395,5 @@ sc.v = function (a) {
     while (a = a.offsetParent) b += a.offsetTop;
     return b
 };
-sc.initialize();
+
+addEventListener("DOMContentLoaded", function() { sc.initialize(); });
