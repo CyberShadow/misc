@@ -11,6 +11,7 @@
 // @creator        Patrick C. McGinty
 //
 // @run-at         document-start
+// @grant          GM_addStyle
 // ==/UserScript==
 //
 // Quick Usage Instructions
@@ -397,3 +398,14 @@ sc.v = function (a) {
 };
 
 addEventListener("DOMContentLoaded", function() { sc.initialize(); });
+
+/*(function() {
+	function hide(id) {
+		var e = document.getElementById(id);
+		if (e)
+			e.parentNode.removeChild(e);
+	};
+	hide('taw');
+})();*/
+
+GM_addStyle('#taw, #bottomads { display: none; }');
