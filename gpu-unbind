@@ -7,7 +7,7 @@ sudo systemctl stop sddm
 sleep 5
 
 # Unbind HDA subdevice
-echo 0000:05:00.1 | sudo tee /sys/bus/pci/drivers/snd_hda_intel/unbind
+#echo 0000:05:00.1 | sudo tee /sys/bus/pci/drivers/snd_hda_intel/unbind
 
 sleep 1
 
@@ -42,4 +42,4 @@ sudo modprobe vfio-pci
 
 # Assign devices to VFIO
 echo 10de 1005 | sudo tee /sys/bus/pci/drivers/vfio-pci/new_id
-echo 10de 0e1a | sudo tee /sys/bus/pci/drivers/vfio-pci/new_id
+#echo 10de 0e1a | sudo tee /sys/bus/pci/drivers/vfio-pci/new_id
