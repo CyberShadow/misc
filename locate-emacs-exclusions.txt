@@ -5,4 +5,7 @@
 /home/vladimir/work/extern/arch/aur/
 /home/vladimir/work/extern/arch/aur-mirror/
 /usr/include/dlang/
-/home/vladimir/tmp/
+/home/vladimir/.local/share/Trash/
+/home/vladimir/work/Digger/work
+/druntime/import/
+/home/vladimir/work/Digger/ae/
