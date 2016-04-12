@@ -14,6 +14,14 @@ import ae.sys.file;
 
 enum BASE = `/home/vladimir/Downloads/!dmd/`;
 
+version(linux)
+	enum platform = "linux";
+else
+version(Windows)
+	enum platform = "windows";
+else
+	static assert(false);
+
 int main(string[] args)
 {
 	bool download, verbose, wine;
@@ -33,7 +41,11 @@ int main(string[] args)
 	{
 		if (download)
 		{
-			auto fn = "dmd.%s.zip".format(dver);
+			string fn;
+			if (dver < "2.071.0")
+				fn = "dmd.%s.zip".format(dver);
+			else
+				fn = "dmd.%s.%s.zip".format(dver, platform);
 			if (verbose) stderr.writefln("Downloading %s...", fn);
 			auto url = "http://downloads.dlang.org/releases/%s.x/%s/%s"
 				.format(dver[0], dver, fn);
@@ -83,6 +95,7 @@ int main(string[] args)
 		auto dmd = binPath ~ "/dmd" ~ binExt;
 		if (dmd.exists)
 		{
+			if (verbose) stderr.writefln("Found dmd: %s", dmd);
 			if (wine)
 				command = ["wine"] ~ binPath.buildPath(command[0]) ~ command[1..$];
 			else
