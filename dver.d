@@ -24,12 +24,13 @@ else
 
 int main(string[] args)
 {
-	bool download, verbose, wine;
+	bool download, verbose, wine, model32;
 	getopt(args,
 		config.stopOnFirstNonOption,
 		"d|dl", &download,
 		"v|verbose", &verbose,
 		"wine", &wine,
+		"32", &model32,
 	);
 
 	enforce(args.length >= 3, "Usage: dver [-d] DVERSION COMMAND [COMMAND-ARGS...]");
@@ -85,7 +86,8 @@ int main(string[] args)
 	}
 	else
 	{
-		binDirs = [`dmd2/linux/bin64`, `dmd2/linux/bin`, `dmd/linux/bin`, `dmd/bin`];
+		string model = model32 ? "32" : "64";
+		binDirs = [`dmd2/linux/bin` ~ model, `dmd2/linux/bin`, `dmd/linux/bin`, `dmd/bin`];
 		binExt = "";
 	}
 
