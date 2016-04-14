@@ -3,5 +3,7 @@
 !*.*
 !/git-prepare-commit-msg
 !/locate-emacs
+!/gpu-windows
+!/gpu-linux
 /-/
 *.o
