@@ -9,6 +9,9 @@
 //
 // @version        1.3a
 // @creator        Patrick C. McGinty
+//
+// @run-at         document-start
+// @grant          GM_addStyle
 // ==/UserScript==
 //
 // Quick Usage Instructions
@@ -393,4 +396,16 @@ sc.v = function (a) {
     while (a = a.offsetParent) b += a.offsetTop;
     return b
 };
-sc.initialize();
+
+addEventListener("DOMContentLoaded", function() { sc.initialize(); });
+
+/*(function() {
+	function hide(id) {
+		var e = document.getElementById(id);
+		if (e)
+			e.parentNode.removeChild(e);
+	};
+	hide('taw');
+})();*/
+
+GM_addStyle('#taw, #bottomads { display: none; }');
