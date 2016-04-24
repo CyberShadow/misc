@@ -1,2 +1,3 @@
 /-/
 /home/vladimir/tmp/
+/usr/
