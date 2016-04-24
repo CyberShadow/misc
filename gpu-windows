@@ -4,33 +4,46 @@ set -eux
 # Stop X
 sudo systemctl stop sddm
 
-#sleep 5
+sleep 5
 
 # Unbind HDA subdevice
 #echo 0000:05:00.1 | sudo tee /sys/bus/pci/drivers/snd_hda_intel/unbind
 
-#sleep 1
+sleep 1
 
 # Unbind vtcon (vtcon0 is virtual)
-echo 0 | sudo tee /sys/class/vtconsole/vtcon1/bind
+if [[ -e /sys/class/vtconsole/vtcon1/bind ]]
+then
+	echo 0 | sudo tee /sys/class/vtconsole/vtcon1/bind
+fi
 
-#sleep 1
+sleep 1
 
 # Unbind EFI framebuffer
-echo efi-framebuffer.0 | sudo tee /sys/bus/platform/drivers/efi-framebuffer/unbind
+if [[ -e /sys/bus/platform/drivers/efi-framebuffer/efi-framebuffer.0 ]]
+then
+	echo efi-framebuffer.0 | sudo tee /sys/bus/platform/drivers/efi-framebuffer/unbind
+fi
 
 lsmod | grep nvidia
 
 # Disable the GPU
-echo 0 | sudo tee /sys/bus/pci/devices/0000:05:00.0/enable
+if grep -v 0 /sys/bus/pci/devices/0000:05:00.0/enable
+then
+	echo 0 | sudo tee /sys/bus/pci/devices/0000:05:00.0/enable
+	:
+fi
 
-#sleep 5
+sleep 5
 
 lsmod | grep nvidia
 
 # Check that nvidia_modeset is not in use
 # Sometimes this fails for no apparent reason and the only solution is a reboot
-lsmod | grep nvidia_modeset | grep '\b0$'
+if lsmod | grep nvidia_modeset
+then
+	lsmod | grep nvidia_modeset | grep '\b0$'
+fi
 
 # Finally, unbind GPU from NVIDIA driver
 echo 0000:05:00.0 | sudo tee /sys/bus/pci/drivers/nvidia/unbind
@@ -46,7 +59,7 @@ sudo modprobe vfio-pci
 echo 10de 1005 | sudo tee /sys/bus/pci/drivers/vfio-pci/new_id
 #echo 10de 0e1a | sudo tee /sys/bus/pci/drivers/vfio-pci/new_id
 
-#sleep 1
+sleep 1
 
 # Dump GPU
 #virsh nodedev-dumpxml pci_0000_05_00_0 > gpu.xml
