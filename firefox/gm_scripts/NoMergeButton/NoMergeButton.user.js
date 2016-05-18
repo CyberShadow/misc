@@ -2,9 +2,9 @@
 // @name        NoMergeButton
 // @namespace   http://thecybershadow.net
 // @description Disable merge button on GitHub
-// @include     https://github.com/D-Programming-Language/dmd*
-// @include     https://github.com/D-Programming-Language/phobos*
-// @include     https://github.com/D-Programming-Language/druntime*
+// @include     https://github.com/dlang/dmd*
+// @include     https://github.com/dlang/phobos*
+// @include     https://github.com/dlang/druntime*
 // @version     1
 // @grant       none
 // ==/UserScript==
