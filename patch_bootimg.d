@@ -58,7 +58,10 @@ align(1):
 
 mixin main!(funopt!patch_bootimg);
 
-void patch_bootimg(string bootImg, string newBootImg, string kernel = null, string ramdisk = null, string second = null)
+void patch_bootimg(string bootImg, string output = null,
+	string kernel = null, string ramdisk = null, string second = null,
+	string saveKernel = null, string saveRamdisk = null, string saveSecond = null,
+)
 {
 	auto bytes = read(bootImg);
 	enforce(bytes.length > boot_img_hdr.sizeof);
@@ -89,6 +92,13 @@ void patch_bootimg(string bootImg, string newBootImg, string kernel = null, stri
 	auto secondBytes = slurpSection(header.second_size);
 	auto remainderBytes = bytes[pagesToBytes(currentPage) .. $];
 
+	if (saveKernel)
+		std.file.write(saveKernel, kernelBytes);
+	if (saveRamdisk)
+		std.file.write(saveRamdisk, ramdiskBytes);
+	if (saveSecond)
+		std.file.write(saveSecond, secondBytes);
+
 	if (kernel)
 		kernelBytes = read(kernel);
 	if (ramdisk)
@@ -110,6 +120,9 @@ void patch_bootimg(string bootImg, string newBootImg, string kernel = null, stri
 	barfSection(secondBytes, header.second_size);
 	bytes ~= remainderBytes;
 
-	std.file.write(newBootImg, bytes);
-	stderr.writefln("%s written!", newBootImg);
+	if (output)
+	{
+		std.file.write(output, bytes);
+		stderr.writefln("%s written!", output);
+	}
 }
