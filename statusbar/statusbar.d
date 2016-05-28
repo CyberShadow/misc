@@ -13,6 +13,7 @@ import ae.utils.time.format;
 import fontawesome;
 import i3;
 import i3conn;
+import mpd;
 import pulse;
 
 void main()
@@ -23,6 +24,7 @@ void main()
 
 	enum Block
 	{
+		nowPlaying,
 		volumeIcon,
 		volume,
 		loadIcon,
@@ -68,7 +70,7 @@ void main()
 	void updatePulse()
 	{
 		auto volume = getVolume();
-		dchar icon = FontAwesome.fa_volume_off;
+		wchar icon = FontAwesome.fa_volume_off;
 		try
 		{
 			auto n = volume[0..$-1].to!int();
@@ -90,6 +92,31 @@ void main()
 	}
 	updatePulse();
 	pulseSubscribe(&updatePulse);
+
+	void updateMpd()
+	{
+		auto status = getMpdStatus();
+		wchar icon;
+		switch (status.status)
+		{
+			case "playing":
+				icon = FontAwesome.fa_play;
+				break;
+			case "paused":
+				icon = FontAwesome.fa_pause;
+				break;
+			case null:
+				icon = FontAwesome.fa_stop;
+				break;
+			default:
+				icon = FontAwesome.fa_music;
+				break;
+		}
+		blocks[Block.nowPlaying].full_text = text(icon) ~ "  " ~ status.nowPlaying;
+		i3.send(blocks[]);
+	}
+	updateMpd();
+	mpdSubscribe(&updateMpd);
 
 	socketManager.loop();
 }
