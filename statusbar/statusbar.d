@@ -5,6 +5,7 @@ import std.file;
 
 import ae.net.asockets;
 import ae.sys.timing;
+import ae.utils.graphics.color;
 import ae.utils.meta;
 import ae.utils.meta.args;
 import ae.utils.time.format;
@@ -52,10 +53,10 @@ void main()
 		auto local = now;
 		local.timezone = localTz;
 		blocks[Block.timeLocal].full_text = clockIcon ~ local.formatTime!`D Y-m-d H:i:s O`;
-		blocks[Block.timeLocal].background = "#000040";
+		blocks[Block.timeLocal].background = '#' ~ timeColor(local).toHex();
 
 		blocks[Block.timeUTC].full_text = clockIcon ~ now.formatTime!`D Y-m-d H:i:s \U\T\C`;
-		blocks[Block.timeUTC].background = "#004040";
+		blocks[Block.timeUTC].background = '#' ~ timeColor(now).toHex();
 
 		// Send!
 
@@ -91,4 +92,36 @@ void main()
 	pulseSubscribe(&updatePulse);
 
 	socketManager.loop();
+}
+
+RGB timeColor(SysTime time)
+{
+	auto day = 1.days.total!"hnsecs";
+	time += time.utcOffset;
+	auto stdTime = time.stdTime;
+	//stdTime += stdTime * 3600;
+	ulong tod = stdTime % day;
+
+	enum l = 0x40;
+	enum L = l*3/2;
+
+	static const RGB[] points =
+	[
+		RGB(0, 0, L),
+		RGB(0, l, l),
+		RGB(0, L, 0),
+		RGB(l, l, 0),
+		RGB(L, 0, 0),
+		RGB(l, 0, l),
+	];
+
+	auto slice = day / points.length;
+
+	auto n = tod / slice;
+	auto a = points[n];
+	auto b = points[(n + 1) % $];
+
+	auto sliceTime = tod % slice;
+
+	return RGB.itpl(a, b, cast(int)(sliceTime / 1_000_000), 0, cast(int)(slice / 1_000_000));
 }
