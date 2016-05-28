@@ -24,6 +24,7 @@ void main()
 	{
 		volumeIcon,
 		volume,
+		loadIcon,
 		load,
 		timeLocal,
 		timeUTC,
@@ -38,16 +39,22 @@ void main()
 
 		// Load
 
+		blocks[Block.loadIcon].full_text = text(wchar(FontAwesome.fa_tasks));
+		blocks[Block.loadIcon].min_width = 10;
+		blocks[Block.loadIcon].separator = false;
+
 		blocks[Block.load].full_text = readText("/proc/loadavg").splitter(" ").front;
 
 		// Time
 
+		auto clockIcon = text(wchar(FontAwesome.fa_clock_o)) ~ "  ";
+
 		auto local = now;
 		local.timezone = localTz;
-		blocks[Block.timeLocal].full_text = local.formatTime!`D Y-m-d H:i:s O`;
+		blocks[Block.timeLocal].full_text = clockIcon ~ local.formatTime!`D Y-m-d H:i:s O`;
 		blocks[Block.timeLocal].background = "#000040";
 
-		blocks[Block.timeUTC].full_text = now.formatTime!`D Y-m-d H:i:s \U\T\C`;
+		blocks[Block.timeUTC].full_text = clockIcon ~ now.formatTime!`D Y-m-d H:i:s \U\T\C`;
 		blocks[Block.timeUTC].background = "#004040";
 
 		// Send!
