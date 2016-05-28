@@ -2,7 +2,7 @@ module fontawesome;
 
 // Version 4.6.3
 
-enum FontAwesome
+enum FontAwesome : wchar
 {
 	fa_500px                                = '\uf26e',
 	fa_adjust                               = '\uf042',
