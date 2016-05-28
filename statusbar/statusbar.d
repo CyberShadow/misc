@@ -24,6 +24,7 @@ void main()
 
 	enum Block
 	{
+	//	logs,
 		nowPlaying,
 		volumeIcon,
 		volume,
@@ -118,9 +119,34 @@ void main()
 	updateMpd();
 	mpdSubscribe(&updateMpd);
 
+/*
+	processSubscribe(["journalctl", "--follow"],
+		(const(char)[] line)
+		{
+			blocks[Block.logs].full_text = line.idup;
+			i3.send(blocks[]);
+		});
+*/
+
 	socketManager.loop();
 }
 
+void processSubscribe(string[] args, void delegate(const(char)[]) callback)
+{
+	import std.process;
+	auto p = pipeProcess(args, Redirect.stdout);
+	auto sock = new FileConnection(p.stdout);
+	auto lines = new LineBufferedAdapter(sock);
+	lines.delimiter = "\n";
+
+	lines.handleReadData =
+		(Data data)
+		{
+			auto line = cast(char[])data.contents;
+			callback(line);
+		};
+}
+	
 RGB timeColor(SysTime time)
 {
 	auto day = 1.days.total!"hnsecs";
