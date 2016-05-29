@@ -2,6 +2,7 @@ import std.algorithm;
 import std.conv;
 import std.datetime;
 import std.file;
+import std.functional;
 
 import ae.net.asockets;
 import ae.sys.timing;
@@ -18,173 +19,237 @@ import pulse;
 
 I3Connection conn;
 
-void main()
+class Block
 {
-	auto i3 = new I3Connection();
+protected:
+	static BarBlock*[] blocks;
 
-	auto localTz = PosixTimeZone.getTimeZone("Europe/Chisinau");
-
-	enum Block
+	static void send()
 	{
-	//	logs,
-		title,
-		nowPlaying,
-		volumeIcon,
-		volume,
-		loadIcon,
-		load,
-		timeLocal,
-		timeUTC,
+		conn.send(blocks);
+	}
+}
+
+class TimerBlock : Block
+{
+	abstract void update(SysTime now);
+
+	this()
+	{
+		if (!instances.length)
+			onTimer();
+		instances ~= this;
 	}
 
-	BarBlock[enumLength!Block] blocks;
+	static TimerBlock[] instances;
 
-	// Update time and other stuff updated every second.
-	void updateTime()
+	static void onTimer()
 	{
 		auto now = Clock.currTime();
-
-		// Load
-
-		blocks[Block.loadIcon].full_text = text(wchar(FontAwesome.fa_tasks));
-		blocks[Block.loadIcon].min_width = 10;
-		blocks[Block.loadIcon].separator = false;
-
-		blocks[Block.load].full_text = readText("/proc/loadavg").splitter(" ").front;
-
-		// Time
-
-		auto clockIcon = text(wchar(FontAwesome.fa_clock_o)) ~ "  ";
-
-		auto local = now;
-		local.timezone = localTz;
-		blocks[Block.timeLocal].full_text = clockIcon ~ local.formatTime!`D Y-m-d H:i:s O`;
-		blocks[Block.timeLocal].background = '#' ~ timeColor(local).toHex();
-
-		blocks[Block.timeUTC].full_text = clockIcon ~ now.formatTime!`D Y-m-d H:i:s \U\T\C`;
-		blocks[Block.timeUTC].background = '#' ~ timeColor(now).toHex();
-
-		// Send!
-
-		i3.send(blocks[]);
-		setTimeout(&updateTime, 1.seconds - now.fracSecs);
+		setTimeout(toDelegate(&onTimer), 1.seconds - now.fracSecs);
+		foreach (instance; instances)
+			instance.update(now);
+		send();
 	}
-	updateTime();
+}
 
-	void updatePulse()
+final class TimeBlock : TimerBlock
+{
+	BarBlock block;
+	immutable(TimeZone) tz;
+
+	static immutable iconStr = text(wchar(FontAwesome.fa_clock_o)) ~ "  ";
+
+	this(immutable(TimeZone) tz)
+	{
+		this.tz = tz;
+		blocks ~= &block;
+	}
+
+	override void update(SysTime now)
+	{
+		auto local = now;
+		local.timezone = tz;
+		block.full_text = iconStr ~ local.formatTime!`D Y-m-d H:i:s O`;
+		block.background = '#' ~ timeColor(local).toHex();
+	}
+
+	static RGB timeColor(SysTime time)
+	{
+		auto day = 1.days.total!"hnsecs";
+		time += time.utcOffset;
+		auto stdTime = time.stdTime;
+		//stdTime += stdTime * 3600;
+		ulong tod = stdTime % day;
+
+		enum l = 0x40;
+		enum L = l*3/2;
+
+		static const RGB[] points =
+			[
+				RGB(0, 0, L),
+				RGB(0, l, l),
+				RGB(0, L, 0),
+				RGB(l, l, 0),
+				RGB(L, 0, 0),
+				RGB(l, 0, l),
+			];
+
+		auto slice = day / points.length;
+
+		auto n = tod / slice;
+		auto a = points[n];
+		auto b = points[(n + 1) % $];
+
+		auto sliceTime = tod % slice;
+
+		return RGB.itpl(a, b, cast(int)(sliceTime / 1_000_000), 0, cast(int)(slice / 1_000_000));
+	}
+}
+
+final class LoadBlock : TimerBlock
+{
+	BarBlock icon, block;
+
+	this()
+	{
+		icon.full_text = text(wchar(FontAwesome.fa_tasks));
+		icon.min_width = 10;
+		icon.separator = false;
+		blocks ~= &icon;
+		blocks ~= &block;
+	}
+
+	override void update(SysTime now)
+	{
+		block.full_text = readText("/proc/loadavg").splitter(" ").front;
+	}
+}
+
+final class PulseBlock : Block
+{
+	BarBlock icon, block;
+
+	this()
+	{
+		icon.min_width = 15;
+		icon.separator = false;
+
+		block.min_width_str = "100%";
+		block.alignment = "right";
+
+		blocks ~= &icon;
+		blocks ~= &block;
+
+		pulseSubscribe(&update);
+		update();
+	}
+
+	void update()
 	{
 		auto volume = getVolume();
-		wchar icon = FontAwesome.fa_volume_off;
+		wchar iconChar = FontAwesome.fa_volume_off;
 		try
 		{
 			auto n = volume[0..$-1].to!int();
-			icon =
+			iconChar =
 				n == 0 ? FontAwesome.fa_volume_off :
 				n < 50 ? FontAwesome.fa_volume_down :
 				         FontAwesome.fa_volume_up;
 		}
 		catch {}
 
-		blocks[Block.volumeIcon].full_text = text(icon);
-		blocks[Block.volumeIcon].min_width = 15;
-		blocks[Block.volumeIcon].separator = false;
+		icon.full_text = text(iconChar);
+		block.full_text = volume;
 
-		blocks[Block.volume].full_text = volume;
-		blocks[Block.volume].min_width_str = "100%";
-		blocks[Block.volume].alignment = "right";
-		i3.send(blocks[]);
+		send();
 	}
-	updatePulse();
-	pulseSubscribe(&updatePulse);
+}
 
-	void updateMpd()
+final class MpdBlock : Block
+{
+	BarBlock block;
+
+	this()
+	{
+		blocks ~= &block;
+		mpdSubscribe(&update);
+		update();
+	}
+
+	void update()
 	{
 		auto status = getMpdStatus();
-		wchar icon;
+		wchar iconChar;
 		switch (status.status)
 		{
 			case "playing":
-				icon = FontAwesome.fa_play;
+				iconChar = FontAwesome.fa_play;
 				break;
 			case "paused":
-				icon = FontAwesome.fa_pause;
+				iconChar = FontAwesome.fa_pause;
 				break;
 			case null:
-				icon = FontAwesome.fa_stop;
+				iconChar = FontAwesome.fa_stop;
 				break;
 			default:
-				icon = FontAwesome.fa_music;
+				iconChar = FontAwesome.fa_music;
 				break;
 		}
-		blocks[Block.nowPlaying].full_text = text(icon) ~ "  " ~ status.nowPlaying;
-		i3.send(blocks[]);
+
+		block.full_text = text(iconChar) ~ "  " ~ status.nowPlaying;
+		send();
 	}
-	updateMpd();
-	mpdSubscribe(&updateMpd);
-
-/*
-	processSubscribe(["journalctl", "--follow"],
-		(const(char)[] line)
-		{
-			blocks[Block.logs].full_text = line.idup;
-			i3.send(blocks[]);
-		});
-*/
-
-	processSubscribe(["xtitle", "-s"],
-		(const(char)[] line)
-		{
-			blocks[Block.title].full_text = line.idup;
-			i3.send(blocks[]);
-		});
-
-	socketManager.loop();
 }
 
-void processSubscribe(string[] args, void delegate(const(char)[]) callback)
+class ProcessBlock : Block
 {
-	import std.process;
-	auto p = pipeProcess(args, Redirect.stdout);
-	auto sock = new FileConnection(p.stdout);
-	auto lines = new LineBufferedAdapter(sock);
-	lines.delimiter = "\n";
+	BarBlock block;
 
-	lines.handleReadData =
-		(Data data)
-		{
-			auto line = cast(char[])data.contents;
-			callback(line);
-		};
+	this(string[] args)
+	{
+		import std.process;
+		auto p = pipeProcess(args, Redirect.stdout);
+		auto sock = new FileConnection(p.stdout);
+		auto lines = new LineBufferedAdapter(sock);
+		lines.delimiter = "\n";
+
+		lines.handleReadData =
+			(Data data)
+			{
+				auto line = cast(char[])data.contents;
+				block.full_text = line.idup;
+				send();
+			};
+
+		blocks ~= &block;
+	}
 }
+
+void main()
+{
+	conn = new I3Connection();
+
+	// System log
+	//new ProcessBlock(["journalctl", "--follow"]);
+
+	// Current window title
+	new ProcessBlock(["xtitle", "-s"]);
+
+	// Current playing track
+	new MpdBlock();
+
+	// Volume
+	new PulseBlock();
+
+	// Load
+	new LoadBlock();
+
+	// UTC time
+	new TimeBlock(UTC());
+
+	// Local time
+	new TimeBlock(PosixTimeZone.getTimeZone("Europe/Chisinau"));
 	
-RGB timeColor(SysTime time)
-{
-	auto day = 1.days.total!"hnsecs";
-	time += time.utcOffset;
-	auto stdTime = time.stdTime;
-	//stdTime += stdTime * 3600;
-	ulong tod = stdTime % day;
-
-	enum l = 0x40;
-	enum L = l*3/2;
-
-	static const RGB[] points =
-	[
-		RGB(0, 0, L),
-		RGB(0, l, l),
-		RGB(0, L, 0),
-		RGB(l, l, 0),
-		RGB(L, 0, 0),
-		RGB(l, 0, l),
-	];
-
-	auto slice = day / points.length;
-
-	auto n = tod / slice;
-	auto a = points[n];
-	auto b = points[(n + 1) % $];
-
-	auto sliceTime = tod % slice;
-
-	return RGB.itpl(a, b, cast(int)(sliceTime / 1_000_000), 0, cast(int)(slice / 1_000_000));
+	socketManager.loop();
 }

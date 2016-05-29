@@ -33,7 +33,7 @@ class I3Connection
 		stdoutSock.send(Data("\n[\n"));
 	}
 
-	void send(BarBlock[] blocks)
+	void send(BarBlock*[] blocks)
 	{
 		stdoutSock.send(Data(blocks.toJson()));
 		stdoutSock.send(Data(",\n"));
