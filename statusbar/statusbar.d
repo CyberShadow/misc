@@ -53,7 +53,7 @@ class TimerBlock : Block
 	}
 }
 
-final class TimeBlock : TimerBlock
+class TimeBlock(string timeFormat) : TimerBlock
 {
 	BarBlock block;
 	immutable(TimeZone) tz;
@@ -70,7 +70,7 @@ final class TimeBlock : TimerBlock
 	{
 		auto local = now;
 		local.timezone = tz;
-		block.full_text = iconStr ~ local.formatTime!`D Y-m-d H:i:s O`;
+		block.full_text = iconStr ~ local.formatTime!timeFormat;
 		block.background = '#' ~ timeColor(local).toHex();
 	}
 
@@ -106,6 +106,13 @@ final class TimeBlock : TimerBlock
 		return RGB.itpl(a, b, cast(int)(sliceTime / 1_000_000), 0, cast(int)(slice / 1_000_000));
 	}
 }
+
+class UtcTimeBlock : TimeBlock!`D Y-m-d H:i:s \U\T\C`
+{
+	this() { super(UTC()); }
+}
+
+alias TzTimeBlock = TimeBlock!`D Y-m-d H:i:s O`;
 
 final class LoadBlock : TimerBlock
 {
@@ -246,10 +253,10 @@ void main()
 	new LoadBlock();
 
 	// UTC time
-	new TimeBlock(UTC());
+	new UtcTimeBlock();
 
 	// Local time
-	new TimeBlock(PosixTimeZone.getTimeZone("Europe/Chisinau"));
+	new TzTimeBlock(PosixTimeZone.getTimeZone("Europe/Chisinau"));
 	
 	socketManager.loop();
 }
