@@ -25,6 +25,7 @@ void main()
 	enum Block
 	{
 	//	logs,
+		title,
 		nowPlaying,
 		volumeIcon,
 		volume,
@@ -127,6 +128,13 @@ void main()
 			i3.send(blocks[]);
 		});
 */
+
+	processSubscribe(["xtitle", "-s"],
+		(const(char)[] line)
+		{
+			blocks[Block.title].full_text = line.idup;
+			i3.send(blocks[]);
+		});
 
 	socketManager.loop();
 }
