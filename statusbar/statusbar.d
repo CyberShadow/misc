@@ -16,6 +16,8 @@ import i3conn;
 import mpd;
 import pulse;
 
+I3Connection conn;
+
 void main()
 {
 	auto i3 = new I3Connection();
@@ -84,7 +86,7 @@ void main()
 		catch {}
 
 		blocks[Block.volumeIcon].full_text = text(icon);
-		blocks[Block.volumeIcon].min_width = 10;
+		blocks[Block.volumeIcon].min_width = 15;
 		blocks[Block.volumeIcon].separator = false;
 
 		blocks[Block.volume].full_text = volume;
