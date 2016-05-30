@@ -280,9 +280,12 @@ final class MpdBlock : Block
 class ProcessBlock : Block
 {
 	BarBlock block;
+	void delegate(BarClick) clickHandler;
 
-	this(string[] args)
+	this(string[] args, void delegate(BarClick) clickHandler = null)
 	{
+		this.clickHandler = clickHandler;
+
 		import core.sys.posix.unistd;
 		auto p = pipeProcess(args, Redirect.stdout);
 		auto sock = new FileConnection(p.stdout.fileno.dup);
@@ -298,6 +301,12 @@ class ProcessBlock : Block
 			};
 
 		addBlock(&block);
+	}
+
+	override void handleClick(BarClick click)
+	{
+		if (clickHandler)
+			clickHandler(click);
 	}
 }
 
@@ -357,7 +366,7 @@ void main()
 	//new ProcessBlock(["journalctl", "--follow"]);
 
 	// Current window title
-	new ProcessBlock(["xtitle", "-s"]);
+	new ProcessBlock(["xtitle", "-s"], click => click.button == 1 ? spawnProcess(["x", "rofi", "-show", "window"]).wait() : {}());
 
 	// Current playing track
 	new MpdBlock();
