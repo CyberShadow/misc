@@ -6,6 +6,7 @@ import std.process;
 import std.string;
 
 import ae.net.asockets;
+import ae.sys.timing;
 
 void pulseSubscribe(void delegate() callback)
 {
@@ -28,6 +29,15 @@ void pulseSubscribe(void delegate() callback)
 
 			callback();
 		};
+
+	lines.handleDisconnect =
+		(string reason, DisconnectType type)
+		{
+			callback();
+			setTimeout({ pulseSubscribe(callback); }, 1.seconds);
+		};
+
+	callback();
 }
 
 struct Volume
