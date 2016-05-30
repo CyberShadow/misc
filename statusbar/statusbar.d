@@ -257,6 +257,6 @@ void main()
 
 	// Local time
 	new TzTimeBlock(PosixTimeZone.getTimeZone("Europe/Chisinau"));
-	
+
 	socketManager.loop();
 }
