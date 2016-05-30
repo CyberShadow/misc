@@ -5,6 +5,7 @@ import std.exception;
 import std.file;
 import std.functional;
 import std.string;
+import std.process;
 
 import ae.net.asockets;
 import ae.sys.inotify;
@@ -26,12 +27,38 @@ enum iconWidth = 15;
 
 class Block
 {
-protected:
+private:
 	static BarBlock*[] blocks;
+	static Block[] blockOwners;
+
+protected:
+	final void addBlock(BarBlock* block)
+	{
+		block.instance = text(blocks.length);
+		blocks ~= block;
+		blockOwners ~= this;
+	}
 
 	static void send()
 	{
 		conn.send(blocks);
+	}
+
+	void handleClick(BarClick click)
+	{
+	}
+
+public:
+	static void clickHandler(BarClick click)
+	{
+		try
+		{
+			auto n = click.instance.to!size_t;
+			enforce(n < blockOwners.length);
+			blockOwners[n].handleClick(click);
+		}
+		catch (Throwable e)
+			spawnProcess(["notify-send", e.msg]).wait();
 	}
 }
 
@@ -68,7 +95,7 @@ class TimeBlock(string timeFormat) : TimerBlock
 	this(immutable(TimeZone) tz)
 	{
 		this.tz = tz;
-		blocks ~= &block;
+		addBlock(&block);
 	}
 
 	override void update(SysTime now)
@@ -110,6 +137,12 @@ class TimeBlock(string timeFormat) : TimerBlock
 
 		return RGB.itpl(a, b, cast(int)(sliceTime / 1_000_000), 0, cast(int)(slice / 1_000_000));
 	}
+
+	override void handleClick(BarClick click)
+	{
+		if (click.button == 1)
+			spawnProcess(["t", "sh", "-c", "cal -y ; read -n 1"]).wait();
+	}
 }
 
 class UtcTimeBlock : TimeBlock!`D Y-m-d H:i:s \U\T\C`
@@ -128,13 +161,19 @@ final class LoadBlock : TimerBlock
 		icon.full_text = text(wchar(FontAwesome.fa_tasks));
 		icon.min_width = iconWidth;
 		icon.separator = false;
-		blocks ~= &icon;
-		blocks ~= &block;
+		addBlock(&icon);
+		addBlock(&block);
 	}
 
 	override void update(SysTime now)
 	{
 		block.full_text = readText("/proc/loadavg").splitter(" ").front;
+	}
+
+	override void handleClick(BarClick click)
+	{
+		if (click.button == 1)
+			spawnProcess(["t", "htop"]).wait();
 	}
 }
 
@@ -146,12 +185,13 @@ final class PulseBlock : Block
 	{
 		icon.min_width = iconWidth;
 		icon.separator = false;
+		icon.name = "icon";
 
 		block.min_width_str = "100%";
 		block.alignment = "right";
 
-		blocks ~= &icon;
-		blocks ~= &block;
+		addBlock(&icon);
+		addBlock(&block);
 
 		pulseSubscribe(&update);
 		update();
@@ -178,6 +218,21 @@ final class PulseBlock : Block
 
 		send();
 	}
+
+	override void handleClick(BarClick click)
+	{
+		if (click.button == 1)
+			if (click.name == "icon")
+				spawnProcess(["pactl", "set-sink-mute", "0", "toggle"]).wait();
+			else
+				spawnProcess(["x", "pavucontrol"]).wait();
+		else
+		if (click.button == 4)
+			spawnProcess(["pactl", "set-sink-volume", "0", "+5%"]).wait();
+		else
+		if (click.button == 5)
+			spawnProcess(["pactl", "set-sink-volume", "0", "-5%"]).wait();
+	}
 }
 
 final class MpdBlock : Block
@@ -186,7 +241,7 @@ final class MpdBlock : Block
 
 	this()
 	{
-		blocks ~= &block;
+		addBlock(&block);
 		mpdSubscribe(&update);
 		update();
 	}
@@ -214,6 +269,12 @@ final class MpdBlock : Block
 		block.full_text = text(iconChar) ~ "  " ~ status.nowPlaying;
 		send();
 	}
+
+	override void handleClick(BarClick click)
+	{
+		if (click.button == 1)
+			spawnProcess(["x", "cantata"]).wait();
+	}
 }
 
 class ProcessBlock : Block
@@ -222,7 +283,7 @@ class ProcessBlock : Block
 
 	this(string[] args)
 	{
-		import std.process, core.sys.posix.unistd;
+		import core.sys.posix.unistd;
 		auto p = pipeProcess(args, Redirect.stdout);
 		auto sock = new FileConnection(p.stdout.fileno.dup);
 		auto lines = new LineBufferedAdapter(sock);
@@ -236,7 +297,7 @@ class ProcessBlock : Block
 				send();
 			};
 
-		blocks ~= &block;
+		addBlock(&block);
 	}
 }
 
@@ -257,14 +318,13 @@ final class BrightnessBlock : Block
 			}
 		);
 
-		blocks ~= &icon;
-		blocks ~= &block;
+		addBlock(&icon);
+		addBlock(&block);
 		update();
 	}
 
 	void update()
 	{
-		import std.process;
 		auto result = execute(["/home/vladimir/bin/home/pq321q-brightness-get"]);
 		try
 		{
@@ -277,11 +337,21 @@ final class BrightnessBlock : Block
 		}
 		catch {}
 	}
+
+	override void handleClick(BarClick click)
+	{
+		if (click.button == 4)
+			spawnProcess(["/home/vladimir/bin/home/pq321q-brightness-up"]).wait();
+		else
+		if (click.button == 5)
+			spawnProcess(["/home/vladimir/bin/home/pq321q-brightness-down"]).wait();
+	}
 }
 
 void main()
 {
 	conn = new I3Connection();
+	conn.clickHandler = toDelegate(&Block.clickHandler);
 
 	// System log
 	//new ProcessBlock(["journalctl", "--follow"]);

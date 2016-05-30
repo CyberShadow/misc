@@ -1,3 +1,5 @@
+import std.algorithm.searching;
+import std.exception;
 import std.socket;
 import std.stdio;
 
@@ -9,17 +11,33 @@ import i3;
 
 class I3Connection
 {
-	FileConnection stdinSock, stdoutSock;
+	void delegate(BarClick) clickHandler;
 
 	this()
 	{
 		stdinSock = new FileConnection(stdin.fileno);
 		stdoutSock = new FileConnection(stdout.fileno);
 
-		stdinSock.handleReadData =
+		auto stdinLines = new LineBufferedAdapter(stdinSock);
+		stdinLines.delimiter = "\n";
+
+		uint count;
+		stdinLines.handleReadData =
 			(Data data)
 			{
-				//stdoutSock.send(data);
+				auto str = cast(const(char)[])data.contents;
+				scope(exit) count++;
+				if (count == 0)
+				{
+					enforce(str == "[");
+					return;
+				}
+				else
+				if (count > 1)
+					enforce(str.skipOver(","));
+
+				if (clickHandler)
+					clickHandler(jsonParse!BarClick(str));
 			};
 		stdinSock.handleDisconnect =
 			(string reason, DisconnectType type)
@@ -38,4 +56,7 @@ class I3Connection
 		stdoutSock.send(Data(blocks.toJson()));
 		stdoutSock.send(Data(",\n"));
 	}
+
+private:
+	FileConnection stdinSock, stdoutSock;
 }
