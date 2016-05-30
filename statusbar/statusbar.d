@@ -71,6 +71,7 @@ class TimerBlock : Block
 		if (!instances.length)
 			onTimer();
 		instances ~= this;
+		update(Clock.currTime());
 	}
 
 	static TimerBlock[] instances;
