@@ -1,10 +1,13 @@
 import std.algorithm;
 import std.conv;
 import std.datetime;
+import std.exception;
 import std.file;
 import std.functional;
+import std.string;
 
 import ae.net.asockets;
+import ae.sys.inotify;
 import ae.sys.timing;
 import ae.utils.graphics.color;
 import ae.utils.meta;
@@ -18,6 +21,8 @@ import mpd;
 import pulse;
 
 I3Connection conn;
+
+enum iconWidth = 15;
 
 class Block
 {
@@ -121,7 +126,7 @@ final class LoadBlock : TimerBlock
 	this()
 	{
 		icon.full_text = text(wchar(FontAwesome.fa_tasks));
-		icon.min_width = 10;
+		icon.min_width = iconWidth;
 		icon.separator = false;
 		blocks ~= &icon;
 		blocks ~= &block;
@@ -139,7 +144,7 @@ final class PulseBlock : Block
 
 	this()
 	{
-		icon.min_width = 15;
+		icon.min_width = iconWidth;
 		icon.separator = false;
 
 		block.min_width_str = "100%";
@@ -233,6 +238,45 @@ class ProcessBlock : Block
 	}
 }
 
+final class BrightnessBlock : Block
+{
+	BarBlock icon, block;
+
+	this()
+	{
+		icon.full_text = text(wchar(FontAwesome.fa_sun_o));
+		icon.min_width = iconWidth;
+		icon.separator = false;
+
+		iNotify.add("/tmp/", INotify.Mask.create | INotify.Mask.modify,
+			(in char[] name, INotify.Mask mask, uint cookie)
+			{
+				update();
+			}
+		);
+
+		blocks ~= &icon;
+		blocks ~= &block;
+		update();
+	}
+
+	void update()
+	{
+		import std.process;
+		auto result = execute(["/home/vladimir/bin/home/pq321q-brightness-get"]);
+		try
+		{
+			enforce(result.status == 0);
+			auto value = result.output.strip().to!int;
+			auto pct = value * 100 / 31;
+
+			block.full_text = format("%3d%%", pct);
+			send();
+		}
+		catch {}
+	}
+}
+
 void main()
 {
 	conn = new I3Connection();
@@ -248,6 +292,9 @@ void main()
 
 	// Volume
 	new PulseBlock();
+
+	// Brightness
+	new BrightnessBlock();
 
 	// Load
 	new LoadBlock();
