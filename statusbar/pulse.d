@@ -1,3 +1,5 @@
+import core.sys.posix.unistd;
+
 import std.process;
 import std.string;
 
@@ -6,7 +8,7 @@ import ae.net.asockets;
 void pulseSubscribe(void delegate() callback)
 {
 	auto p = pipeProcess(["pactl", "subscribe"], Redirect.stdout);
-	auto sock = new FileConnection(p.stdout);
+	auto sock = new FileConnection(p.stdout.fileno.dup);
 	auto lines = new LineBufferedAdapter(sock);
 	lines.delimiter = "\n";
 

@@ -1,3 +1,5 @@
+import core.sys.posix.unistd;
+
 import std.process;
 import std.string;
 
@@ -6,7 +8,7 @@ import ae.net.asockets;
 void mpdSubscribe(void delegate() callback)
 {
 	auto p = pipeProcess(["mpc", "idleloop"], Redirect.stdout);
-	auto sock = new FileConnection(p.stdout);
+	auto sock = new FileConnection(p.stdout.fileno.dup);
 
 	sock.handleReadData =
 		(Data data)

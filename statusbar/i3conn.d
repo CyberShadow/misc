@@ -13,8 +13,8 @@ class I3Connection
 
 	this()
 	{
-		stdinSock = new FileConnection(stdin);
-		stdoutSock = new FileConnection(stdout);
+		stdinSock = new FileConnection(stdin.fileno);
+		stdoutSock = new FileConnection(stdout.fileno);
 
 		stdinSock.handleReadData =
 			(Data data)

@@ -215,9 +215,9 @@ class ProcessBlock : Block
 
 	this(string[] args)
 	{
-		import std.process;
+		import std.process, core.sys.posix.unistd;
 		auto p = pipeProcess(args, Redirect.stdout);
-		auto sock = new FileConnection(p.stdout);
+		auto sock = new FileConnection(p.stdout.fileno.dup);
 		auto lines = new LineBufferedAdapter(sock);
 		lines.delimiter = "\n";
 
