@@ -161,18 +161,20 @@ final class PulseBlock : Block
 	{
 		auto volume = getVolume();
 		wchar iconChar = FontAwesome.fa_volume_off;
-		try
+		string volumeStr = "???%";
+		if (volume.known)
 		{
-			auto n = volume[0..$-1].to!int();
+			auto n = volume.percent;
 			iconChar =
+				volume.muted ? FontAwesome.fa_volume_off :
 				n == 0 ? FontAwesome.fa_volume_off :
 				n < 50 ? FontAwesome.fa_volume_down :
 				         FontAwesome.fa_volume_up;
+			volumeStr = "%3d%%".format(volume.percent);
 		}
-		catch {}
 
 		icon.full_text = text(iconChar);
-		block.full_text = volume;
+		block.full_text = volumeStr;
 
 		send();
 	}

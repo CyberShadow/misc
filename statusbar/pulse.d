@@ -1,5 +1,7 @@
 import core.sys.posix.unistd;
 
+import std.algorithm.searching;
+import std.conv;
 import std.process;
 import std.string;
 
@@ -28,12 +30,30 @@ void pulseSubscribe(void delegate() callback)
 		};
 }
 
-string getVolume()
+struct Volume
 {
+	bool known, muted;
+	int percent;
+}
+
+Volume getVolume()
+{
+	Volume volume;
 	auto result = execute(["pactl", "list", "sinks"]);
 	if (result.status == 0)
+	{
 		foreach (line; result.output.lineSplitter)
-			if (line.startsWith("	Volume: "))
-				return line.split()[4];
-	return "?%";
+			if (line.skipOver("\tVolume: "))
+			{
+				volume.percent = line.split()[3].chomp("%").to!int;
+				volume.known = true;
+			}
+			else
+			if (line.skipOver("\tMute: "))
+				volume.muted = line == "yes";
+			else
+			if (line == "Sink #1")
+				break;
+	}
+	return volume;
 }
