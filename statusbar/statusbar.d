@@ -363,29 +363,37 @@ void main()
 	conn = new I3Connection();
 	conn.clickHandler = toDelegate(&Block.clickHandler);
 
-	// System log
-	//new ProcessBlock(["journalctl", "--follow"]);
+	try
+	{
+		// System log
+		//new ProcessBlock(["journalctl", "--follow"]);
 
-	// Current window title
-	new ProcessBlock(["xtitle", "-s"], click => click.button == 1 ? spawnProcess(["x", "rofi", "-show", "window"]).wait() : {}());
+		// Current window title
+		new ProcessBlock(["xtitle", "-s"], click => click.button == 1 ? spawnProcess(["x", "rofi", "-show", "window"]).wait() : {}());
 
-	// Current playing track
-	new MpdBlock();
+		// Current playing track
+		new MpdBlock();
 
-	// Volume
-	new PulseBlock();
+		// Volume
+		new PulseBlock();
 
-	// Brightness
-	new BrightnessBlock();
+		// Brightness
+		new BrightnessBlock();
 
-	// Load
-	new LoadBlock();
+		// Load
+		new LoadBlock();
 
-	// UTC time
-	new UtcTimeBlock();
+		// UTC time
+		new UtcTimeBlock();
 
-	// Local time
-	new TzTimeBlock(PosixTimeZone.getTimeZone("Europe/Chisinau"));
+		// Local time
+		new TzTimeBlock(PosixTimeZone.getTimeZone("Europe/Chisinau"));
 
-	socketManager.loop();
+		socketManager.loop();
+	}
+	catch (Throwable e)
+	{
+		std.file.write("statusbar-error.txt", e.toString());
+		throw e;
+	}
 }
