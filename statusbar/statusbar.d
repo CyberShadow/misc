@@ -23,7 +23,7 @@ import pulse;
 
 I3Connection conn;
 
-enum iconWidth = 15;
+enum iconWidth = 11;
 
 class Block
 {
