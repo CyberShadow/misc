@@ -321,16 +321,16 @@ final class BrightnessBlock : Block
 		icon.min_width = iconWidth;
 		icon.separator = false;
 
+		addBlock(&icon);
+		addBlock(&block);
+		update();
+
 		iNotify.add("/tmp/pq321q-brightness", INotify.Mask.create | INotify.Mask.modify,
 			(in char[] name, INotify.Mask mask, uint cookie)
 			{
 				update();
 			}
 		);
-
-		addBlock(&icon);
-		addBlock(&block);
-		update();
 	}
 
 	void update()
