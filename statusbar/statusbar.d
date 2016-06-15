@@ -4,6 +4,7 @@ import std.datetime;
 import std.exception;
 import std.file;
 import std.functional;
+import std.stdio;
 import std.string;
 import std.process;
 
@@ -238,10 +239,16 @@ final class PulseBlock : Block
 
 final class MpdBlock : Block
 {
-	BarBlock block;
+	BarBlock icon, block;
+	string status;
 
 	this()
 	{
+		icon.min_width = iconWidth;
+		icon.separator = false;
+		icon.name = "icon";
+
+		addBlock(&icon);
 		addBlock(&block);
 		mpdSubscribe(&update);
 		update();
@@ -250,6 +257,7 @@ final class MpdBlock : Block
 	void update()
 	{
 		auto status = getMpdStatus();
+		this.status = status.status;
 		wchar iconChar;
 		switch (status.status)
 		{
@@ -267,14 +275,27 @@ final class MpdBlock : Block
 				break;
 		}
 
-		block.full_text = text(iconChar) ~ "  " ~ status.nowPlaying;
+		icon.full_text = text(iconChar);
+		block.full_text = status.nowPlaying;
 		send();
 	}
 
 	override void handleClick(BarClick click)
 	{
-		if (click.button == 1)
-			spawnProcess(["x", "cantata"]).wait();
+		if (click.name == "icon")
+		{
+			string cmd;
+			if (status == "playing")
+				cmd = click.button == 1 ? "pause" : "stop";
+			else
+				cmd = "play";
+			spawnProcess(["mpc", cmd], stdin, File("/dev/null", "wb")).wait();
+		}
+		else
+			if (click.button == 1)
+			{
+				spawnProcess(["x", "cantata"]).wait();
+			}
 	}
 }
 
