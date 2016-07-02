@@ -4,6 +4,7 @@ import std.ascii;
 import std.conv;
 import std.exception;
 import std.file;
+import std.path;
 import std.process;
 import std.range;
 import std.regex;
@@ -17,14 +18,21 @@ import ae.utils.regex;
 
 enum initialBootNum = 2000;
 enum grubConfig = "/boot/grub/grub.cfg";
+enum linkDir = "/var/local/grub2efi/links/";
 
 void grub2efi(bool dryRun)
 {
+	void maybeDo(string desc, scope void delegate() action)
+	{
+		stderr.writeln(desc);
+		if (!dryRun)
+			action();
+	}
+
 	void maybeRun(string[] command, lazy File output = stdout)
 	{
-		stderr.writefln("%s: %s", dryRun ? "Would run" : "Running", escapeShellCommand(command));
-		if (!dryRun)
-			enforce(spawnProcess(command, stdin, output).wait() == 0, command[0] ~ " failed");
+		maybeDo(format("%s: %s", dryRun ? "Would run" : "Running", escapeShellCommand(command)),
+			{ enforce(spawnProcess(command, stdin, output).wait() == 0, command[0] ~ " failed"); });
 	}
 
 	maybeRun(["grub-mkconfig"], File(grubConfig, "wb"));
@@ -53,8 +61,19 @@ void grub2efi(bool dryRun)
 				});
 	}
 
+	if (linkDir.exists)
+		maybeDo(format("%s %s", dryRun ? "Would clean up" : "Cleaning up", linkDir),
+			{ rmdirRecurse(linkDir); });
+
+	void maybePut(string fileName, string contents)
+	{
+		maybeDo(format("%s %s", dryRun ? "Would create" : "Creating", fileName),
+			{ ensurePathExists(fileName); std.file.write(fileName, contents); });
+	}
+
 	string name, kernel;
 	string[] initrd, parameters;
+	bool[string] sawKernel;
 
 	int bootNum = initialBootNum;
 
@@ -78,21 +97,30 @@ void grub2efi(bool dryRun)
 		else
 		if (args == ["}"] && name)
 		{
-			// if (bootNum in bootEntries)
-			// 	maybeRun(["efibootmgr", 
+			if (bootNum in bootEntries)
+				maybeRun(["efibootmgr", "--bootnum", text(bootNum), "--delete-bootnum"]);
 
 			auto commandLine = parameters ~ initrd.map!(path => "initrd=" ~ path).array;
 			maybeRun([
 				"efibootmgr",
-				"--bootnum", text(bootNum++),
+				"--create",
+				"--bootnum", text(bootNum),
 				"--gpt",
 				"--disk", disk,
 				"--part", diskPart,
-				"--label", name,
+				"--label", "%d. %s".format(bootNum - initialBootNum + 1, name),
 				"--loader", kernel,
 				"--unicode", commandLine.map!escapeKernelParam.join(" "),
-			] ~ (bootNum in bootEntries ? [] : ["--create"]));
+			]);
 
+			maybePut(linkDir ~ "/by-name/" ~ name, text(bootNum));
+			if (kernel.baseName() !in sawKernel)
+			{
+				maybePut(linkDir ~ "/by-kernel/" ~ kernel.baseName(), text(bootNum));
+				sawKernel[kernel.baseName()] = true;
+			}
+
+			bootNum++;
 			name = kernel = null;
 			initrd = parameters = null;
 		}
