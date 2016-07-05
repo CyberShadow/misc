@@ -46,24 +46,27 @@ struct Volume
 	int percent;
 }
 
+enum sinkName = "combined";
+
 Volume getVolume()
 {
 	Volume volume;
 	auto result = execute(["pactl", "list", "sinks"]);
+	bool inSelectedSink;
 	if (result.status == 0)
 	{
 		foreach (line; result.output.lineSplitter)
-			if (line.skipOver("\tVolume: "))
+			if (line.skipOver("\tName: "))
+				inSelectedSink = line == sinkName;
+			else
+			if (line.skipOver("\tVolume: ") && inSelectedSink)
 			{
 				volume.percent = line.split()[3].chomp("%").to!int;
 				volume.known = true;
 			}
 			else
-			if (line.skipOver("\tMute: "))
+			if (line.skipOver("\tMute: ") && inSelectedSink)
 				volume.muted = line == "yes";
-			else
-			if (line == "Sink #1")
-				break;
 	}
 	return volume;
 }

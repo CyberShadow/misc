@@ -14,6 +14,7 @@ import ae.sys.timing;
 import ae.utils.graphics.color;
 import ae.utils.meta;
 import ae.utils.meta.args;
+import ae.utils.path;
 import ae.utils.time.format;
 
 import fontawesome;
@@ -225,15 +226,15 @@ final class PulseBlock : Block
 	{
 		if (click.button == 1)
 			if (click.name == "icon")
-				spawnProcess(["pactl", "set-sink-mute", "0", "toggle"]).wait();
+				spawnProcess(["pactl", "set-sink-mute", sinkName, "toggle"]).wait();
 			else
 				spawnProcess(["x", "pavucontrol"]).wait();
 		else
 		if (click.button == 4)
-			spawnProcess(["pactl", "set-sink-volume", "0", "+5%"]).wait();
+			spawnProcess(["pactl", "set-sink-volume", sinkName, "+5%"]).wait();
 		else
 		if (click.button == 5)
-			spawnProcess(["pactl", "set-sink-volume", "0", "-5%"]).wait();
+			spawnProcess(["pactl", "set-sink-volume", sinkName, "-5%"]).wait();
 	}
 }
 
