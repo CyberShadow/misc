@@ -230,6 +230,9 @@ final class PulseBlock : Block
 			else
 				spawnProcess(["x", "pavucontrol"]).wait();
 		else
+		if (click.button == 3)
+			spawnProcess(["speakers"], stdin, File(nullFileName, "w")).wait();
+		else
 		if (click.button == 4)
 			spawnProcess(["pactl", "set-sink-volume", sinkName, "+5%"]).wait();
 		else
