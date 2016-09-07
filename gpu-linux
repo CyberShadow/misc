@@ -1,19 +1,25 @@
 #!/bin/bash
 set -eux
 
+WIN_VM=win-vfio
+
 # Remove devices from Windows
 #ssh 192.168.0.18 devcon remove '"@PCI\VEN_10DE&DEV_1005&SUBSYS_84511043&REV_A1\3&13C0B0C5&0&78"'
 #ssh 192.168.0.18 devcon remove '"@HDAUDIO\FUNC_01&VEN_10DE&DEV_0044&SUBSYS_10438451&REV_1001\4&124E27CE&1&0001"'
-ssh 192.168.0.18 devcon remove '"@PCI\VEN_10DE&DEV_1005&SUBSYS_84511043&REV_A1\*"'
-ssh 192.168.0.18 devcon remove '"@HDAUDIO\FUNC_01&VEN_10DE&DEV_0044&SUBSYS_10438451&REV_1001\*"'
 
-# Detach from virsh
-for D in gpu gpu-audio mouse keyboard
-do
-	sudo virsh detach-device win ~/work/misc/hostdev/$D.xml
-done
+#ssh 192.168.0.18 devcon remove '"@PCI\VEN_10DE&DEV_1005&SUBSYS_84511043&REV_A1\*"'
+#ssh 192.168.0.18 devcon remove '"@HDAUDIO\FUNC_01&VEN_10DE&DEV_0044&SUBSYS_10438451&REV_1001\*"'
 
-# Assign devices to VFIO
+if [[ "$(sudo virsh list --all | awk -v "name=$WIN_VM" '($2==name) {print $3}')" == running ]]
+then
+	# Detach from virsh
+	for D in gpu gpu-audio mouse keyboard
+	do
+		sudo virsh detach-device $WIN_VM ~/work/misc/hostdev/$D.xml
+	done
+fi
+
+# Unbind devices from VFIO
 echo 10de 1005 | sudo tee /sys/bus/pci/drivers/vfio-pci/remove_id
 echo 0000:05:00.0 | sudo tee /sys/bus/pci/drivers/vfio-pci/unbind
 #echo 10de 0e1a | sudo tee /sys/bus/pci/drivers/vfio-pci/new_id
