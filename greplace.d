@@ -15,12 +15,16 @@ void main(string[] args)
 		"w", &wide,
 		"f", &force);
 
-	if (args.length != 3)
-		throw new Exception("Usage: " ~ args[0] ~ " [-f] <from> <to>");
+	if (args.length < 3)
+		throw new Exception("Usage: " ~ args[0] ~ " [-f] <from> <to> [TARGETS...]");
+	auto targets = args[3..$];
+	if (!targets.length)
+		targets = [""];
+
 	auto from = cast(ubyte[])args[1], to = cast(ubyte[])args[2];
 	auto fromw = cast(ubyte[])std.conv.to!wstring(args[1]), tow = cast(ubyte[])std.conv.to!wstring(args[2]);
 
-	auto files = array(map!`a.name`(dirEntries("", SpanMode.breadth)));
+	auto files = targets.map!(target => target.isDir ? dirEntries(target, SpanMode.breadth).map!`a.name`().array : [target]).join();
 	if (!force)
 	{
 		foreach (file; files)
