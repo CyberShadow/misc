@@ -71,6 +71,10 @@ void btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cl
 			{
 				if (flagPath.exists)
 				{
+					stderr.writeln(">>> Acquiring lock...");
+					auto flag = File(flagPath, "wb");
+					enforce(flag.tryLock(), "Exclusive locking failed");
+
 					stderr.writeln(">>> Cleaning up partially-received snapshot");
 					if (!dryRun)
 					{
@@ -135,7 +139,8 @@ void btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cl
 			stderr.writefln(">>> %-(%s %) | %-(%s %)", sendArgs, recvArgs);
 			if (!dryRun)
 			{
-				touch(flagPath);
+				auto flag = File(flagPath, "wb");
+				enforce(flag.tryLock(), "Exclusive locking failed");
 				sync();
 				scope(exit) flagPath.remove();
 
