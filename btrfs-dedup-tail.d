@@ -50,7 +50,7 @@ void btrfs_dedup_tail(string srcFile, string dstFile)
 			while (pos + blockSize > fDst.size);
 		}
 
-		stderr.writefln("%d/%d (%3d%%) [%s]", pos, size, pos * 100 / size, deduplicating ? "s" : "d");
+		stderr.writefln("%d/%d (%3d%%) [%s]", pos, size, pos * 100 / size, deduplicating ? "d" : "s");
 
 		auto readSrc = fSrc.rawRead(bufSrc[]);
 		enforce(readSrc.length == blockSize, "Unexpected end of source file");
