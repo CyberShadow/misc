@@ -24,7 +24,7 @@ void main(string[] args)
 	auto from = cast(ubyte[])args[1], to = cast(ubyte[])args[2];
 	auto fromw = cast(ubyte[])std.conv.to!wstring(args[1]), tow = cast(ubyte[])std.conv.to!wstring(args[2]);
 
-	auto files = targets.map!(target => target.isDir ? dirEntries(target, SpanMode.breadth).map!`a.name`().array : [target]).join();
+	auto files = targets.map!(target => target.empty || target.isDir ? dirEntries(target, SpanMode.breadth).map!`a.name`().array : [target]).join();
 	if (!force)
 	{
 		foreach (file; files)
