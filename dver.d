@@ -28,9 +28,12 @@ int dver(
 	Switch!("Run via Wine", 'w') wine,
 	Switch!("Use 32-bit model", 0, "32") model32,
 	Parameter!(string, "D version to use") dVersion,
-	Parameter!(string[], "Command to execute") command,
+	Parameter!(string, "Program to execute") program,
+	Parameter!(string[], "Program arguments") args = null,
 )
 {
+	auto command = [program.value] ~ args.value;
+
 	auto dir = BASE ~ `dmd.` ~ dVersion;
 
 	if (!dir.exists)
