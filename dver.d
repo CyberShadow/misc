@@ -27,24 +27,24 @@ int dver(
 	Switch!("Verbose output", 'v') verbose,
 	Switch!("Run via Wine", 'w') wine,
 	Switch!("Use 32-bit model", 0, "32") model32,
-	Parameter!(string, "D version to use") dver,
+	Parameter!(string, "D version to use") dVersion,
 	Parameter!(string[], "Command to execute") command,
 )
 {
-	auto dir = BASE ~ `dmd.` ~ dver;
+	auto dir = BASE ~ `dmd.` ~ dVersion;
 
 	if (!dir.exists)
 	{
 		if (download)
 		{
 			string fn;
-			if (dver < "2.071.0")
-				fn = "dmd.%s.zip".format(dver);
+			if (dVersion < "2.071.0")
+				fn = "dmd.%s.zip".format(dVersion);
 			else
-				fn = "dmd.%s.%s.zip".format(dver, platform);
+				fn = "dmd.%s.%s.zip".format(dVersion, platform);
 			if (verbose) stderr.writefln("Downloading %s...", fn);
 			auto url = "http://downloads.dlang.org/releases/%s.x/%s/%s"
-				.format(dver[0], dver, fn);
+				.format(dVersion[0], dVersion, fn);
 			auto zip = BASE ~ fn;
 			auto ret = spawnProcess(["aget", "--out", zip, url], null, Config.none, "/").wait();
 			enforce(ret==0, "Download failed");
@@ -55,7 +55,7 @@ int dver(
 		else
 		{
 			if (verbose) stderr.writeln("Directory not found, scanning similar versions...");
-			auto dirs = dirEntries(BASE, `dmd.` ~ dver ~ ".*", SpanMode.shallow)
+			auto dirs = dirEntries(BASE, `dmd.` ~ dVersion ~ ".*", SpanMode.shallow)
 				.filter!(de => de.isDir)
 				.map!(de => de.baseName)
 				.array
@@ -64,7 +64,7 @@ int dver(
 			if (dirs.length)
 			{
 				auto lastDir = dirs[$-1];
-				stderr.writefln("(auto-correcting D version %s to %s)", dver, lastDir[4..$]);
+				stderr.writefln("(auto-correcting D version %s to %s)", dVersion, lastDir[4..$]);
 				dir = BASE ~ lastDir;
 			}
 		}
