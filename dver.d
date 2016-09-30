@@ -22,20 +22,15 @@ version(Windows)
 else
 	static assert(false);
 
-int main(string[] args)
+int dver(
+	Switch!("Download versions if not present", 'd') download,
+	Switch!("Verbose output", 'v') verbose,
+	Switch!("Run via Wine", 'w') wine,
+	Switch!("Use 32-bit model", 0, "32") model32,
+	Parameter!(string, "D version to use") dver,
+	Parameter!(string[], "Command to execute") command,
+)
 {
-	bool download, verbose, wine, model32;
-	getopt(args,
-		config.stopOnFirstNonOption,
-		"d|dl", &download,
-		"v|verbose", &verbose,
-		"wine", &wine,
-		"32", &model32,
-	);
-
-	enforce(args.length >= 3, "Usage: dver [-d] DVERSION COMMAND [COMMAND-ARGS...]");
-	auto dver = args[1];
-	auto command = args[2..$];
 	auto dir = BASE ~ `dmd.` ~ dver;
 
 	if (!dir.exists)
@@ -114,3 +109,8 @@ int main(string[] args)
 	}
 	throw new Exception("Can't find bin directory under " ~ dir);
 }
+
+import ae.utils.main;
+import ae.utils.funopt;
+
+mixin main!(funopt!dver);
