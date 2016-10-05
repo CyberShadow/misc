@@ -394,7 +394,15 @@ void main()
 		//new ProcessBlock(["journalctl", "--follow"]);
 
 		// Current window title
-		new ProcessBlock(["xtitle", "-s"], click => click.button == 1 ? spawnProcess(["x", "rofi", "-show", "window"]).wait() : {}());
+		new ProcessBlock(["xtitle", "-s"], (click) {
+				switch (click.button)
+				{
+					case 1: spawnProcess(["x", "rofi", "-show", "window"]).wait(); break;
+					case 4: spawnProcess(["i3-msg", "workspace", "prev_on_output"], stdin, File(nullFileName, "w")).wait(); break;
+					case 5: spawnProcess(["i3-msg", "workspace", "next_on_output"], stdin, File(nullFileName, "w")).wait(); break;
+					default: break;
+				}
+			});
 
 		// Current playing track
 		new MpdBlock();
