@@ -370,7 +370,7 @@ final class BrightnessBlock : Block
 			block.full_text = format("%3d%%", pct);
 			send();
 		}
-		catch {}
+		catch (Exception) {}
 	}
 
 	override void handleClick(BarClick click)
