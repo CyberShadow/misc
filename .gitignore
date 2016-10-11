@@ -7,3 +7,4 @@
 !/gpu-linux
 /-/
 *.o
+/firefox/gm_scripts/config.xml
