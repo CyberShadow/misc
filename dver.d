@@ -3,7 +3,7 @@ import std.array;
 import std.conv;
 import std.exception;
 import std.file;
-import std.getopt;
+import std.getopt : config;
 import std.path;
 import std.process;
 import std.stdio;
@@ -27,12 +27,17 @@ int dver(
 	Switch!("Verbose output", 'v') verbose,
 	Switch!("Run via Wine", 'w') wine,
 	Switch!("Use 32-bit model", 0, "32") model32,
+	Option!(string, "Whether to use a beta release, and which") beta,
 	Parameter!(string, "D version to use") dVersion,
 	Parameter!(string, "Program to execute") program,
 	Parameter!(string[], "Program arguments") args = null,
 )
 {
 	auto command = [program.value] ~ args.value;
+
+	string baseVersion = dVersion;
+	if (beta)
+		dVersion ~= "-b" ~ beta;
 
 	auto dir = BASE ~ `dmd.` ~ dVersion;
 
@@ -46,8 +51,12 @@ int dver(
 			else
 				fn = "dmd.%s.%s.zip".format(dVersion, platform);
 			if (verbose) stderr.writefln("Downloading %s...", fn);
-			auto url = "http://downloads.dlang.org/releases/%s.x/%s/%s"
-				.format(dVersion[0], dVersion, fn);
+			auto url = "http://downloads.dlang.org/%sreleases/%s.x/%s/%s".format(
+				beta ? "pre-" : "",
+				baseVersion[0],
+				baseVersion,
+				fn,
+			);
 			auto zip = BASE ~ fn;
 			auto ret = spawnProcess(["aget", "--out", zip, url], null, Config.none, "/").wait();
 			enforce(ret==0, "Download failed");
