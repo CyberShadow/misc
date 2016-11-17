@@ -14,14 +14,6 @@ import ae.sys.file;
 
 enum BASE = `/home/vladimir/Downloads/!dmd/`;
 
-version(linux)
-	enum platform = "linux";
-else
-version(Windows)
-	enum platform = "windows";
-else
-	static assert(false);
-
 int dver(
 	Switch!("Download versions if not present", 'd') download,
 	Switch!("Verbose output", 'v') verbose,
@@ -39,17 +31,48 @@ int dver(
 	if (beta)
 		dVersion ~= "-b" ~ beta;
 
-	auto dir = BASE ~ `dmd.` ~ dVersion;
+	string platform;
+	if (wine)
+		platform = "windows";
+	else
+	{
+		version(linux)
+			platform = "linux";
+		else
+		version(Windows)
+			platform = "windows";
+		else
+			static assert(false);
+	}
 
-	if (!dir.exists)
+	string platformSuffix = baseVersion < "2.071.0" ? "" : "." ~ platform;
+	auto dir = BASE ~ "dmd." ~ dVersion ~ platformSuffix;
+
+	string model = model32 ? "32" : "64";
+	string[] binDirs = [`dmd2/` ~ platform ~ `/bin` ~ model, `dmd2/` ~ platform ~ `/bin`, `dmd/` ~ platform ~ `/bin`, `dmd/bin`];
+	string binExt = platform == "windows" ? ".exe" : "";
+
+	bool found;
+	if (dir.exists)
+	{
+		foreach (binDir; binDirs)
+		{
+			auto binPath = dir ~ `/` ~ binDir;
+			auto dmd = binPath ~ "/dmd" ~ binExt;
+			if (dmd.exists)
+			{
+				if (verbose) stderr.writefln("Found dmd: %s", dmd);
+				found = true;
+				break;
+			}
+		}
+	}
+
+	if (!found)
 	{
 		if (download)
 		{
-			string fn;
-			if (dVersion < "2.071.0")
-				fn = "dmd.%s.zip".format(dVersion);
-			else
-				fn = "dmd.%s.%s.zip".format(dVersion, platform);
+			string fn = "dmd." ~ dVersion ~ platformSuffix ~ ".zip";
 			if (verbose) stderr.writefln("Downloading %s...", fn);
 			auto url = "http://downloads.dlang.org/%sreleases/%s.x/%s/%s".format(
 				beta ? "pre-" : "",
@@ -63,13 +86,14 @@ int dver(
 
 			if (verbose) stderr.writefln("Unzipping %s...", fn);
 			atomic!unzip(zip, dir);
+			found = true;
 		}
 		else
 		{
 			if (verbose) stderr.writeln("Directory not found, scanning similar versions...");
-			auto dirs = dirEntries(BASE, `dmd.` ~ dVersion ~ ".*", SpanMode.shallow)
+			auto dirs = dirEntries(BASE, `dmd.` ~ dVersion ~ ".*" ~ platformSuffix, SpanMode.shallow)
 				.filter!(de => de.isDir)
-				.map!(de => de.baseName)
+				.map!(de => de.baseName.chomp(platformSuffix))
 				.array
 				.sort();
 			if (verbose) stderr.writefln("Found versions: ", dirs);
@@ -77,26 +101,12 @@ int dver(
 			{
 				auto lastDir = dirs[$-1];
 				stderr.writefln("(auto-correcting D version %s to %s)", dVersion, lastDir[4..$]);
-				dir = BASE ~ lastDir;
+				dir = BASE ~ lastDir ~ platformSuffix;
+				found = true;
 			}
 		}
 	}
-	enforce(dir.exists, "Directory doesn't exist: " ~ dir);
-
-	string[] binDirs;
-	string binExt;
-
-	if (wine)
-	{
-		binDirs = [`dmd2/windows/bin`, `dmd/windows/bin`, `dmd/bin`];
-		binExt = ".exe";
-	}
-	else
-	{
-		string model = model32 ? "32" : "64";
-		binDirs = [`dmd2/linux/bin` ~ model, `dmd2/linux/bin`, `dmd/linux/bin`, `dmd/bin`];
-		binExt = "";
-	}
+	enforce(found, "Can't find this D version.");
 
 	foreach (binDir; binDirs)
 	{
