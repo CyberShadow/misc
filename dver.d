@@ -124,6 +124,7 @@ int dver(
 
 import ae.utils.main;
 import ae.utils.funopt;
+static import std.getopt;
 
 const FunOptConfig funoptConfig = { getoptConfig : [ std.getopt.config.stopOnFirstNonOption ] };
 mixin main!(funopt!(dver, funoptConfig));
