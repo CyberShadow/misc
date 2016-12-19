@@ -1,5 +1,6 @@
 /druntime/import/
 /home/ircd/
+/home/deadcode/
 /home/vladimir/.cache/pacaur/
 /home/vladimir/.dub/
 /home/vladimir/.local/share/Trash/
