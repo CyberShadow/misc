@@ -21,8 +21,15 @@ void main(string[] args)
 	if (!targets.length)
 		targets = [""];
 
-	auto from = cast(ubyte[])args[1], to = cast(ubyte[])args[2];
-	auto fromw = cast(ubyte[])std.conv.to!wstring(args[1]), tow = cast(ubyte[])std.conv.to!wstring(args[2]);
+	ubyte[] from, to, fromw, tow;
+	from = cast(ubyte[])args[1];
+	to   = cast(ubyte[])args[2];
+
+	if (wide)
+	{
+		fromw = cast(ubyte[])std.conv.to!wstring(args[1]);
+		tow   = cast(ubyte[])std.conv.to!wstring(args[2]);
+	}
 
 	auto files = targets.map!(target => target.empty || target.isDir ? dirEntries(target, SpanMode.breadth).map!`a.name`().array : [target]).join();
 	if (!force)
@@ -40,7 +47,7 @@ void main(string[] args)
 
 			if (data.countUntil(to)>=0)
 				throw new Exception("File " ~ file ~ " already contains " ~ args[2]);
-			if (data.countUntil(tow)>=0)
+			if (wide && data.countUntil(tow)>=0)
 				throw new Exception("File " ~ file ~ " already contains " ~ args[2] ~ " (in UTF-16)");
 		}
 	}
