@@ -12,8 +12,8 @@ void main(string[] args)
 {
 	bool force, wide;
 	getopt(args,
-		"w", &wide,
-		"f", &force);
+		"w|wide", &wide,
+		"f|force", &force);
 
 	if (args.length < 3)
 		throw new Exception("Usage: " ~ args[0] ~ " [-f] <from> <to> [TARGETS...]");
