@@ -34,7 +34,7 @@ import std.string;
       - move cleanup to a separate tool
  */
 
-void btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cleanUp)
+int btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cleanUp)
 {
 	string[][string] allSnapshots;
 
@@ -52,6 +52,8 @@ void btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cl
 		allSnapshots[name] ~= time;
 	}
 
+	bool error;
+
 	foreach (subvolume, snapshots; allSnapshots)
 	{
 		snapshots.sort();
@@ -62,120 +64,130 @@ void btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cl
 			if (!snapshot.length)
 				continue; // live subvolume
 			stderr.writefln(">> Snapshot %s", snapshot);
-			auto snapshotSubvolume = subvolume ~ "-" ~ snapshot;
-			auto srcPath = buildPath(srcRoot, snapshotSubvolume);
-			assert(srcPath.exists);
-			auto dstPath = buildPath(dstRoot, snapshotSubvolume);
-			auto flagPath = dstPath ~ ".partial";
-			if (dstPath.exists)
-			{
-				if (flagPath.exists)
-				{
-					stderr.writeln(">>> Acquiring lock...");
-					auto flag = File(flagPath, "wb");
-					enforce(flag.tryLock(), "Exclusive locking failed");
 
-					stderr.writeln(">>> Cleaning up partially-received snapshot");
-					if (!dryRun)
+			try
+			{
+				auto snapshotSubvolume = subvolume ~ "-" ~ snapshot;
+				auto srcPath = buildPath(srcRoot, snapshotSubvolume);
+				assert(srcPath.exists);
+				auto dstPath = buildPath(dstRoot, snapshotSubvolume);
+				auto flagPath = dstPath ~ ".partial";
+				if (dstPath.exists)
+				{
+					if (flagPath.exists)
 					{
-						btrfs_subvolume_delete(dstPath);
-						sync();
-						flagPath.remove();
-						stderr.writeln(">>>> OK");
+						stderr.writeln(">>> Acquiring lock...");
+						auto flag = File(flagPath, "wb");
+						enforce(flag.tryLock(), "Exclusive locking failed");
+
+						stderr.writeln(">>> Cleaning up partially-received snapshot");
+						if (!dryRun)
+						{
+							btrfs_subvolume_delete(dstPath);
+							sync();
+							flagPath.remove();
+							stderr.writeln(">>>> OK");
+						}
+					}
+					else
+					{
+						stderr.writeln(">>> Already in destination, skipping");
+						continue;
 					}
 				}
 				else
 				{
-					stderr.writeln(">>> Already in destination, skipping");
-					continue;
-				}
-			}
-			else
-			{
-				if (flagPath.exists)
-				{
-					stderr.writeln(">>> Deleting orphan flag file: ", flagPath);
-					if (!dryRun)
-						flagPath.remove();
-				}
-			}
-			assert(!flagPath.exists || dryRun);
-			assert(!dstPath.exists || dryRun);
-
-			auto info = btrfs_subvolume_show(srcPath);
-			if (!info["Flags"].split(" ").canFind("readonly"))
-			{
-				stderr.writeln(">>> Not readonly, skipping");
-				continue;
-			}
-
-			string parent;
-			foreach (parentSnapshot; chain(snapshots[0..snapshotIndex].retro, snapshots[snapshotIndex..$]))
-			{
-				auto parentSubvolume = subvolume ~ "-" ~ parentSnapshot;
-				auto dstParentPath = buildPath(dstRoot, parentSubvolume);
-				//debug stderr.writefln(">>> Checking for parent: %s", dstParentPath);
-				if (dstParentPath.exists)
-				{
-					stderr.writefln(">>> Found parent: %s", parentSnapshot);
-					parent = parentSubvolume;
-					break;
-				}
-			}
-			if (!parent)
-				stderr.writefln(">>> No parent found, sending whole.");
-
-			auto sendArgs = ["btrfs", "send"];
-			if (parent)
-			{
-				auto srcParentPath = buildPath(srcRoot, parent);
-				assert(srcParentPath.exists);
-				sendArgs ~= ["-p", srcParentPath];
-			}
-
-			sendArgs ~= srcPath;
-			auto recvArgs = ["btrfs", "receive", dstRoot];
-
-			stderr.writefln(">>> %-(%s %) | %-(%s %)", sendArgs, recvArgs);
-			if (!dryRun)
-			{
-				auto flag = File(flagPath, "wb");
-				enforce(flag.tryLock(), "Exclusive locking failed");
-				sync();
-				scope(exit) flagPath.remove();
-
-				scope(failure)
-				{
-					if (dstPath.exists)
+					if (flagPath.exists)
 					{
-						stderr.writefln(">>> Error, deleting partially-sent subvolume...");
-						btrfs_subvolume_delete(dstPath);
-						sync();
-						stderr.writefln(">>>> Done.");
+						stderr.writeln(">>> Deleting orphan flag file: ", flagPath);
+						if (!dryRun)
+							flagPath.remove();
 					}
 				}
-				auto sendPipe = pipe();
-				auto sendPid = spawnProcess(sendArgs, stdin, sendPipe.writeEnd);
-				auto recvPid = spawnProcess(recvArgs, sendPipe.readEnd);
-				enforce(recvPid.wait() == 0, "btrfs-receive failed");
-				enforce(sendPid.wait() == 0, "btrfs-send failed");
-				enforce(dstPath.exists, "Sent subvolume does not exist: " ~ dstPath);
-				stderr.writeln(">>>> OK");
-			}
+				assert(!flagPath.exists || dryRun);
+				assert(!dstPath.exists || dryRun);
 
-			if (parent && cleanUp)
-			{
-				stderr.writefln(">>> Clean-up: parent %s", parent);
+				auto info = btrfs_subvolume_show(srcPath);
+				if (!info["Flags"].split(" ").canFind("readonly"))
+				{
+					stderr.writeln(">>> Not readonly, skipping");
+					continue;
+				}
+
+				string parent;
+				foreach (parentSnapshot; chain(snapshots[0..snapshotIndex].retro, snapshots[snapshotIndex..$]))
+				{
+					auto parentSubvolume = subvolume ~ "-" ~ parentSnapshot;
+					auto dstParentPath = buildPath(dstRoot, parentSubvolume);
+					//debug stderr.writefln(">>> Checking for parent: %s", dstParentPath);
+					if (dstParentPath.exists)
+					{
+						stderr.writefln(">>> Found parent: %s", parentSnapshot);
+						parent = parentSubvolume;
+						break;
+					}
+				}
+				if (!parent)
+					stderr.writefln(">>> No parent found, sending whole.");
+
+				auto sendArgs = ["btrfs", "send"];
+				if (parent)
+				{
+					auto srcParentPath = buildPath(srcRoot, parent);
+					assert(srcParentPath.exists);
+					sendArgs ~= ["-p", srcParentPath];
+				}
+
+				sendArgs ~= srcPath;
+				auto recvArgs = ["btrfs", "receive", dstRoot];
+
+				stderr.writefln(">>> %-(%s %) | %-(%s %)", sendArgs, recvArgs);
 				if (!dryRun)
 				{
-					assert(dstPath.exists);
-					auto srcParentPath = buildPath(srcRoot, parent);
-					btrfs_subvolume_delete(srcParentPath);
+					auto flag = File(flagPath, "wb");
+					enforce(flag.tryLock(), "Exclusive locking failed");
+					sync();
+					scope(exit) flagPath.remove();
+
+					scope(failure)
+					{
+						if (dstPath.exists)
+						{
+							stderr.writefln(">>> Error, deleting partially-sent subvolume...");
+							btrfs_subvolume_delete(dstPath);
+							sync();
+							stderr.writefln(">>>> Done.");
+						}
+					}
+					auto sendPipe = pipe();
+					auto sendPid = spawnProcess(sendArgs, stdin, sendPipe.writeEnd);
+					auto recvPid = spawnProcess(recvArgs, sendPipe.readEnd);
+					enforce(recvPid.wait() == 0, "btrfs-receive failed");
+					enforce(sendPid.wait() == 0, "btrfs-send failed");
+					enforce(dstPath.exists, "Sent subvolume does not exist: " ~ dstPath);
 					stderr.writeln(">>>> OK");
 				}
+
+				if (parent && cleanUp)
+				{
+					stderr.writefln(">>> Clean-up: parent %s", parent);
+					if (!dryRun)
+					{
+						assert(dstPath.exists);
+						auto srcParentPath = buildPath(srcRoot, parent);
+						btrfs_subvolume_delete(srcParentPath);
+						stderr.writeln(">>>> OK");
+					}
+				}
+			}
+			catch (Exception e)
+			{
+				stderr.writefln(">>> Error! %s", e.msg);
+				error = true;
 			}
 		}
 	}
+	return error ? 1 : 0;
 }
 
 /*
