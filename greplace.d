@@ -10,10 +10,12 @@ import std.string;
 
 void main(string[] args)
 {
-	bool force, wide;
+	bool force, wide, noContent;
 	getopt(args,
 		"w|wide", &wide,
-		"f|force", &force);
+		"f|force", &force,
+		"no-content", &noContent,
+	);
 
 	if (args.length < 3)
 		throw new Exception("Usage: " ~ args[0] ~ " [-f] <from> <to> [TARGETS...]");
@@ -45,50 +47,56 @@ void main(string[] args)
 			else
 				continue;
 
-			if (data.countUntil(to)>=0)
-				throw new Exception("File " ~ file ~ " already contains " ~ args[2]);
-			if (wide && data.countUntil(tow)>=0)
-				throw new Exception("File " ~ file ~ " already contains " ~ args[2] ~ " (in UTF-16)");
+			if (!noContent)
+			{
+				if (data.countUntil(to)>=0)
+					throw new Exception("File " ~ file ~ " already contains " ~ args[2]);
+				if (wide && data.countUntil(tow)>=0)
+					throw new Exception("File " ~ file ~ " already contains " ~ args[2] ~ " (in UTF-16)");
+			}
 		}
 	}
 
 	foreach (file; files)
 	{
-		ubyte[] s;
-		if (file.isSymlink())
-			s = cast(ubyte[])readLink(file);
-		else
-		if (file.isFile())
-			s = cast(ubyte[])std.file.read(file);
-		else
-			continue;
-
-		bool modified = false;
-		if (s.countUntil(from)>=0)
+		if (!noContent)
 		{
-			s = s.replace(from, to);
-			modified = true;
-		}
-		if (wide && s.countUntil(fromw)>=0)
-		{
-			s = s.replace(fromw, tow);
-			modified = true;
-		}
-
-		if (modified)
-		{
-			writeln(file);
-
-			if (file.isFile())
-				std.file.write(file, s);
-			else
+			ubyte[] s;
 			if (file.isSymlink())
-			{
-				remove(file);
-				symlink(cast(string)s, file);
-			}
+				s = cast(ubyte[])readLink(file);
 			else
-				assert(false);
+			if (file.isFile())
+				s = cast(ubyte[])std.file.read(file);
+			else
+				continue;
+
+			bool modified = false;
+			if (s.countUntil(from)>=0)
+			{
+				s = s.replace(from, to);
+				modified = true;
+			}
+			if (wide && s.countUntil(fromw)>=0)
+			{
+				s = s.replace(fromw, tow);
+				modified = true;
+			}
+
+			if (modified)
+			{
+				writeln(file);
+
+				if (file.isFile())
+					std.file.write(file, s);
+				else
+				if (file.isSymlink())
+				{
+					remove(file);
+					symlink(cast(string)s, file);
+				}
+				else
+					assert(false);
+			}
 		}
 
 		if (file.indexOf(args[1])>=0)
