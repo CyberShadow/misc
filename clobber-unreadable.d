@@ -14,7 +14,7 @@ import ae.utils.digest;
 import ae.utils.funopt;
 import ae.utils.main;
 
-enum defaultBlockSize = 16*1024;
+enum defaultBlockSize = 4*1024;
 
 void clobberUnreadable(string fileName, size_t blockSize = defaultBlockSize, ubyte replacementByte = 0x00)
 {
