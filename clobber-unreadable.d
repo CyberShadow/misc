@@ -35,7 +35,7 @@ void clobberUnreadable(string fileName, size_t blockSize = defaultBlockSize, uby
 			stderr.flush();
 		}
 
-		auto offset = block * f.size;
+		auto offset = block * blockSize;
 		f.seek(offset);
 		try
 			f.rawRead(buf);
