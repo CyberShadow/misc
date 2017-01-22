@@ -12,7 +12,7 @@ import std.string;
 import ae.sys.archive;
 import ae.sys.file;
 
-enum BASE = `/home/vladimir/Downloads/!dmd/`;
+enum BASE = `/home/vladimir/data/software/dmd/`;
 
 int dver(
 	Switch!("Download versions if not present", 'd') download,
