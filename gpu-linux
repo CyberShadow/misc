@@ -3,6 +3,9 @@ set -eux
 
 WIN_VM=win-vfio
 
+#DM=sddm.service
+DM=nodm.service
+
 # Remove devices from Windows
 #ssh 192.168.0.18 devcon remove '"@PCI\VEN_10DE&DEV_1005&SUBSYS_84511043&REV_A1\3&13C0B0C5&0&78"'
 #ssh 192.168.0.18 devcon remove '"@HDAUDIO\FUNC_01&VEN_10DE&DEV_0044&SUBSYS_10438451&REV_1001\4&124E27CE&1&0001"'
@@ -33,4 +36,4 @@ echo efi-framebuffer.0 | sudo tee /sys/bus/platform/drivers/efi-framebuffer/bind
 
 echo 1 | sudo tee /sys/class/vtconsole/vtcon1/bind
 
-sudo systemctl start sddm
+sudo systemctl start "$DM"
