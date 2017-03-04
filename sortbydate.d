@@ -1,4 +1,5 @@
 import std.algorithm;
+import std.array;
 import std.datetime;
 import std.file;
 import std.getopt;
@@ -17,17 +18,30 @@ void main(string[] args)
 		"d|dirs", &sortDirs,
 	);
 
+	DirEntry[] candidates;
+	version (Windows)
+	{
+		string[] masks = args[1..$];
+		if (!masks.length)
+			masks = ["*"];
+		foreach (mask; masks)
+			candidates ~= dirEntries("", mask, SpanMode.shallow).array;
+	}
+	else
+	{
+		candidates = args[1..$].map!(arg => DirEntry(arg)).array;
+		if (!candidates.length)
+			candidates = dirEntries("", SpanMode.shallow).array;
+	}
+
 	string[] targets;
 	int[string] extCount, dateCount;
-	string[] masks = args[1..$];
-	if (!masks.length)
-		masks = ["*"];
-	foreach (mask; masks)
-		foreach (DirEntry de; dirEntries("", mask, SpanMode.shallow))
-			if (sortDirs || de.isFile)
-				targets ~= de,
-				extCount[toLower(de.name.extension)]++,
-				dateCount[de.timeLastModified.formatTime!"Ymd"]++;
+
+	foreach (DirEntry de; candidates)
+		if (sortDirs || de.isFile)
+			targets ~= de,
+			extCount[toLower(de.name.extension)]++,
+			dateCount[de.timeLastModified.formatTime!"Ymd"]++;
 
 	string[] extCountStr;
 	foreach (ext, count; extCount)
