@@ -26,7 +26,9 @@ void main(string[] args)
 			{
 				if (!line.endsWith(".d"))
 					return;
-				auto mod = prefix ~ line[0..$-2].replace("/", ".");
+				auto mod = line[0..$-2].replace("/", ".");
+				if (!mod.skipOver("src."))
+					mod = prefix ~ mod;
 				if (pack)
 					pack = commonPrefix(mod, pack).stripRight('.');
 				else
