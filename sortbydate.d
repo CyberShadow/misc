@@ -27,7 +27,7 @@ void main(string[] args)
 			if (sortDirs || de.isFile)
 				targets ~= de,
 				extCount[toLower(de.name.extension)]++,
-				dateCount[de.timeLastModified.format("Ymd")]++;
+				dateCount[de.timeLastModified.formatTime!"Ymd"]++;
 
 	string[] extCountStr;
 	foreach (ext, count; extCount)
@@ -41,7 +41,7 @@ void main(string[] args)
 
 	foreach (target; targets)
 	{
-		string fn = buildPath(target.timeLastModified.format("Y-m-d"), target.baseName);
+		string fn = buildPath(target.timeLastModified.formatTime!"Y-m-d", target.baseName);
 		ensurePathExists(fn);
 		rename(target, fn);
 	}
