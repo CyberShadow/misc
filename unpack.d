@@ -6,11 +6,14 @@ import ae.sys.archive;
 import ae.utils.funopt;
 import ae.utils.main;
 
-void unpack(string fileName)
+void unpack(string[] fileNames)
 {
-	auto dir = fileName.replace(".tar.", ".").stripExtension;
-	mkdir(dir);
-	ae.sys.archive.unpack(fileName, dir);
+	foreach (fileName; fileNames)
+	{
+		auto dir = fileName.replace(".tar.", ".").stripExtension;
+		mkdir(dir);
+		ae.sys.archive.unpack(fileName, dir);
+	}
 }
 
 mixin main!(funopt!unpack);
