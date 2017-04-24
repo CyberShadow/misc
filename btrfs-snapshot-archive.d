@@ -4,18 +4,18 @@ module btrfs_snapshot_archive;
 import core.sys.posix.unistd;
 import core.thread;
 
+import std.algorithm.iteration;
 import std.algorithm.searching;
 import std.algorithm.sorting;
 import std.conv;
 import std.exception;
-import std.file;
 import std.path;
 import std.process;
 import std.range;
 import std.stdio;
 import std.string;
 
-import ae.sys.file;
+import ae.sys.vfs : exists, remove, listDir, VFS, registry;
 import ae.utils.funopt;
 import ae.utils.main;
 import ae.utils.regex;
@@ -38,10 +38,9 @@ int btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cle
 {
 	string[][string] allSnapshots;
 
-	foreach (de; dirEntries(srcRoot, SpanMode.shallow))
+	foreach (name; listDir(srcRoot))
 	{
-		auto name = de.baseName;
-		enforce(name.startsWith("@"), "Invalid name: " ~ de.name);
+		enforce(name.startsWith("@"), "Invalid name: " ~ name);
 		auto parts = name.findSplit("-");
 		string time = null;
 		if (parts[1].length)
@@ -214,6 +213,49 @@ void btrfs_subvolume_delete(string path)
 {
 	auto btrfs = execute(["btrfs", "subvolume", "delete", "-c", path]);
 	enforce(btrfs.status == 0, "btrfs-subvolume-delete failed");
+}
+
+class SSHFS : VFS
+{
+	override void[] read(string path) { assert(false, "Not implemented"); }
+	override void write(string path, const(void)[] data) { assert(false, "Not implemented"); }
+	override bool exists(string path) { assert(false, "Not implemented"); }
+	override void remove(string path) { assert(false, "Not implemented"); }
+	override void copy(string from, string to) { assert(false, "Not implemented"); }
+	override void rename(string from, string to) { assert(false, "Not implemented"); }
+	override void mkdirRecurse(string path) { assert(false, "Not implemented"); }
+	override ubyte[16] mdFile(string path) { assert(false, "Not implemented"); }
+
+	override string[] listDir(string path)
+	{
+		auto host = parseHost(path);
+		auto result = execute(["ssh", host, escapeShellCommand(["find", ".", "-maxdepth", "1", "-print0"])]);
+		enforce(result.status == 0, "ssh/find failed");
+		if (result.output.length)
+		{
+			enforce(result.output[$-1] == 0, "Output not null terminated");
+			return result.output[0..$-1]
+				.split("\x00")
+				.filter!(s => s != ".")
+				.map!((s) { enforce(s.skipOver("./"), "Unexpected path prefix in find output"); return s; })
+				.array();
+		}
+		else
+			return null;
+	}
+
+	static this()
+	{
+		registry["ssh"] = new SSHFS();
+	}
+
+	private static string parseHost(ref string path)
+	{
+		assert(path.skipOver("ssh://"));
+		auto parts = path.findSplit("/");
+		path = parts[2];
+		return parts[0];
+	}
 }
 
 mixin main!(funopt!btrfs_snapshot_archive);
