@@ -12,6 +12,7 @@ import ae.net.asockets;
 import ae.sys.file;
 import ae.sys.inotify;
 import ae.sys.timing;
+import ae.utils.array;
 import ae.utils.graphics.color;
 import ae.utils.meta;
 import ae.utils.meta.args;
@@ -388,6 +389,104 @@ final class BrightnessBlock : Block
 	}
 }
 
+final class BatteryBlock : Block
+{
+	BarBlock icon, block;
+	string devicePath;
+	SysTime lastUpdate;
+
+	this(string devicePath)
+	{
+		this.devicePath = devicePath;
+
+		icon.min_width = 17;
+		icon.alignment = "center";
+		icon.separator = false;
+		icon.name = "icon";
+
+		addBlock(&icon);
+		addBlock(&block);
+
+		import core.sys.posix.unistd;
+		auto p = pipeProcess(["upower", "--monitor"], Redirect.stdout);
+		auto sock = new FileConnection(p.stdout.fileno.dup);
+		auto lines = new LineBufferedAdapter(sock);
+		lines.delimiter = "\n";
+
+		lines.handleReadData =
+			(Data data)
+			{
+				auto now = Clock.currTime();
+				if (now - lastUpdate >= 1.msecs)
+				{
+					lastUpdate = now;
+					update();
+				}
+			};
+	}
+
+	void update()
+	{
+		wchar iconChar = FontAwesome.fa_question_circle;
+		string blockText;
+
+		try
+		{
+			auto result = execute(["upower", "-i", devicePath]);
+			enforce(result.status == 0, "upower failed");
+
+			string[string] props;
+			foreach (line; result.output.splitLines())
+			{
+				auto parts = line.findSplit(":");
+				if (!parts[1].length)
+					continue;
+				props[parts[0].strip] = parts[2].strip;
+			}
+
+			auto percentage = props.get("percentage", "0%").chomp("%").to!int;
+
+			switch (props.get("state", ""))
+			{
+				case "charging":
+					iconChar = FontAwesome.fa_bolt;
+					break;
+				case "fully-charged":
+					iconChar = FontAwesome.fa_plug;
+					break;
+				case "discharging":
+					switch (percentage)
+					{
+						case  0: .. case  20: iconChar = FontAwesome.fa_battery_empty         ; break;
+						case 21: .. case  40: iconChar = FontAwesome.fa_battery_quarter       ; break;
+						case 41: .. case  60: iconChar = FontAwesome.fa_battery_half          ; break;
+						case 61: .. case  80: iconChar = FontAwesome.fa_battery_three_quarters; break;
+						case 81: .. case 100: iconChar = FontAwesome.fa_battery_full          ; break;
+						default: iconChar = FontAwesome.fa_question_circle; break;
+					}
+					break;
+				default:
+					iconChar = FontAwesome.fa_question_circle;
+					break;
+			}
+
+			blockText = props.get("percentage", "???");
+		}
+		catch (Exception e)
+			stderr.writeln(e.msg);
+
+		icon.full_text = text(iconChar);
+		block.full_text = blockText;
+		send();
+	}
+
+	override void handleClick(BarClick click)
+	{
+		// if (click.button == 1)
+		// 	spawnProcess(["t", "powertop"]).wait();
+	}
+}
+
 void main()
 {
 	conn = new I3Connection();
@@ -420,6 +519,12 @@ void main()
 
 		// Brightness
 		new BrightnessBlock();
+
+		// Battery
+		version (HOST_vaio)
+			new BatteryBlock("/org/freedesktop/UPower/devices/battery_BAT1");
+		version (HOST_home)
+			new BatteryBlock("/org/freedesktop/UPower/devices/ups_hiddev2");
 
 		// Load
 		new LoadBlock();
