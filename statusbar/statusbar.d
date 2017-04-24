@@ -183,9 +183,12 @@ final class LoadBlock : TimerBlock
 final class PulseBlock : Block
 {
 	BarBlock icon, block;
+	string sinkName;
 
-	this()
+	this(string sinkName)
 	{
+		this.sinkName = sinkName;
+
 		icon.min_width = iconWidth;
 		icon.separator = false;
 		icon.name = "icon";
@@ -202,7 +205,7 @@ final class PulseBlock : Block
 
 	void update()
 	{
-		auto volume = getVolume();
+		auto volume = getVolume(sinkName);
 		wchar iconChar = FontAwesome.fa_volume_off;
 		string volumeStr = "???%";
 		if (volume.known)
@@ -408,7 +411,10 @@ void main()
 		new MpdBlock();
 
 		// Volume
-		new PulseBlock();
+		version (HOST_vaio)
+			new PulseBlock("alsa_output.pci-0000_00_1b.0.analog-stereo");
+		else
+			new PulseBlock("combined");
 
 		// Brightness
 		new BrightnessBlock();

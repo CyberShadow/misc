@@ -46,9 +46,7 @@ struct Volume
 	int percent;
 }
 
-enum sinkName = "combined";
-
-Volume getVolume()
+Volume getVolume(string sinkName)
 {
 	Volume volume;
 	auto result = execute(["pactl", "list", "sinks"]);
