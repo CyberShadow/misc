@@ -24,11 +24,17 @@ void dedupFile(string pathA, string pathB)
 	auto fA = File(pathA, "rb");
 	auto fB = File(pathB, "rb");
 
-	auto result = sameExtent([
-			Extent(fA, 0),
-			Extent(fB, 0),
-		], fA.size);
-	stderr.writefln(" >> %d bytes deduped", result.totalBytesDeduped);
+	auto pos = 0;
+	auto size = fA.size;
+	while (pos < size)
+	{
+		auto result = sameExtent([
+				Extent(fA, pos),
+				Extent(fB, pos),
+			], size - pos);
+		stderr.writefln(" >> %d bytes deduped at %d", result.totalBytesDeduped, pos);
+		pos += result.totalBytesDeduped;
+	}
 }
 
 void btrfs_dedup_tree(string dirA, string dirB)
