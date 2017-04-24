@@ -37,33 +37,41 @@ void dedupFile(string pathA, string pathB)
 	}
 }
 
+void scanDir(string subdirA, string subdirB)
+{
+	foreach (deA; dirEntries(subdirA, SpanMode.shallow))
+	{
+		auto pathB = subdirB.buildPath(deA.baseName);
+		if (!pathB.exists)
+			continue;
+		auto deB = DirEntry(pathB);
+		scan(deA, deB);
+	}
+}
+
+string rootA;
+
+void scan(DirEntry deA, DirEntry deB)
+{
+	if (deA.isSymlink || deB.isSymlink)
+		return;
+	if (deA.isDir)
+		scanDir(deA.name, deB.name);
+	else
+	if (deA.isFile && deB.isFile)
+	{
+		if (deA.size != deB.size)
+			return;
+		stderr.writeln(deA.absolutePath.relativePath(rootA));
+		dedupFile(deA, deB);
+	}
+}
+
+
 void btrfs_dedup_tree(string dirA, string dirB)
 {
-
-	void scan(string subdirA, string subdirB)
-	{
-		foreach (deA; dirEntries(subdirA, SpanMode.shallow))
-		{
-			auto pathB = subdirB.buildPath(deA.baseName);
-			if (!pathB.exists)
-				continue;
-			auto deB = DirEntry(pathB);
-			if (deA.isSymlink || deB.isSymlink)
-				continue;
-			if (deA.isDir)
-				scan(deA, pathB);
-			else
-			if (deA.isFile && deB.isFile)
-			{
-				if (deA.size != deB.size)
-					continue;
-				stderr.writeln(deA.absolutePath.relativePath(dirA));
-				dedupFile(deA, deB);
-			}
-		}
-	}
-
-	scan(dirA, dirB);
+	rootA = dirA;
+	scan(DirEntry(dirA), DirEntry(dirB));
 }
 
 mixin main!(funopt!btrfs_dedup_tree);
