@@ -254,7 +254,6 @@ final class MpdBlock : Block
 	this()
 	{
 		icon.min_width = iconWidth;
-		icon.separator = false;
 		icon.name = "icon";
 
 		addBlock(&icon);
@@ -286,6 +285,7 @@ final class MpdBlock : Block
 
 		icon.full_text = text(iconChar);
 		block.full_text = status.nowPlaying;
+		icon.separator = status.nowPlaying.length == 0;
 		send();
 	}
 
@@ -293,18 +293,21 @@ final class MpdBlock : Block
 	{
 		if (click.name == "icon")
 		{
-			string cmd;
-			if (status == "playing")
-				cmd = click.button == 1 ? "pause" : "stop";
+			if (click.button == 1)
+			{
+				string cmd;
+				if (status == "playing")
+					cmd = click.button == 1 ? "pause" : "stop";
+				else
+					cmd = "play";
+				spawnProcess(["mpc", cmd], stdin, File("/dev/null", "wb")).wait();
+			}
 			else
-				cmd = "play";
-			spawnProcess(["mpc", cmd], stdin, File("/dev/null", "wb")).wait();
+				spawnProcess(["x", "cantata"]).wait();
 		}
 		else
 			if (click.button == 1)
-			{
 				spawnProcess(["x", "cantata"]).wait();
-			}
 	}
 }
 
