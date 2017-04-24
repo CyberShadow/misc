@@ -9,6 +9,7 @@ import std.string;
 import std.process;
 
 import ae.net.asockets;
+import ae.sys.file;
 import ae.sys.inotify;
 import ae.sys.timing;
 import ae.utils.graphics.color;
@@ -353,7 +354,10 @@ final class BrightnessBlock : Block
 		addBlock(&block);
 		update();
 
-		iNotify.add("/tmp/pq321q-brightness", INotify.Mask.create | INotify.Mask.modify,
+		enum fn = "/tmp/brightness";
+		if (!fn.exists)
+			fn.touch();
+		iNotify.add(fn, INotify.Mask.create | INotify.Mask.modify,
 			(in char[] name, INotify.Mask mask, uint cookie)
 			{
 				update();
@@ -363,14 +367,12 @@ final class BrightnessBlock : Block
 
 	void update()
 	{
-		auto result = execute(["/home/vladimir/bin/home/pq321q-brightness-get"]);
+		auto result = execute(["/home/vladimir/bin/brightness-get"]);
 		try
 		{
 			enforce(result.status == 0);
 			auto value = result.output.strip().to!int;
-			auto pct = value * 100 / 31;
-
-			block.full_text = format("%3d%%", pct);
+			block.full_text = format("%3d%%", value);
 			send();
 		}
 		catch (Exception) {}
@@ -379,10 +381,10 @@ final class BrightnessBlock : Block
 	override void handleClick(BarClick click)
 	{
 		if (click.button == 4)
-			spawnProcess(["/home/vladimir/bin/home/pq321q-brightness-up"]).wait();
+			spawnProcess(["/home/vladimir/bin/brightness-up"]).wait();
 		else
 		if (click.button == 5)
-			spawnProcess(["/home/vladimir/bin/home/pq321q-brightness-down"]).wait();
+			spawnProcess(["/home/vladimir/bin/brightness-down"]).wait();
 	}
 }
 
