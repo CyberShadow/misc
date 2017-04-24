@@ -140,7 +140,10 @@ int btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cle
 				sendArgs ~= srcPath;
 				auto recvArgs = ["btrfs", "receive", dstRoot];
 
-				stderr.writefln(">>> %-(%s %) | %-(%s %)", sendArgs, recvArgs);
+				sendArgs = remotify(sendArgs);
+				recvArgs = remotify(recvArgs);
+
+				stderr.writefln(">>> %s | %s", sendArgs.escapeShellCommand, recvArgs.escapeShellCommand);
 				if (!dryRun)
 				{
 					auto flag = File(flagPath, "wb");
@@ -189,55 +192,44 @@ int btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cle
 	return error ? 1 : 0;
 }
 
-/*
- */
-
-string[string] btrfs_subvolume_show(string path)
-{
-	auto btrfs = execute(["btrfs", "subvolume", "show", path]);
-	enforce(btrfs.status == 0, "btrfs-subvolume-show failed");
-
-	auto lines = btrfs.output.splitLines();
-	enforce(lines[0] == path.absolutePath);
-
-	string[string] result;
-	foreach (line; lines[1..$])
-	{
-		line.matchCaptures(`^\t(.+):(?: \t+(.*))?$`,
-			(string name, string value) { result[name] = value; });
-	}
-	return result;
-}
-
-void btrfs_subvolume_delete(string path)
-{
-	auto btrfs = execute(["btrfs", "subvolume", "delete", "-c", path]);
-	enforce(btrfs.status == 0, "btrfs-subvolume-delete failed");
-}
-
 class SSHFS : VFS
 {
 	override void[] read(string path) { assert(false, "Not implemented"); }
 	override void write(string path, const(void)[] data) { assert(false, "Not implemented"); }
-	override bool exists(string path) { assert(false, "Not implemented"); }
 	override void remove(string path) { assert(false, "Not implemented"); }
 	override void copy(string from, string to) { assert(false, "Not implemented"); }
 	override void rename(string from, string to) { assert(false, "Not implemented"); }
 	override void mkdirRecurse(string path) { assert(false, "Not implemented"); }
 	override ubyte[16] mdFile(string path) { assert(false, "Not implemented"); }
 
+	override bool exists(string path)
+	{
+		auto host = parseHost(path);
+		path = path.chomp("/");
+		auto result = execute(["ssh", host, escapeShellCommand(["test", "-e", path]) ~ " && echo -n yes || echo -n no"]);
+		enforce(result.status == 0, "ssh/test failed");
+		if (result.output == "yes")
+			return true;
+		else
+		if (result.output == "no")
+			return false;
+		else
+			throw new Exception("Unexpected ssh/test output: " ~ result.output);
+	}
+
 	override string[] listDir(string path)
 	{
 		auto host = parseHost(path);
-		auto result = execute(["ssh", host, escapeShellCommand(["find", ".", "-maxdepth", "1", "-print0"])]);
+		path = path.chomp("/");
+		auto result = execute(["ssh", host, escapeShellCommand(["find", path, "-maxdepth", "1", "-print0"])]);
 		enforce(result.status == 0, "ssh/find failed");
 		if (result.output.length)
 		{
 			enforce(result.output[$-1] == 0, "Output not null terminated");
 			return result.output[0..$-1]
 				.split("\x00")
-				.filter!(s => s != ".")
-				.map!((s) { enforce(s.skipOver("./"), "Unexpected path prefix in find output"); return s; })
+				.filter!(s => s != path)
+				.map!((s) { enforce(s.skipOver(path ~ "/"), "Unexpected path prefix in find output (`%s` does not start with `%s`)".format(s, path ~ "/")); return s; })
 				.array();
 		}
 		else
@@ -256,6 +248,55 @@ class SSHFS : VFS
 		path = parts[2];
 		return parts[0];
 	}
+}
+
+string[] remotify(string[] args)
+{
+	foreach (arg; args)
+		if (arg.startsWith("ssh://"))
+		{
+			auto path = arg;
+			auto host = SSHFS.parseHost(path);
+			return ["ssh", host, escapeShellCommand(
+					args.map!((arg)
+					{
+						if (arg.startsWith("ssh://"))
+							enforce(SSHFS.parseHost(arg) == host, "Inconsistent sshfs host");
+						return arg;
+					}).array)];
+		}
+	return args;
+}
+
+string localPart(string path)
+{
+	if (path.startsWith("ssh://"))
+		SSHFS.parseHost(path);
+	return path;
+}
+
+string[string] btrfs_subvolume_show(string path)
+{
+	auto btrfs = execute(remotify(["btrfs", "subvolume", "show", path]));
+	enforce(btrfs.status == 0, "btrfs-subvolume-show failed");
+
+	auto lines = btrfs.output.splitLines();
+	enforce(lines[0] == localPart(path).absolutePath,
+		"Unexpected btrfs-subvolume-show output: First line is `%s`, expected `%s`".format(lines[0], localPart(path).absolutePath));
+
+	string[string] result;
+	foreach (line; lines[1..$])
+	{
+		line.matchCaptures(`^\t(.+):(?: \t+(.*))?$`,
+			(string name, string value) { result[name] = value; });
+	}
+	return result;
+}
+
+void btrfs_subvolume_delete(string path)
+{
+	auto btrfs = execute(remotify(["btrfs", "subvolume", "delete", "-c", path]));
+	enforce(btrfs.status == 0, "btrfs-subvolume-delete failed");
 }
 
 mixin main!(funopt!btrfs_snapshot_archive);
