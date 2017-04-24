@@ -62,7 +62,7 @@ void scan(DirEntry deA, DirEntry deB)
 	{
 		if (deA.size != deB.size)
 			return;
-		stderr.writeln(deA.absolutePath.relativePath(rootA));
+		stderr.writeln(deA.absolutePath.relativePath(rootA.absolutePath));
 		dedupFile(deA, deB);
 	}
 }
