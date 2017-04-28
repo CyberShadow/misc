@@ -34,6 +34,7 @@ class Block
 private:
 	static BarBlock*[] blocks;
 	static Block[] blockOwners;
+	string lastNotificationID = null;
 
 protected:
 	final void addBlock(BarBlock* block)
@@ -50,6 +51,15 @@ protected:
 
 	void handleClick(BarClick click)
 	{
+	}
+
+	void showNotification(string str)
+	{
+		string[] commandLine = ["dunstify", "-t", "1000", "--printid", str];
+		if (lastNotificationID)
+			commandLine ~= "--replace=" ~ text(lastNotificationID);
+		auto result = execute(commandLine);
+		lastNotificationID = result.output.strip();
 	}
 
 public:
@@ -186,6 +196,7 @@ final class PulseBlock : Block
 {
 	BarBlock icon, block;
 	string sinkName;
+	Volume oldValue;
 
 	this(string sinkName)
 	{
@@ -208,6 +219,10 @@ final class PulseBlock : Block
 	void update()
 	{
 		auto volume = getVolume(sinkName);
+		if (oldValue == volume)
+			return;
+		oldValue = volume;
+
 		wchar iconChar = FontAwesome.fa_volume_off;
 		string volumeStr = "???%";
 		if (volume.known)
@@ -225,6 +240,14 @@ final class PulseBlock : Block
 		block.full_text = volumeStr;
 
 		send();
+
+		showNotification("Volume: " ~
+			(!volume.known
+				? "???"
+				: "[%3d%%]%s".format(
+					volume.percent,
+					volume.muted ? " [Mute]" : ""
+				)));
 	}
 
 	override void handleClick(BarClick click)
@@ -347,6 +370,7 @@ class ProcessBlock : Block
 final class BrightnessBlock : Block
 {
 	BarBlock icon, block;
+	int oldValue = -1;
 
 	this()
 	{
@@ -376,8 +400,14 @@ final class BrightnessBlock : Block
 		{
 			enforce(result.status == 0);
 			auto value = result.output.strip().to!int;
+			if (oldValue == value)
+				return;
+			oldValue = value;
+
 			block.full_text = format("%3d%%", value);
 			send();
+
+			showNotification("Brightness: [%3d%%]".format(value));
 		}
 		catch (Exception) {}
 	}
