@@ -4,6 +4,7 @@ import std.datetime;
 import std.exception;
 import std.file;
 import std.functional;
+import std.path;
 import std.stdio;
 import std.string;
 import std.process;
@@ -566,7 +567,12 @@ void main()
 		new UtcTimeBlock();
 
 		// Local time
-		new TzTimeBlock(PosixTimeZone.getTimeZone("Europe/Chisinau"));
+		string timeZone;
+		try
+			timeZone = readText(expandTilde("~/.config/tz").strip());
+		catch (FileException)
+			timeZone = "Europe/Chisinau";
+		new TzTimeBlock(PosixTimeZone.getTimeZone(timeZone));
 
 		socketManager.loop();
 	}
