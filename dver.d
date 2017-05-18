@@ -12,7 +12,10 @@ import std.string;
 import ae.sys.archive;
 import ae.sys.file;
 
-enum BASE = `/home/vladimir/data/software/dmd/`;
+version (Windows)
+	enum BASE = `C:\Downloads\!dmd\`;
+else
+	enum BASE = `/home/vladimir/data/software/dmd/`;
 
 int dver(
 	Switch!("Download versions if not present", 'd') download,
@@ -81,8 +84,9 @@ int dver(
 				fn,
 			);
 			auto zip = BASE ~ fn;
-			auto ret = spawnProcess(["aget", "--out", zip, url], null, Config.none, "/").wait();
+			auto ret = spawnProcess(["aria2c", "--max-connection-per-server=16", "--split=16", "--min-split-size=1M", "--dir", BASE, url], null, Config.none, "/").wait();
 			enforce(ret==0, "Download failed");
+			enforce(zip.exists, "Expected to find file after download: " ~ zip);
 
 			if (verbose) stderr.writefln("Unzipping %s...", fn);
 			atomic!unzip(zip, dir);
@@ -122,7 +126,7 @@ int dver(
 				auto attributes = dmd.getAttributes();
 				if (!(attributes & octal!111))
 					dmd.setAttributes((attributes & octal!444) >> 2);
-				environment["PATH"] = binPath ~ `:` ~ environment["PATH"];
+				environment["PATH"] = binPath ~ pathSeparator ~ environment["PATH"];
 				if (verbose) stderr.writefln("PATH=%s", environment["PATH"]);
 			}
 			auto pid = spawnProcess(command);
