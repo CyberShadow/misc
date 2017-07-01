@@ -52,7 +52,13 @@ int dver(
 	auto dir = BASE ~ "dmd." ~ dVersion ~ platformSuffix;
 
 	string model = model32 ? "32" : "64";
-	string[] binDirs = [`dmd2/` ~ platform ~ `/bin` ~ model, `dmd2/` ~ platform ~ `/bin`, `dmd/` ~ platform ~ `/bin`, `dmd/bin`];
+	string[] binDirs = [
+		`dmd2/` ~ platform ~ `/bin` ~ model,
+		`dmd2/` ~ platform ~ `/bin`,
+		`dmd/` ~ platform ~ `/bin` ~ model,
+		`dmd/` ~ platform ~ `/bin`,
+		`dmd/bin`,
+	];
 	string binExt = platform == "windows" ? ".exe" : "";
 
 	bool found;
