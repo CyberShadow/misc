@@ -129,8 +129,13 @@ int dver(
 				environment["PATH"] = binPath ~ pathSeparator ~ environment["PATH"];
 				if (verbose) stderr.writefln("PATH=%s", environment["PATH"]);
 			}
-			auto pid = spawnProcess(command);
-			return pid.wait();
+			version (Windows)
+				return spawnProcess(command).wait();
+			else
+			{
+				execvp(command[0], command);
+				errnoEnforce(false, "execvp failed");
+			}
 		}
 	}
 	throw new Exception("Can't find bin directory under " ~ dir);
