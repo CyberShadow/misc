@@ -14,6 +14,7 @@ import std.process;
 import std.stdio;
 import std.string;
 
+import ae.utils.meta;
 import ae.utils.time.format;
 
 enum dmdDir = "/home/vladimir/data/software/dmd";
@@ -41,7 +42,7 @@ void main(string[] args)
 		.array;
 
 	bool multiThreaded = true;
-	if (args.canFind("-run") || args[1] == "rdmd")
+	if (args.canFind("-run") || args[1] == "rdmd" || args[1].endsWith("sh"))
 		multiThreaded = false;
 
 	alias ExecResult = typeof(execute(args));
@@ -77,6 +78,18 @@ void main(string[] args)
 		return exe.timeLastModified();
 	}
 
+	static string toBisectIniCmd(string[] args)
+	{
+		import std.ascii : isAlphaNum;
+		if (args[0].endsWith("sh") && args[1] == "-c" && args.length == 3)
+			return args[2];
+		else
+		if (args.all!(arg => arg.all!(c => c.isAlphaNum || "-._/".canFind(c))))
+			return args.join(" ");
+		else
+			return escapeShellCommand(args);
+	}
+
 	string bisect(string v1, string v2)
 	{
 		stderr.writefln!"=== Bisecting %s to %s ==="(v1, v2);
@@ -92,7 +105,7 @@ void main(string[] args)
 			reverse ? "bad " : "good", branch, (verDate(v1)-30.days).formatTime!"Y-m-d H:i:s",
 			reverse ? "good" : "bad ", branch, (verDate(v2)+30.days).formatTime!"Y-m-d H:i:s",
 			reverse,
-			args[1..$].join(" "),
+			args[1..$].I!toBisectIniCmd,
 		).toFile(iniFn);
 
 		auto p = pipe();
