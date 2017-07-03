@@ -21,7 +21,9 @@ enum dmdDir = "/home/vladimir/data/software/dmd";
 void main(string[] args)
 {
 	string minVer = "1.0";
+	bool doBisect;
 	getopt(args,
+		"b", &doBisect,
 		config.stopOnFirstNonOption,
 	);
 
@@ -32,7 +34,7 @@ void main(string[] args)
 		.map!(de => de.baseName[4..$].chomp(".linux"))
 		.filter!(ver => ver >= minVer)
 		.filter!(ver => !ver.canFind("-b")) // TODO betas?
-		.filter!(ver => ver.length == 5 || ver.endsWith(".0")) // Stable branches interfere with bisection
+		.filter!(ver => !doBisect || (ver.length == 5 || ver.endsWith(".0"))) // Stable branches interfere with bisection
 		.array
 		.sort()
 		.uniq
@@ -121,13 +123,16 @@ void main(string[] args)
 		{
 			changes ~= index;
 
-			if ((results[versions[index-1]].status==0) != (results[versions[index]].status==0))
-				try
-					bisectResults ~= bisect(versions[index-1], versions[index]);
-				catch (Exception e)
-					bisectResults ~= format!"%s(%s)%s"(col!1, e.msg, col!0);
-			else
-				bisectResults ~= null;
+			if (doBisect)
+			{
+				if ((results[versions[index-1]].status==0) != (results[versions[index]].status==0))
+					try
+						bisectResults ~= bisect(versions[index-1], versions[index]);
+					catch (Exception e)
+						bisectResults ~= format!"%s(%s)%s"(col!1, e.msg, col!0);
+				else
+					bisectResults ~= null;
+			}
 		}
 
 	string resultStr(ref ExecResult r)
@@ -168,7 +173,7 @@ void main(string[] args)
 		writefln!"%sUp to      %s: %s%s"(col!7, verStr(versions[changes[0]-1]), resultStr(results[versions[changes[0]-1]]), col!0);
 		foreach (idx; 0..changes.length)
 		{
-			if (bisectResults[idx])
+			if (doBisect && bisectResults[idx])
 			{
 				if (results[versions[changes[idx]-1]].status == 0 && results[versions[changes[idx]]].status != 0)
 					writefln!"%sBroken %s by: %s%s"(col!1, col!7, bisectResults[idx], col!0);
