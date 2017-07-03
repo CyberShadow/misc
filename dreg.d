@@ -40,7 +40,12 @@ void main(string[] args)
 		.map!(de => de.baseName[4..$].chomp(".linux"))
 		.filter!(ver => ver >= minVer)
 		.filter!(ver => !ver.canFind("-b")) // TODO betas?
-		.filter!(ver => !doBisect || (ver.length == 5 || ver.endsWith(".0"))) // Stable branches interfere with bisection
+		.array
+		.sort()
+		.release;
+
+	versions = versions
+		.filter!(ver => !doBisect || (ver.length == 5 || ver.endsWith(".0")) || ver == versions[$-1]) // Stable branches interfere with bisection
 		.array
 		.sort()
 		.uniq
