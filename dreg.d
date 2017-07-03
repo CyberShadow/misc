@@ -25,8 +25,10 @@ void main(string[] args)
 {
 	string minVer = "1.0";
 	bool doBisect;
+	string[] without = ["rdmd"];
 	getopt(args,
 		"b", &doBisect,
+		"without", &without,
 		config.stopOnFirstNonOption,
 	);
 
@@ -103,12 +105,14 @@ void main(string[] args)
 
 		auto iniFn = format!"bisect-%s-%s.ini"(v1, v2);
 		string branch = "master";
-		format!"%s = %s @ %s\n%s = %s @ %s\nreverse = %s\ntester = %s\nbuild.components.enable.rdmd = false"(
-			reverse ? "bad " : "good", branch, (verDate(v1)-30.days).formatTime!"Y-m-d H:i:s",
-			reverse ? "good" : "bad ", branch, (verDate(v2)+30.days).formatTime!"Y-m-d H:i:s",
-			reverse,
-			args[1..$].I!toBisectIniCmd,
-		).toFile(iniFn);
+		string[] ini;
+		ini ~= format!"%s = %s @ %s"(reverse ? "bad " : "good", branch, (verDate(v1)-30.days).formatTime!"Y-m-d H:i:s");
+		ini ~= format!"%s = %s @ %s"(reverse ? "good" : "bad ", branch, (verDate(v2)+30.days).formatTime!"Y-m-d H:i:s");
+		ini ~= format!"reverse = %s"(reverse);
+		ini ~= format!"tester = %s"(args[1..$].I!toBisectIniCmd);
+		foreach (c; without)
+			ini ~= format!"build.components.enable.%s = false"(c);
+		ini.join("\n").toFile(iniFn);
 
 		auto p = pipe();
 		auto pid = spawnProcess(["bisect-online", iniFn], stdin, p.writeEnd, p.writeEnd);
