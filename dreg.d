@@ -4,6 +4,7 @@ import std.algorithm.iteration;
 import std.algorithm.searching;
 import std.algorithm.sorting;
 import std.array;
+import std.datetime.date;
 import std.datetime.systime;
 import std.exception;
 import std.file;
@@ -18,6 +19,7 @@ import ae.utils.meta;
 import ae.utils.time.format;
 
 enum dmdDir = "/home/vladimir/data/software/dmd";
+enum canBisectAfter = Date(2011, 07, 01);
 
 void main(string[] args)
 {
@@ -138,7 +140,7 @@ void main(string[] args)
 
 			if (doBisect)
 			{
-				if ((results[versions[index-1]].status==0) != (results[versions[index]].status==0))
+				if ((results[versions[index-1]].status==0) != (results[versions[index]].status==0) && verDate(versions[index-1]) > SysTime(canBisectAfter))
 					try
 						bisectResults ~= bisect(versions[index-1], versions[index]);
 					catch (Exception e)
