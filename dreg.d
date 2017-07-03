@@ -24,11 +24,12 @@ enum canBisectAfter = Date(2011, 07, 01);
 void main(string[] args)
 {
 	string minVer = "1.0";
-	bool doBisect;
+	bool doBisect, singleThreadedSwitch;
 	string[] without = ["rdmd"];
 	getopt(args,
 		"b", &doBisect,
 		"without", &without,
+		"s", &singleThreadedSwitch,
 		config.stopOnFirstNonOption,
 	);
 
@@ -45,7 +46,7 @@ void main(string[] args)
 		.uniq
 		.array;
 
-	bool multiThreaded = true;
+	bool multiThreaded = !singleThreadedSwitch;
 	if (args.canFind("-run") || args[1] == "rdmd" || args[1].endsWith("sh"))
 		multiThreaded = false;
 
