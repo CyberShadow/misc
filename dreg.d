@@ -100,9 +100,9 @@ void main(string[] args)
 			return escapeShellCommand(args);
 	}
 
-	string bisect(string v1, string v2)
+	string bisect(string v1, string v2, string branch = "master")
 	{
-		stderr.writefln!"=== Bisecting %s to %s ==="(v1, v2);
+		stderr.writefln!"=== Bisecting %s to %s (%s) ==="(v1, v2, branch);
 		auto r1 = results[v1];
 		auto r2 = results[v2];
 		assert((r1.status == 0) != (r2.status == 0), "TODO");
@@ -110,7 +110,6 @@ void main(string[] args)
 		bool reverse = r1.status != 0;
 
 		auto iniFn = format!"bisect-%s-%s.ini"(v1, v2);
-		string branch = "master";
 		string[] ini;
 		ini ~= format!"%s = %s @ %s"(reverse ? "bad " : "good", branch, (verDate(v1)-30.days).formatTime!"Y-m-d H:i:s");
 		ini ~= format!"%s = %s @ %s"(reverse ? "good" : "bad ", branch, (verDate(v2)+30.days).formatTime!"Y-m-d H:i:s");
@@ -136,6 +135,10 @@ void main(string[] args)
 		enforce(lines.length, "Can't find bisection result");
 		lines = lines.filter!((ref line) => line.skipOver("    ") && line.length).array;
 		enforce(lines.length >= 3, "Can't find URL in bisect output");
+
+		if (branch == "master" && lines[2].startsWith("Merge remote-tracking branch 'upstream/stable'"))
+			return bisect(v1, v2, "stable");
+
 		return col!6 ~ lines[1] ~ col!0 ~ " - " ~ col!3 ~ lines[2] ~ col!0;
 	}
 
