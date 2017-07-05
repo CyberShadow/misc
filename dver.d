@@ -90,9 +90,12 @@ int dver(
 				fn,
 			);
 			auto zip = BASE ~ fn;
-			auto ret = spawnProcess(["aria2c", "--max-connection-per-server=16", "--split=16", "--min-split-size=1M", "--dir", BASE, url], null, Config.none, "/").wait();
-			enforce(ret==0, "Download failed");
-			enforce(zip.exists, "Expected to find file after download: " ~ zip);
+			if (!zip.exists)
+			{
+				auto ret = spawnProcess(["aria2c", "--max-connection-per-server=16", "--split=16", "--min-split-size=1M", "--dir", BASE, url], null, Config.none, "/").wait();
+				enforce(ret==0, "Download failed");
+				enforce(zip.exists, "Expected to find file after download: " ~ zip);
+			}
 
 			if (verbose) stderr.writefln("Unzipping %s...", fn);
 			atomic!unzip(zip, dir);
