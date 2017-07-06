@@ -123,7 +123,7 @@ void main(string[] args)
 
 		auto iniFn = format!"bisect-%s-%s.ini"(v1, v2);
 		string[] ini;
-		ini ~= format!"%s = %s @ %s"(reverse ? "bad " : "good", branch, (verDate(v1)-30.days).formatTime!"Y-m-d H:i:s");
+		ini ~= format!"%s = %s @ %s"(reverse ? "bad " : "good", branch, (verDate(v1)-40.days).formatTime!"Y-m-d H:i:s");
 		ini ~= format!"%s = %s @ %s"(reverse ? "good" : "bad ", branch, (verDate(v2)+30.days).formatTime!"Y-m-d H:i:s");
 		ini ~= format!"reverse = %s"(reverse);
 		ini ~= format!"tester = %s"(args[1..$].I!toBisectIniCmd);
