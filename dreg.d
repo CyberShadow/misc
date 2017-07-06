@@ -33,21 +33,33 @@ void main(string[] args)
 		config.stopOnFirstNonOption,
 	);
 
+	static bool compareVersion(string a, string b)
+	{
+		static string normalizeVersion(string v)
+		{
+			if (v.length == 5 || v[5] != '.')
+				v = v[0..5] ~ ".0" ~ v[5..$];
+			if (!v.canFind("-b"))
+				v ~= "-b0";
+			return v;
+		}
+		return normalizeVersion(a) < normalizeVersion(b);
+	}
+
 	auto versions = dmdDir
 		.dirEntries("dmd.2.???*", SpanMode.shallow)
 		.filter!(de => de.isDir)
 		.filter!(de => !de.name.endsWith(".windows"))
 		.map!(de => de.baseName[4..$].chomp(".linux"))
 		.filter!(ver => ver >= minVer)
-		.filter!(ver => !ver.canFind("-b")) // TODO betas?
 		.array
-		.sort()
+		.sort!compareVersion
 		.release;
 
 	versions = versions
 		.filter!(ver => !doBisect || (ver.length == 5 || ver.endsWith(".0")) || ver == versions[$-1]) // Stable branches interfere with bisection
 		.array
-		.sort()
+		.sort!compareVersion
 		.uniq
 		.array;
 
