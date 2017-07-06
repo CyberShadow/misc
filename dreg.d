@@ -57,7 +57,7 @@ void main(string[] args)
 		.release;
 
 	versions = versions
-		.filter!(ver => !doBisect || (ver.length == 5 || ver.endsWith(".0")) || ver == versions[$-1]) // Stable branches interfere with bisection
+		.filter!(ver => !doBisect || (ver.length == 5 || ver.endsWith(".0")) || ver[0..5] == versions[$-1][0..5]) // Stable branches interfere with bisection
 		.array
 		.sort!compareVersion
 		.uniq
