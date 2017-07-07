@@ -103,7 +103,7 @@ void main(string[] args)
 	static string toBisectIniCmd(string[] args)
 	{
 		import std.ascii : isAlphaNum;
-		if (args[0].endsWith("sh") && args[1] == "-c" && args.length == 3)
+		if (args[0].endsWith("sh") && !args[0].endsWith(".sh") && args[1] == "-c" && args.length == 3)
 			return args[2];
 		else
 		if (args.all!(arg => arg.all!(c => c.isAlphaNum || "-._/".canFind(c))))
