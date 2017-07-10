@@ -148,8 +148,12 @@ void main(string[] args)
 		lines = lines.filter!((ref line) => line.skipOver("    ") && line.length).array;
 		enforce(lines.length >= 3, "Can't find URL in bisect output");
 
-		if (branch == "master" && lines[2].startsWith("Merge remote-tracking branch 'upstream/stable'"))
-			return bisect(v1, v2, "stable");
+		if (branch == "master")
+		{
+			if (lines[2].startsWith("Merge remote-tracking branch 'upstream/stable'")
+			 || lines[2].startsWith("Merge branch 'merge_stable_convert' into merge_stable"))
+				return bisect(v1, v2, "stable");
+		}
 
 		return col!6 ~ lines[1] ~ col!0 ~ " - " ~ col!3 ~ lines[2] ~ col!0;
 	}
