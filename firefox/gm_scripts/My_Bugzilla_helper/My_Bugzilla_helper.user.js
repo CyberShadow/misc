@@ -11,6 +11,6 @@
   var eButton = document.createElement('a');
   var eId = document.getElementsByName('id')[0];
   eButton.href = 'emacs:///home/vladimir/work/extern/D/DBugTests/bugs/' + eId.value;
-  eButton.innerHTML = 'Open in Emacs';
+  eButton.innerHTML = '[◳]';
   eSummary.appendChild(eButton);
 })();
