@@ -1,4 +1,6 @@
 /// Copy snapshots from one volume to another.
+/// Supports remote hosts for source or target (push or pull) using
+/// ssh://user@host//path/to/btrfs/root URLs.
 module btrfs_snapshot_archive;
 
 import core.sys.posix.unistd;
