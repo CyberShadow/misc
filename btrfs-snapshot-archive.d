@@ -12,10 +12,11 @@ import std.exception;
 import std.path;
 import std.process;
 import std.range;
-import std.stdio;
+import std.stdio : stderr, File;
 import std.string;
 
-import ae.sys.vfs : exists, remove, listDir, VFS, registry;
+import ae.sys.file : readFile;
+import ae.sys.vfs : exists, remove, listDir, write, VFS, registry;
 import ae.utils.funopt;
 import ae.utils.main;
 import ae.utils.regex;
@@ -76,8 +77,7 @@ int btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cle
 					if (flagPath.exists)
 					{
 						stderr.writeln(">>> Acquiring lock...");
-						auto flag = File(flagPath, "wb");
-						enforce(flag.tryLock(), "Exclusive locking failed");
+						auto flag = Lock(flagPath);
 
 						stderr.writeln(">>> Cleaning up partially-received snapshot");
 						if (!dryRun)
@@ -146,8 +146,7 @@ int btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cle
 				stderr.writefln(">>> %s | %s", sendArgs.escapeShellCommand, recvArgs.escapeShellCommand);
 				if (!dryRun)
 				{
-					auto flag = File(flagPath, "wb");
-					enforce(flag.tryLock(), "Exclusive locking failed");
+					auto flag = Lock(flagPath);
 					sync();
 					scope(exit) flagPath.remove();
 
@@ -162,8 +161,8 @@ int btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cle
 						}
 					}
 					auto sendPipe = pipe();
-					auto sendPid = spawnProcess(sendArgs, stdin, sendPipe.writeEnd);
-					auto recvPid = spawnProcess(recvArgs, sendPipe.readEnd);
+					auto sendPid = spawnProcess(sendArgs, File("/dev/null"), sendPipe.writeEnd);
+					auto recvPid = spawnProcess(recvArgs, sendPipe.readEnd, stderr);
 					enforce(recvPid.wait() == 0, "btrfs-receive failed");
 					enforce(sendPid.wait() == 0, "btrfs-send failed");
 					enforce(dstPath.exists, "Sent subvolume does not exist: " ~ dstPath);
@@ -194,13 +193,30 @@ int btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cle
 
 class SSHFS : VFS
 {
-	override void[] read(string path) { assert(false, "Not implemented"); }
-	override void write(string path, const(void)[] data) { assert(false, "Not implemented"); }
-	override void remove(string path) { assert(false, "Not implemented"); }
 	override void copy(string from, string to) { assert(false, "Not implemented"); }
 	override void rename(string from, string to) { assert(false, "Not implemented"); }
 	override void mkdirRecurse(string path) { assert(false, "Not implemented"); }
 	override ubyte[16] mdFile(string path) { assert(false, "Not implemented"); }
+
+	override void[] read(string path)
+	{
+		auto p = pipe();
+		auto host = parseHost(path);
+		auto pid = spawnProcess(["ssh", host, escapeShellCommand(["cat", "--", path])], File("/dev/null"), p.writeEnd);
+		auto data = readFile(p.readEnd);
+		pid.wait();
+		return data;
+	}
+
+	override void write(string path, const(void)[] data)
+	{
+		auto p = pipe();
+		auto host = parseHost(path);
+		auto pid = spawnProcess(["ssh", host, escapeShellCommand(["cat"]) ~ " > " ~ escapeShellFileName(path)], p.readEnd, stderr);
+		p.writeEnd.rawWrite(data);
+		p.writeEnd.close();
+		pid.wait();
+	}
 
 	override bool exists(string path)
 	{
@@ -236,6 +252,13 @@ class SSHFS : VFS
 			return null;
 	}
 
+	override void remove(string path)
+	{
+		auto host = parseHost(path);
+		auto result = execute(["ssh", host, escapeShellCommand(["rm", "--", path])]);
+		enforce(result.status == 0, "ssh/rm failed");
+	}
+
 	static this()
 	{
 		registry["ssh"] = new SSHFS();
@@ -247,6 +270,25 @@ class SSHFS : VFS
 		auto parts = path.findSplit("/");
 		path = parts[2];
 		return parts[0];
+	}
+}
+
+struct Lock
+{
+	File f;
+
+	this(string path)
+	{
+		if (path.startsWith("ssh://"))
+		{
+			enforce(!path.exists, "Lockfile exists: " ~ path);
+			write(path, "");
+		}
+		else
+		{
+			f.open(path, "wb");
+			enforce(f.tryLock(), "Exclusive locking failed");
+		}
 	}
 }
 
