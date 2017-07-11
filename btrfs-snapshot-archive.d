@@ -41,7 +41,11 @@ int btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cle
 
 	foreach (name; listDir(srcRoot))
 	{
-		enforce(name.startsWith("@"), "Invalid name: " ~ name);
+		if (!name.startsWith("@"))
+		{
+			stderr.writeln("Invalid name, skipping: " ~ name);
+			continue;
+		}
 		auto parts = name.findSplit("-");
 		string time = null;
 		if (parts[1].length)
