@@ -17,6 +17,7 @@ import std.string;
 
 import ae.sys.file : readFile;
 import ae.sys.vfs : exists, remove, listDir, write, VFS, registry;
+import ae.utils.aa;
 import ae.utils.funopt;
 import ae.utils.main;
 import ae.utils.regex;
@@ -39,7 +40,10 @@ int btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cle
 {
 	string[][string] allSnapshots;
 
-	foreach (name; listDir(srcRoot))
+	auto srcDir = srcRoot.listDir.toSet;
+	auto dstDir = dstRoot.listDir.toSet;
+
+	foreach (name; srcDir.byKey)
 	{
 		if (!name.startsWith("@"))
 		{
@@ -73,12 +77,12 @@ int btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cle
 			{
 				auto snapshotSubvolume = subvolume ~ "-" ~ snapshot;
 				auto srcPath = buildPath(srcRoot, snapshotSubvolume);
-				assert(srcPath.exists);
+				assert(snapshotSubvolume in srcDir); //assert(srcPath.exists);
 				auto dstPath = buildPath(dstRoot, snapshotSubvolume);
 				auto flagPath = dstPath ~ ".partial";
-				if (dstPath.exists)
+				if (snapshotSubvolume in dstDir) // dstPath.exists
 				{
-					if (flagPath.exists)
+					if (snapshotSubvolume ~ ".partial" in dstDir) // flagPath.exists
 					{
 						stderr.writeln(">>> Acquiring lock...");
 						auto flag = Lock(flagPath);
@@ -100,7 +104,7 @@ int btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cle
 				}
 				else
 				{
-					if (flagPath.exists)
+					if (snapshotSubvolume ~ ".partial" in dstDir) // flagPath.exists
 					{
 						stderr.writeln(">>> Deleting orphan flag file: ", flagPath);
 						if (!dryRun)
