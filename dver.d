@@ -35,7 +35,11 @@ int dver(
 		dVersion ~= "-b" ~ beta;
 	else
 	if (dVersion.value.canFind("-b"))
-		beta = dVersion.value.findSplitBefore("-b")[1];
+	{
+		auto parts = dVersion.value.findSplit("-b");
+		baseVersion = parts[0];
+		beta = parts[2];
+	}
 
 	string platform;
 	if (wine)
