@@ -116,6 +116,12 @@ int btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cle
 				assert(!flagPath.exists || dryRun);
 				assert(!dstPath.exists || dryRun);
 
+				if (srcPath.buildPath(".nobackup").exists)
+				{
+					stderr.writeln(">>> Has .nobackup file, skipping");
+					continue;
+				}
+
 				auto info = btrfs_subvolume_show(srcPath);
 				if (!info["Flags"].split(" ").canFind("readonly"))
 				{
