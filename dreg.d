@@ -220,12 +220,12 @@ void main(string[] args)
 			if (doBisect && bisectResults[idx])
 			{
 				if (results[versions[changes[idx]-1]].status == 0 && results[versions[changes[idx]]].status != 0)
-					writefln!"  %sBroken %s by: %s%s"(col!1, col!7, bisectResults[idx], col!0);
+					writefln!"> %sBroken %s by: %s%s"(col!1, col!7, bisectResults[idx], col!0);
 				else
 				if (results[versions[changes[idx]-1]].status != 0 && results[versions[changes[idx]]].status == 0)
-					writefln!"  %sFixed  %s by: %s%s"(col!2, col!7, bisectResults[idx], col!0);
+					writefln!"> %sFixed  %s by: %s%s"(col!2, col!7, bisectResults[idx], col!0);
 				else
-					writefln!"  %sChanged by: %s%s"(col!7, bisectResults[idx], col!0);
+					writefln!"> %sChanged by: %s%s"(col!7, bisectResults[idx], col!0);
 			}
 			if (idx+1 < changes.length)
 			{
