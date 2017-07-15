@@ -1,0 +1,3 @@
+/home/vladimir/work/extern/D
+/home/vladimir/work/misc
+/home/vladimir/.emacs.d
