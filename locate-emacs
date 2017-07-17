@@ -18,7 +18,7 @@ function run() {
 
 if [[ -e ~/.stream-mode/enabled ]]
 then
-	run "$@" | unbuffer grep -Ff ~/work/misc/public-dirs.txt
+	run "$@" | grep --line-buffered -Ff ~/work/misc/public-dirs.txt
 else
 	run "$@"
 fi
