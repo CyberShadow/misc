@@ -40,6 +40,9 @@ import ae.utils.regex;
 
 int btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cleanUp)
 {
+	import core.stdc.stdio : setvbuf, _IOLBF;
+	setvbuf(stderr.getFP(), null, _IOLBF, 1024);
+
 	string[][string] allSnapshots;
 
 	auto srcDir = srcRoot.listDir.toSet;
