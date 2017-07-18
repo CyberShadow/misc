@@ -242,27 +242,25 @@ class SSHFS : VFS
 	{
 		auto host = parseHost(path);
 		path = path.chomp("/");
-		auto result = execute(["ssh", host, escapeShellCommand(["test", "-e", path]) ~ " && echo -n yes || echo -n no"]);
-		enforce(result.status == 0, "ssh/test failed");
-		if (result.output == "yes")
+		auto output = run(["ssh", host, escapeShellCommand(["test", "-e", path]) ~ " && echo -n yes || echo -n no"]);
+		if (output == "yes")
 			return true;
 		else
-		if (result.output == "no")
+		if (output == "no")
 			return false;
 		else
-			throw new Exception("Unexpected ssh/test output: " ~ result.output);
+			throw new Exception("Unexpected ssh/test output: " ~ output);
 	}
 
 	override string[] listDir(string path)
 	{
 		auto host = parseHost(path);
 		path = path.chomp("/");
-		auto result = execute(["ssh", host, escapeShellCommand(["find", path, "-maxdepth", "1", "-print0"])]);
-		enforce(result.status == 0, "ssh/find failed");
-		if (result.output.length)
+		auto output = run(["ssh", host, escapeShellCommand(["find", path, "-maxdepth", "1", "-print0"])]);
+		if (output.length)
 		{
-			enforce(result.output[$-1] == 0, "Output not null terminated");
-			return result.output[0..$-1]
+			enforce(output[$-1] == 0, "Output not null terminated");
+			return output[0..$-1]
 				.split("\x00")
 				.filter!(s => s != path)
 				.map!((s) { enforce(s.skipOver(path ~ "/"), "Unexpected path prefix in find output (`%s` does not start with `%s`)".format(s, path ~ "/")); return s; })
@@ -275,8 +273,7 @@ class SSHFS : VFS
 	override void remove(string path)
 	{
 		auto host = parseHost(path);
-		auto result = execute(["ssh", host, escapeShellCommand(["rm", "--", path])]);
-		enforce(result.status == 0, "ssh/rm failed");
+		run(["ssh", host, escapeShellCommand(["rm", "--", path])]);
 	}
 
 	static this()
@@ -339,10 +336,9 @@ string localPart(string path)
 
 string[string] btrfs_subvolume_show(string path)
 {
-	auto btrfs = execute(remotify(["btrfs", "subvolume", "show", path]));
-	enforce(btrfs.status == 0, "btrfs-subvolume-show failed");
+	auto output = run(remotify(["btrfs", "subvolume", "show", path]));
 
-	auto lines = btrfs.output.splitLines();
+	auto lines = output.splitLines();
 	enforce(lines[0] == localPart(path).absolutePath,
 		"Unexpected btrfs-subvolume-show output: First line is `%s`, expected `%s`".format(lines[0], localPart(path).absolutePath));
 
@@ -357,8 +353,17 @@ string[string] btrfs_subvolume_show(string path)
 
 void btrfs_subvolume_delete(string path)
 {
-	auto btrfs = execute(remotify(["btrfs", "subvolume", "delete", "-c", path]));
-	enforce(btrfs.status == 0, "btrfs-subvolume-delete failed");
+	run(remotify(["btrfs", "subvolume", "delete", "-c", path]));
+}
+
+string run(string[] args)
+{
+	import std.stdio : stdin;
+	auto p = pipe();
+	auto pid = spawnProcess(args, stdin, p.writeEnd);
+	auto result = p.readEnd.readFile;
+	enforce(pid.wait() == 0, "Command failed: " ~ escapeShellCommand(args));
+	return cast(string)result;
 }
 
 mixin main!(funopt!btrfs_snapshot_archive);
