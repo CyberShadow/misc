@@ -204,6 +204,10 @@ int btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cle
 			}
 		}
 	}
+	if (error)
+		stderr.writeln("> Done with some errors.");
+	else
+		stderr.writeln("> Done with no errors.");
 	return error ? 1 : 0;
 }
 
