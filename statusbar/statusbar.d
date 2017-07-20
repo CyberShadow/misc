@@ -1,3 +1,9 @@
+/**
+   An efficient i3bar data source.
+*/
+
+module statusbar;
+
 import std.algorithm;
 import std.conv;
 import std.datetime;

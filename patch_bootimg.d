@@ -1,4 +1,6 @@
-// Patch Android boot.img
+/// Patch an Android boot.img file.
+
+module batch_bootimg;
 
 import core.stdc.stdint;
 

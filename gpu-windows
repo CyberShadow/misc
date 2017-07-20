@@ -1,6 +1,8 @@
 #!/bin/bash
 set -eux
 
+# Give the GPU and HID devices to the Windows VM using VFIO.
+
 #WIN_VM=win
 WIN_VM=win-vfio
 

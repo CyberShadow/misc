@@ -1,3 +1,11 @@
+/// Convert some text files into a text format suitable for pasting in
+/// an issue tracker.
+
+/// With --script, generate a simple shell script that recreates the
+/// files.
+
+module dir2bug;
+
 import ae.utils.funopt;
 import ae.utils.main;
 

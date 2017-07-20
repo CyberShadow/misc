@@ -1,3 +1,9 @@
+/**
+   Replace duplicate files under the given directories with hard
+   links. Do this safely and efficiently.
+*/
+module dup2link;
+
 import std.stdio;
 import std.file;
 import std.exception;

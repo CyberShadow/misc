@@ -1,3 +1,6 @@
+/// Common code for the linux-config-* programs.
+module linux_config_common;
+
 import std.algorithm;
 import std.exception;
 import std.file;

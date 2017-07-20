@@ -1,3 +1,6 @@
+/// Try to read a file, block by block.
+/// If the read request fails, overwrite the failed block with zeroes.
+
 module clobber_unreadable;
 
 import etc.linux.memoryerror;

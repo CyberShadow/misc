@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Locate helper for helm-locate, helm-for-files, etc.
+# Filters unnecessary junk and prioritizes files from more likely
+# locations.
+
 function run() {
 	local tmpfile=/tmp/locate-emacs.$PID
 	unbuffer locate --regex "$@" \

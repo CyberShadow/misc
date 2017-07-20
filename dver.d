@@ -1,3 +1,7 @@
+/**
+   Run a command against an arbitrary version of D.
+*/
+
 import std.algorithm;
 import std.array;
 import std.conv;

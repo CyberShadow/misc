@@ -1,3 +1,18 @@
+/**
+   Compare two directory trees. When a file exists at the same
+   sub-path in both trees, deduplicate identical blocks within the
+   file.
+
+   Useful when you have mostly-identical directory trees, but
+   brute-force full deduplication (e.g. using duperemove) is too slow.
+
+   When the source or target already have shared extents, mind the
+   deduplication direction, as btrfs will not merge all
+   references. E.g. if you have files A B C D pointing to physical
+   blocks 1 1 2 2 respectively, deduplicating B and C will likely
+   result in 1 1 1 2 or 1 2 2 2, not 1 1 1 1.
+*/
+
 module btrfs_dedup_tree;
 
 import etc.linux.memoryerror;

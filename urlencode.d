@@ -1,3 +1,5 @@
+/// URL encode stdin to stdout.
+
 import std.stdio;
 import std.ascii;
 

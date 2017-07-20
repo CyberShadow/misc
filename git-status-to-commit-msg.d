@@ -1,3 +1,8 @@
+/**
+   Prepare a commit message template based on which files are
+   modified. To be used with the git-prepare-commit-msg hook.
+*/
+
 module git_prepare_commit_msg;
 
 import std.algorithm;

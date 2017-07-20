@@ -1,3 +1,7 @@
+/**
+   Convert grub menu entries to EFI boot entries.
+*/
+
 import std.algorithm;
 import std.array;
 import std.ascii;

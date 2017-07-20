@@ -1,3 +1,5 @@
+/// URL decode stdin to stdout.
+
 import std.stdio;
 
 import ae.utils.text;

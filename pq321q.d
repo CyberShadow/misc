@@ -1,3 +1,9 @@
+/**
+   Control an ASUS PQ321Q monitor through a serial port.
+*/
+
+module pq321q;
+
 import std.exception;
 import std.file;
 import std.stdio : File, writeln;

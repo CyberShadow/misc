@@ -1,3 +1,6 @@
+/// Copy a file, while performing full deduplication on its contents
+/// (incl. past blocks).
+
 module cp_btrfs_dedup;
 
 import etc.linux.memoryerror;

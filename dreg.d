@@ -1,3 +1,12 @@
+/**
+   D regression tester.
+
+   Runs a command against all installed D versions, and summarizes the
+   result. With -b, bisects success/failure status changes.
+*/
+
+module dreg;
+
 import core.time;
 
 import std.algorithm.iteration;

@@ -1,3 +1,12 @@
+/**
+   Replace a raw string in the given files and file names.
+
+   By default, ensures that the operation is undoable, i.e. aborts if
+   the new string is already found in any of the files.
+*/
+
+module greplace;
+
 import std.algorithm;
 import std.array;
 import std.conv;

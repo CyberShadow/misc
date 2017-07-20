@@ -1,3 +1,9 @@
+/**
+   Send stdin lines to stdout, prefixed with timestamps.
+
+   Like ts from the moreutils package.
+*/
+
 module ts;
 
 import std.stdio;

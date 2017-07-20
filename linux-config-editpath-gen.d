@@ -1,7 +1,9 @@
-module linux_config_bisectrepo_gen;
+/**
+   Generate the diff between two kernel .config files, in a format
+   consumable by linux-config-bisectrepo-apply.
+*/
 
-/// Generate the diff between two kernel .config files,
-/// in a format consumable by linux-config-bisectrepo-apply.
+module linux_config_bisectrepo_gen;
 
 import std.algorithm;
 import std.exception;

@@ -1,3 +1,5 @@
+/// Show file's times, as Phobos reads them.
+
 import std.datetime;
 import std.file;
 import std.stdio;

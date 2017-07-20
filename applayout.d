@@ -1,3 +1,8 @@
+/// Automatically switch keyboard layouts depending on the title of the focused window.
+/// Mainly intended for games with non-configurable key bindings.
+/// Currently the configuration is hard-coded.
+module applayout;
+
 import std.conv;
 import std.process;
 import std.stdio;

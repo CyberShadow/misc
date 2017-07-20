@@ -1,3 +1,10 @@
+/**
+   Apply a sed-like search-and-replace transform over the target of a
+   symbolic link.
+
+   Can be used to update a large number of symbolic links at once.
+*/
+
 import std.exception;
 import std.file;
 import std.stdio;

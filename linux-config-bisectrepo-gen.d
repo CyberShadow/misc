@@ -1,6 +1,13 @@
-module linux_config_bisectrepo_gen;
+/**
+   Generate the edit path from one kernel .config to another, as a
+   git repository.
 
-/// Generate the edit path from one kernel .config to another, as a git repository.
+   This allows bisecting the resulting repository to discover which
+   configuration entry is responsible for some certain reproducible
+   behaviour.
+*/
+
+module linux_config_bisectrepo_gen;
 
 import std.algorithm;
 import std.exception;

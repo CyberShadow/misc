@@ -1,3 +1,6 @@
+/// Used by ~/bin/unicode-character-menu to convert UnicodeData.txt
+/// into something usable by rofi.
+
 module convert;
 
 import std.array;

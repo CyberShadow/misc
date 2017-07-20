@@ -1,3 +1,7 @@
+/**
+   Unpack an archive into a separate directory.
+*/
+
 import std.array;
 import std.file;
 import std.path;

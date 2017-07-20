@@ -1,6 +1,9 @@
 #!/bin/bash
 set -eux
 
+# Undo the effects of the gpu-windows script and give back the GPU and
+# other devices to the Linux host.
+
 WIN_VM=win-vfio
 
 #DM=sddm.service

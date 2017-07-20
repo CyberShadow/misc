@@ -1,3 +1,8 @@
+/**
+   Arrange files in the current directory into subdirectories
+   according to their modification date.
+*/
+
 import std.algorithm;
 import std.array;
 import std.datetime;

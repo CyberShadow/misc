@@ -1,3 +1,9 @@
+/**
+   Helper module used by the drun* family of programs.
+*/
+
+module drunner;
+
 import std.stdio;
 import std.process;
 import std.file;

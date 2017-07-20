@@ -1,3 +1,8 @@
+/**
+   Estimate the number of free X11 client slots by saturating the
+   pool, and counting the number of successful connections.
+*/
+
 module print_x_connections_remaining;
 
 import std.stdio;

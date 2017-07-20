@@ -1,3 +1,15 @@
+/**
+   "tail" a destination file, and as new data is written to it, compare
+   the new data with the data from the same offset in the given source
+   file.
+
+   If the data is the same, deduplicate it using the btrfs
+   "same-extent" ioctl.
+ 
+   Useful when you have a program writing a large file which you know
+   will be mostly identical to another file you already have.
+*/
+
 module btrfs_dedup_tail;
 
 import etc.linux.memoryerror;
