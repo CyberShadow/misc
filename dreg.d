@@ -25,11 +25,13 @@ void main(string[] args)
 {
 	string minVer = "1.0";
 	bool doBisect, singleThreadedSwitch;
+	string[] dverArgs = [];
 	string[] without = ["rdmd"];
 	getopt(args,
 		"b", &doBisect,
 		"without", &without,
 		"s", &singleThreadedSwitch,
+		"32", { dverArgs ~= "--32"; },
 		config.stopOnFirstNonOption,
 	);
 
@@ -72,7 +74,7 @@ void main(string[] args)
 
 	void processVersion(string ver)
 	{
-		auto result = execute(["dver", ver] ~ args[1..$]);
+		auto result = execute(["dver"] ~ dverArgs ~ [ver] ~ args[1..$]);
 
 		result.output = result.output
 			.replace(dmdDir ~ `/dmd.` ~ ver, "/path/to/dmd")
@@ -94,7 +96,7 @@ void main(string[] args)
 
 	SysTime verDate(string ver)
 	{
-		auto result = execute(["dver", ver, "which", "dmd"]);
+		auto result = execute(["dver"] ~ dverArgs ~ [ver, "which", "dmd"]);
 		enforce(result.status == 0, "Failed to find the dmd executable path to " ~ ver);
 		auto exe = result.output.strip();
 		return exe.timeLastModified();
