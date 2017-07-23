@@ -21,6 +21,8 @@ void main()
 		switch (title)
 		{
 			case "Uurnog":
+			case "Tallowmere":
+			case "UNDERTALE":
 				layout = 2; break;
 			default:
 				layout = 1; break;
