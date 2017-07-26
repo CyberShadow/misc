@@ -9,11 +9,13 @@ import std.datetime;
 import std.file;
 import std.getopt;
 import std.path;
+import std.regex;
 import std.stdio;
 import std.string;
 
 import ae.sys.file;
 import ae.utils.aa;
+import ae.utils.regex;
 import ae.utils.time;
 
 void main(string[] args)
@@ -43,10 +45,15 @@ void main(string[] args)
 	int[string] extCount, dateCount;
 
 	foreach (DirEntry de; candidates)
-		if (sortDirs || de.isFile)
-			targets ~= de,
-			extCount[toLower(de.name.extension)]++,
-			dateCount[de.timeLastModified.formatTime!"Ymd"]++;
+	{
+		if (!sortDirs && de.isDir)
+			continue;
+		if (de.isDir && de.baseName.match(re!`^20\d\d-\d\d-\d\d$`))
+			continue;
+		targets ~= de;
+		extCount[toLower(de.name.extension)]++;
+		dateCount[de.timeLastModified.formatTime!"Ymd"]++;
+	}
 
 	string[] extCountStr;
 	foreach (ext, count; extCount)
