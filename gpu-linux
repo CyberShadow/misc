@@ -21,7 +21,7 @@ then
 	# Detach from virsh
 	for D in gpu gpu-audio mouse keyboard
 	do
-		sudo virsh detach-device $WIN_VM ~/work/misc/hostdev/$D.xml
+		sudo virsh detach-device $WIN_VM ~/work/misc/hostdev/$D.xml || true
 	done
 fi
 
