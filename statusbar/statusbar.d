@@ -564,7 +564,7 @@ void main()
 		version (HOST_vaio)
 			new BatteryBlock("/org/freedesktop/UPower/devices/battery_BAT1");
 		version (HOST_home)
-			new BatteryBlock("/org/freedesktop/UPower/devices/ups_hiddev2");
+			new BatteryBlock("/org/freedesktop/UPower/devices/ups_hiddev0");
 
 		// Load
 		new LoadBlock();
