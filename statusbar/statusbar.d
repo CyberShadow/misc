@@ -465,7 +465,7 @@ final class BatteryBlock : Block
 	void update()
 	{
 		wchar iconChar = FontAwesome.fa_question_circle;
-		string blockText;
+		string blockText, color;
 
 		try
 		{
@@ -501,6 +501,15 @@ final class BatteryBlock : Block
 						case 81: .. case 100: iconChar = FontAwesome.fa_battery_full          ; break;
 						default: iconChar = FontAwesome.fa_question_circle; break;
 					}
+
+					alias G = Gradient!(int, RGB);
+					static immutable grad = G([
+						G.Point(10, RGB(255,   0,   0)), // red
+						G.Point(30, RGB(255, 255,   0)), // yellow
+						G.Point(50, RGB(255, 255, 255)), // white
+					]);
+					color = '#' ~ grad.get(percentage).toHex();
+
 					break;
 				default:
 					iconChar = FontAwesome.fa_question_circle;
@@ -514,6 +523,7 @@ final class BatteryBlock : Block
 
 		icon.full_text = text(iconChar);
 		block.full_text = blockText;
+		block.color = color;
 		send();
 	}
 
