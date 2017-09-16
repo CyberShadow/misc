@@ -130,16 +130,15 @@ class TimeBlock(string timeFormat) : TimerBlock
 
 	static RGB timeColor(SysTime time)
 	{
-		auto day = 1.days.total!"hnsecs";
+		enum day = 1.days.total!"seconds";
 		time += time.utcOffset;
-		auto stdTime = time.stdTime;
-		//stdTime += stdTime * 3600;
-		ulong tod = stdTime % day;
+		auto unixTime = time.toUnixTime;
+		int tod = unixTime % day;
 
 		enum l = 0x40;
 		enum L = l*3/2;
 
-		static const RGB[] points =
+		static immutable RGB[] colors =
 			[
 				RGB(0, 0, L),
 				RGB(0, l, l),
@@ -148,16 +147,12 @@ class TimeBlock(string timeFormat) : TimerBlock
 				RGB(L, 0, 0),
 				RGB(l, 0, l),
 			];
+		alias G = Gradient!(int, RGB);
+		import std.range : iota;
+		import std.array : array;
+		static immutable grad = G((colors.length+1).iota.map!(n => G.Point(cast(int)(day / colors.length * n), colors[n % $])).array);
 
-		auto slice = day / points.length;
-
-		auto n = tod / slice;
-		auto a = points[n];
-		auto b = points[(n + 1) % $];
-
-		auto sliceTime = tod % slice;
-
-		return RGB.itpl(a, b, cast(int)(sliceTime / 1_000_000), 0, cast(int)(slice / 1_000_000));
+		return grad.get(tod);
 	}
 
 	override void handleClick(BarClick click)
