@@ -239,7 +239,9 @@ final class PulseBlock : Block
 		}
 
 		icon.full_text = text(iconChar);
+		icon.color = volume.muted ? "#ff0000" : null;
 		block.full_text = volumeStr;
+		block.color = volume.percent > 100 ? "#ff0000" : null;
 
 		send();
 
