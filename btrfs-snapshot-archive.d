@@ -20,6 +20,7 @@ import std.string;
 import ae.sys.file : readFile;
 import ae.sys.vfs : exists, remove, listDir, write, VFS, registry;
 import ae.utils.aa;
+import ae.utils.array;
 import ae.utils.funopt;
 import ae.utils.main;
 import ae.utils.regex;
@@ -342,8 +343,10 @@ string[string] btrfs_subvolume_show(string path)
 	auto output = run(remotify(["btrfs", "subvolume", "show", path]));
 
 	auto lines = output.splitLines();
-	enforce(lines[0] == localPart(path).absolutePath,
-		"Unexpected btrfs-subvolume-show output: First line is `%s`, expected `%s`".format(lines[0], localPart(path).absolutePath));
+	auto acceptedFirstLines = [localPart(path).absolutePath, localPart(path).baseName];
+	enforce(lines[0].isIn(acceptedFirstLines),
+		"Unexpected btrfs-subvolume-show output: First line is `%s`, expected one of %(`%s`%|, %)"
+		.format(lines[0], acceptedFirstLines));
 
 	string[string] result;
 	foreach (line; lines[1..$])
