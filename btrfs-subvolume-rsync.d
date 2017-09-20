@@ -20,7 +20,7 @@ import ae.utils.funopt;
 import ae.utils.main;
 import ae.utils.path;
 
-void btrfsSubvolumeRsync(/*bool pv,*/ string srcRoot, string dstRoot)
+void btrfsSubvolumeRsync(/*bool pv,*/ bool skipExisting, string srcRoot, string dstRoot)
 {
 	enum pv = true;
 	auto srcMount = getPathMountInfo(srcRoot);
@@ -50,7 +50,16 @@ void btrfsSubvolumeRsync(/*bool pv,*/ string srcRoot, string dstRoot)
 			dstTarget.mkdirRecurse;
 		}
 
-		enforce(!dstAbsPath.exists, "Destination subvolume already exists: " ~ dstAbsPath);
+		if (dstAbsPath.exists)
+		{
+			if (skipExisting)
+			{
+				stderr.writefln("%s already exists, skipping", dstAbsPath);
+				continue;
+			}
+			else
+				throw new Exception("Destination subvolume already exists: " ~ dstAbsPath);
+		}
 
 		stderr.writefln("Sending %s to %s", srcAbsPath, dstTarget.includeTrailingPathSeparator);
 
