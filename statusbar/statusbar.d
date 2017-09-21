@@ -4,7 +4,9 @@
 
 module statusbar;
 
+import std.algorithm.iteration;
 import std.algorithm;
+import std.array;
 import std.conv;
 import std.datetime;
 import std.exception;
@@ -432,9 +434,14 @@ final class BatteryBlock : Block
 	string devicePath;
 	SysTime lastUpdate;
 
-	this(string devicePath)
+	this(string deviceMask)
 	{
-		this.devicePath = devicePath;
+		auto devices = execute(["upower", "-e"])
+			.output
+			.splitLines
+			.filter!(line => globMatch(line, deviceMask))
+			.array;
+		this.devicePath = devices.length ? devices[0] : null;
 
 		icon.min_width = 17;
 		icon.alignment = "center";
@@ -469,6 +476,7 @@ final class BatteryBlock : Block
 
 		try
 		{
+			enforce(devicePath, "No device");
 			auto result = execute(["upower", "-i", devicePath]);
 			enforce(result.status == 0, "upower failed");
 
@@ -571,7 +579,7 @@ void main()
 		version (HOST_vaio)
 			new BatteryBlock("/org/freedesktop/UPower/devices/battery_BAT1");
 		version (HOST_home)
-			new BatteryBlock("/org/freedesktop/UPower/devices/ups_hiddev0");
+			new BatteryBlock("/org/freedesktop/UPower/devices/ups_hiddev*");
 
 		// Load
 		new LoadBlock();
