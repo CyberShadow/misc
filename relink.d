@@ -13,7 +13,7 @@ import ae.utils.funopt;
 import ae.utils.main;
 import ae.utils.regex;
 
-void relink(string pattern, string[] files)
+void relink(bool dryRun, string pattern, string[] files)
 {
 	foreach (file; files)
 		enforce(file.isSymlink(), file ~ " is not a symbolic link");
@@ -25,8 +25,11 @@ void relink(string pattern, string[] files)
 		if (oldTarget != newTarget)
 		{
 			writefln("%s: %s -> %s", file, oldTarget, newTarget);
-			remove(file);
-			symlink(newTarget, file);
+			if (!dryRun)
+			{
+				remove(file);
+				symlink(newTarget, file);
+			}
 		}
 	}
 }
