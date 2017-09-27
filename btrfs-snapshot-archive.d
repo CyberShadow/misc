@@ -18,7 +18,7 @@ import std.stdio : stderr, File;
 import std.string;
 
 import ae.sys.file : readFile;
-import ae.sys.vfs : exists, remove, listDir, write, touch, VFS, registry;
+import ae.sys.vfs : exists, remove, listDir, write, VFS, registry;
 import ae.utils.aa;
 import ae.utils.array;
 import ae.utils.funopt;
@@ -102,7 +102,7 @@ int btrfs_snapshot_archive(
 						{
 							stderr.writefln(">>> Creating mark: %s", markPath);
 							if (!dryRun)
-								touch(markPath);
+								write(markPath, "");
 						}
 					}
 				}
