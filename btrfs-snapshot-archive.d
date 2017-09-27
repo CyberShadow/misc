@@ -92,6 +92,21 @@ int btrfs_snapshot_archive(
 				assert(snapshotSubvolume in srcDir); //assert(srcPath.exists);
 				auto dstPath = buildPath(dstRoot, snapshotSubvolume);
 				auto flagPath = dstPath ~ ".partial";
+
+				void createMark()
+				{
+					if (successMark)
+					{
+						auto markPath = srcPath ~ ".success-" ~ successMark;
+						if (markPath.baseName !in srcDir)
+						{
+							stderr.writefln(">>> Creating mark: %s", markPath);
+							if (!dryRun)
+								touch(markPath);
+						}
+					}
+				}
+
 				if (snapshotSubvolume in dstDir) // dstPath.exists
 				{
 					if (snapshotSubvolume ~ ".partial" in dstDir) // flagPath.exists
@@ -111,6 +126,7 @@ int btrfs_snapshot_archive(
 					else
 					{
 						stderr.writeln(">>> Already in destination, skipping");
+						createMark();
 						continue;
 					}
 				}
@@ -207,13 +223,7 @@ int btrfs_snapshot_archive(
 					}
 				}
 
-				if (successMark)
-				{
-					auto markPath = srcPath ~ ".success-" ~ successMark;
-					stderr.writefln(">>> Creating mark: %s", markPath);
-					if (!dryRun)
-						touch(markPath);
-				}
+				createMark();
 			}
 			catch (Exception e)
 			{
