@@ -72,6 +72,11 @@ int btrfs_snapshot_archive(
 			time = parts[2];
 			name = parts[0];
 		}
+		if (time.canFind("."))
+		{
+			//stderr.writeln("Flag file, skipping: " ~ name);
+			continue;
+		}
 		allSnapshots[name] ~= time;
 	}
 
