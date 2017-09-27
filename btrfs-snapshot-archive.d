@@ -52,7 +52,9 @@ int btrfs_snapshot_archive(
 
 	string[][string] allSnapshots;
 
+	stderr.writefln("> Enumerating %s", srcRoot);
 	auto srcDir = srcRoot.listDir.toSet;
+	stderr.writefln("> Enumerating %s", dstRoot);
 	auto dstDir = dstRoot.listDir.toSet;
 
 	foreach (name; srcDir.byKey)
