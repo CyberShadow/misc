@@ -18,7 +18,7 @@ import std.stdio : stderr, File;
 import std.string;
 
 import ae.sys.file : readFile;
-import ae.sys.vfs : exists, remove, listDir, write, VFS, registry;
+import ae.sys.vfs : exists, remove, listDir, write, touch, VFS, registry;
 import ae.utils.aa;
 import ae.utils.array;
 import ae.utils.funopt;
@@ -44,6 +44,7 @@ int btrfs_snapshot_archive(
 	Parameter!(string, "Path to target btrfs root directory") dstRoot,
 	Switch!("Dry run (only pretend to do anything)") dryRun,
 	Switch!("Delete redundant snapshots from the source afterwards") cleanUp,
+	Option!(string, "Leave a file in the source root dir for each successfully copied snapshot, based on the snapshot name and MARK", "MARK") successMark = null,
 )
 {
 	import core.stdc.stdio : setvbuf, _IOLBF;
@@ -204,6 +205,14 @@ int btrfs_snapshot_archive(
 						btrfs_subvolume_delete(srcParentPath);
 						stderr.writeln(">>>> OK");
 					}
+				}
+
+				if (successMark)
+				{
+					auto markPath = srcPath ~ ".success-" ~ successMark;
+					stderr.writefln(">>> Creating mark: %s", markPath);
+					if (!dryRun)
+						touch(markPath);
 				}
 			}
 			catch (Exception e)
