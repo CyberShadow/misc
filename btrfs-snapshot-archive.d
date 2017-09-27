@@ -44,6 +44,7 @@ int btrfs_snapshot_archive(
 	Parameter!(string, "Path to target btrfs root directory") dstRoot,
 	Switch!("Dry run (only pretend to do anything)") dryRun,
 	Switch!("Delete redundant snapshots from the source afterwards") cleanUp,
+	Option!(string, "Only copy snapshots matching this glob") mask = null,
 	Option!(string, "Leave a file in the source root dir for each successfully copied snapshot, based on the snapshot name and MARK", "MARK") successMark = null,
 )
 {
@@ -94,6 +95,12 @@ int btrfs_snapshot_archive(
 				assert(snapshotSubvolume in srcDir); //assert(srcPath.exists);
 				auto dstPath = buildPath(dstRoot, snapshotSubvolume);
 				auto flagPath = dstPath ~ ".partial";
+
+				if (mask && !globMatch(snapshotSubvolume, mask))
+				{
+					stderr.writefln(">>> Mask mismatch, skipping");
+					continue;
+				}
 
 				void createMark()
 				{
