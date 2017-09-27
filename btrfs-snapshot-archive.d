@@ -175,7 +175,7 @@ int btrfs_snapshot_archive(
 					auto parentSubvolume = subvolume ~ "-" ~ parentSnapshot;
 					auto dstParentPath = buildPath(dstRoot, parentSubvolume);
 					//debug stderr.writefln(">>> Checking for parent: %s", dstParentPath);
-					if (dstParentPath.exists)
+					if (dstParentPath.exists && !(dstParentPath ~ ".partial").exists)
 					{
 						stderr.writefln(">>> Found parent: %s", parentSnapshot);
 						parent = parentSubvolume;
