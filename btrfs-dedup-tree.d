@@ -17,9 +17,13 @@ module btrfs_dedup_tree;
 
 import etc.linux.memoryerror;
 
+import std.algorithm.iteration;
+import std.array;
+import std.exception;
 import std.file;
 import std.mmfile;
 import std.path;
+import std.range;
 import std.stdio;
 
 // ae is https://github.com/CyberShadow/ae
@@ -28,8 +32,6 @@ import ae.sys.file;
 import ae.utils.digest;
 import ae.utils.funopt;
 import ae.utils.main;
-
-enum blockSize = 16*1024;
 
 void dedupFile(string pathA, string pathB)
 {
@@ -52,41 +54,52 @@ void dedupFile(string pathA, string pathB)
 	}
 }
 
-void scanDir(string subdirA, string subdirB)
+/// Used to print relative paths to found files
+string[] roots;
+
+struct SubPath
 {
-	foreach (deA; dirEntries(subdirA, SpanMode.shallow))
-	{
-		auto pathB = subdirB.buildPath(deA.baseName);
-		if (!pathB.exists)
-			continue;
-		auto deB = DirEntry(pathB);
-		scan(deA, deB);
-	}
+	size_t index; /// Original argument index (for roots array)
+	DirEntry de;
 }
 
-string rootA;
-
-void scan(DirEntry deA, DirEntry deB)
+void scan(SubPath[] paths)
 {
-	if (deA.isSymlink || deB.isSymlink)
+	paths = paths.filter!(path => !path.de.isSymlink).array;
+	if (paths.length <= 1)
 		return;
-	if (deA.isDir)
-		scanDir(deA.name, deB.name);
-	else
-	if (deA.isFile && deB.isFile)
+
+	auto dirs = paths.filter!(path => path.de.isDir).array;
+	if (dirs.length >= 2)
 	{
-		if (deA.size != deB.size)
-			return;
-		stderr.writeln(deA.absolutePath.relativePath(rootA.absolutePath));
-		dedupFile(deA, deB);
+		DirEntry[size_t][string] names;
+		foreach (dir; dirs)
+			foreach (de; dirEntries(dir.de, SpanMode.shallow))
+				names[de.baseName][dir.index] = de;
+		foreach (name, entries; names)
+			if (entries.length > 1)
+				scan(entries.byKeyValue.map!(kv => SubPath(kv.key, kv.value)).array);
+	}
+
+	auto files = paths.filter!(path => path.de.isFile).array;
+	if (files.length >= 2)
+	{
+		foreach (file1; files[1..$])
+		{
+			if (files[0].de.size != file1.de.size)
+				return;
+			stderr.writeln(files[0].de.absolutePath.relativePath(roots[files[0].index].absolutePath));
+			dedupFile(files[0].de, file1.de);
+		}
 	}
 }
 
 
-void btrfs_dedup_tree(string dirA, string dirB)
+void btrfs_dedup_tree(string[] dirs)
 {
-	rootA = dirA;
-	scan(DirEntry(dirA), DirEntry(dirB));
+	enforce(dirs.length, "You must specify at least one directory");
+	roots = dirs;
+	scan(dirs.enumerate.map!(dir => SubPath(dir.index, DirEntry(dir.value))).array);
 }
 
 mixin main!(funopt!btrfs_dedup_tree);
