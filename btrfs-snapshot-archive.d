@@ -39,7 +39,12 @@ import ae.utils.regex;
       - move cleanup to a separate tool
  */
 
-int btrfs_snapshot_archive(string srcRoot, string dstRoot, bool dryRun, bool cleanUp)
+int btrfs_snapshot_archive(
+	Parameter!(string, "Path to source btrfs root directory") srcRoot,
+	Parameter!(string, "Path to target btrfs root directory") dstRoot,
+	Switch!("Dry run (only pretend to do anything)") dryRun,
+	Switch!("Delete redundant snapshots from the source afterwards") cleanUp,
+)
 {
 	import core.stdc.stdio : setvbuf, _IOLBF;
 	setvbuf(stderr.getFP(), null, _IOLBF, 1024);
