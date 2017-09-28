@@ -44,6 +44,7 @@ int btrfs_snapshot_archive(
 	Parameter!(string, "Path to target btrfs root directory") dstRoot,
 	Switch!("Dry run (only pretend to do anything)") dryRun,
 	Switch!("Delete redundant snapshots from the source afterwards") cleanUp,
+	Switch!("Show transfer details by piping data through pv") pv,
 	Option!(string, "Only copy snapshots matching this glob") mask = null,
 	Option!(string, "Leave a file in the source root dir for each successfully copied snapshot, based on the snapshot name and MARK", "MARK") successMark = null,
 )
@@ -216,11 +217,30 @@ int btrfs_snapshot_archive(
 							stderr.writefln(">>>> Done.");
 						}
 					}
-					auto sendPipe = pipe();
-					auto sendPid = spawnProcess(sendArgs, File("/dev/null"), sendPipe.writeEnd);
-					auto recvPid = spawnProcess(recvArgs, sendPipe.readEnd, stderr);
+
+					auto btrfsPipe = pipe();
+					File readEnd, writeEnd;
+					Pid pvPid;
+
+					if (pv)
+					{
+						auto pvPipe = pipe();
+						pvPid = spawnProcess(["pv"], btrfsPipe.readEnd, pvPipe.writeEnd);
+						writeEnd = btrfsPipe.writeEnd;
+						readEnd = pvPipe.readEnd;
+					}
+					else
+					{
+						readEnd = btrfsPipe.readEnd;
+						writeEnd = btrfsPipe.writeEnd;
+					}
+
+					auto sendPid = spawnProcess(sendArgs, File("/dev/null"), writeEnd);
+					auto recvPid = spawnProcess(recvArgs, readEnd, stderr);
 					enforce(recvPid.wait() == 0, "btrfs-receive failed");
 					enforce(sendPid.wait() == 0, "btrfs-send failed");
+					if (pv)
+						enforce(pvPid.wait() == 0, "pv failed");
 					enforce(dstPath.exists, "Sent subvolume does not exist: " ~ dstPath);
 					stderr.writeln(">>>> OK");
 				}
