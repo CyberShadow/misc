@@ -45,6 +45,7 @@ int btrfs_snapshot_archive(
 	Switch!("Dry run (only pretend to do anything)") dryRun,
 	Switch!("Delete redundant snapshots from the source afterwards") cleanUp,
 	Switch!("Show transfer details by piping data through pv") pv,
+	Switch!("Never copy snapshots whole (require a parent)") requireParent,
 	Option!(string, "Only copy snapshots matching this glob") mask = null,
 	Option!(string, "Leave a file in the source root dir for each successfully copied snapshot, based on the snapshot name and MARK", "MARK") successMark = null,
 )
@@ -184,7 +185,10 @@ int btrfs_snapshot_archive(
 					}
 				}
 				if (!parent)
+				{
+					enforce(!requireParent, "No parent found, skipping");
 					stderr.writefln(">>> No parent found, sending whole.");
+				}
 
 				auto sendArgs = ["btrfs", "send"];
 				if (parent)
