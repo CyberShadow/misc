@@ -159,14 +159,14 @@ int btrfs_snapshot_archive(
 							flagPath.remove();
 					}
 				}
-				assert(!flagPath.exists || dryRun);
-				assert(!dstPath.exists || dryRun);
-
 				if (markOnly)
 				{
 					stderr.writeln(">>> --mark-only specified, skipping");
 					continue;
 				}
+
+				assert(!flagPath.exists || dryRun);
+				assert(!dstPath.exists || dryRun);
 
 				if (srcPath.buildPath(".nobackup").exists)
 				{
