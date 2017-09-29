@@ -274,7 +274,7 @@ int btrfs_snapshot_archive(
 		stderr.writeln("> Done with some errors.");
 	else
 		stderr.writeln("> Done with no errors.");
-	return error ? 1 : 0;
+	return error ? 2 : 0;
 }
 
 class SSHFS : VFS
