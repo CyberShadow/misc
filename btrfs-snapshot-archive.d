@@ -48,8 +48,12 @@ int btrfs_snapshot_archive(
 	Switch!("Never copy snapshots whole (require a parent)") requireParent,
 	Option!(string, "Only copy snapshots matching this glob") mask = null,
 	Option!(string, "Leave a file in the source root dir for each successfully copied snapshot, based on the snapshot name and MARK", "MARK") successMark = null,
+	Switch!("Only sync marks, don't copy new snapshots") markOnly = false,
 )
 {
+	if (markOnly)
+		enforce(successMark, "--mark-only only makes sense with --success-mark");
+
 	import core.stdc.stdio : setvbuf, _IOLBF;
 	setvbuf(stderr.getFP(), null, _IOLBF, 1024);
 
@@ -157,6 +161,12 @@ int btrfs_snapshot_archive(
 				}
 				assert(!flagPath.exists || dryRun);
 				assert(!dstPath.exists || dryRun);
+
+				if (markOnly)
+				{
+					stderr.writeln(">>> --mark-only specified, skipping");
+					continue;
+				}
 
 				if (srcPath.buildPath(".nobackup").exists)
 				{
