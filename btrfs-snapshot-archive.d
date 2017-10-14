@@ -48,6 +48,7 @@ int btrfs_snapshot_archive(
 	Switch!("Never copy snapshots whole (require a parent)") requireParent,
 	Option!(string, "Only copy snapshots matching this glob") mask = null,
 	Option!(string, "Leave a file in the source root dir for each successfully copied snapshot, based on the snapshot name and MARK", "MARK") successMark = null,
+	Option!(string, "Name of file in subvolume root which indicates which subvolumes to skip", "MARK") noBackupFile = ".nobackup",
 	Switch!("Only sync marks, don't copy new snapshots") markOnly = false,
 )
 {
@@ -168,9 +169,9 @@ int btrfs_snapshot_archive(
 				assert(!flagPath.exists || dryRun);
 				assert(!dstPath.exists || dryRun);
 
-				if (srcPath.buildPath(".nobackup").exists)
+				if (srcPath.buildPath(noBackupFile).exists)
 				{
-					stderr.writeln(">>> Has .nobackup file, skipping");
+					stderr.writefln(">>> Has no-backup file (%s), skipping", srcPath.buildPath(noBackupFile));
 					continue;
 				}
 
