@@ -15,6 +15,11 @@ void mpdSubscribe(void delegate() callback)
 		{
 			callback();
 		};
+	sock.handleDisconnect =
+		(string reason, DisconnectType type)
+		{
+			mpdSubscribe(callback);
+		};
 }
 
 struct MpdStatus
