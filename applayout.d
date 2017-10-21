@@ -23,6 +23,7 @@ void main()
 			case "Uurnog":
 			case "Tallowmere":
 			case "UNDERTALE":
+			case "Opus Magnum":
 				layout = 2; break;
 			default:
 				layout = 1; break;
