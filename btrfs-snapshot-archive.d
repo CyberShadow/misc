@@ -139,7 +139,7 @@ int btrfs_snapshot_archive(
 						if (!dryRun)
 						{
 							btrfs_subvolume_delete(dstPath);
-							sync();
+							// sync();
 							flagPath.remove();
 							stderr.writeln(">>>> OK");
 						}
@@ -225,7 +225,7 @@ int btrfs_snapshot_archive(
 				if (!dryRun)
 				{
 					auto flag = Lock(flagPath);
-					sync();
+					// sync();
 					scope(exit) flagPath.remove();
 
 					scope(failure)
@@ -234,7 +234,7 @@ int btrfs_snapshot_archive(
 						{
 							stderr.writefln(">>> Error, deleting partially-sent subvolume...");
 							btrfs_subvolume_delete(dstPath);
-							sync();
+							// sync();
 							stderr.writefln(">>>> Done.");
 						}
 					}
