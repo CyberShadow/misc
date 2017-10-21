@@ -175,6 +175,12 @@ int btrfs_snapshot_archive(
 					continue;
 				}
 
+				if (!srcPath.exists)
+				{
+					stderr.writefln(">>> Gone, skipping");
+					continue;
+				}
+
 				auto info = btrfs_subvolume_show(srcPath);
 				if (!info["Flags"].split(" ").canFind("readonly"))
 				{
