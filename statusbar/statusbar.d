@@ -62,9 +62,11 @@ protected:
 	{
 	}
 
-	void showNotification(string str)
+	void showNotification(string str, string hints = null)
 	{
 		string[] commandLine = ["dunstify", "-t", "1000", "--printid", str];
+		if (hints)
+			commandLine ~= "--hints=" ~ hints;
 		if (lastNotificationID)
 			commandLine ~= "--replace=" ~ text(lastNotificationID);
 		auto result = execute(commandLine);
@@ -253,7 +255,8 @@ final class PulseBlock : Block
 				: "[%3d%%]%s".format(
 					volume.percent,
 					volume.muted ? " [Mute]" : ""
-				)));
+				)),
+			volume.percent > 100 ? "string:fgcolor:#ff0000" : null);
 	}
 
 	override void handleClick(BarClick click)
