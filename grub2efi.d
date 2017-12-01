@@ -20,11 +20,10 @@ import ae.utils.main;
 import ae.utils.funopt;
 import ae.utils.regex;
 
-enum initialBootNum = 2000;
 enum grubConfig = "/boot/grub/grub.cfg";
 enum linkDir = "/var/local/grub2efi/links/";
 
-void grub2efi(bool dryRun)
+void grub2efi(bool dryRun, int initialBootNum = 2000)
 {
 	void maybeDo(string desc, scope void delegate() action)
 	{
