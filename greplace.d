@@ -17,29 +17,22 @@ import std.range;
 import std.stdio;
 import std.string;
 
-void main(string[] args)
-{
-	bool force, wide, noContent;
-	getopt(args,
-		"w|wide", &wide,
-		"f|force", &force,
-		"no-content", &noContent,
-	);
+import ae.utils.main;
+import ae.utils.funopt;
 
-	if (args.length < 3)
-		throw new Exception("Usage: " ~ args[0] ~ " [-f] <from> <to> [TARGETS...]");
-	auto targets = args[3..$];
+void greplace(bool force, bool wide, bool noContent, string fromStr, string toStr, string[] targets = null)
+{
 	if (!targets.length)
 		targets = [""];
 
 	ubyte[] from, to, fromw, tow;
-	from = cast(ubyte[])args[1];
-	to   = cast(ubyte[])args[2];
+	from = cast(ubyte[])fromStr;
+	to   = cast(ubyte[])toStr;
 
 	if (wide)
 	{
-		fromw = cast(ubyte[])std.conv.to!wstring(args[1]);
-		tow   = cast(ubyte[])std.conv.to!wstring(args[2]);
+		fromw = cast(ubyte[])std.conv.to!wstring(fromStr);
+		tow   = cast(ubyte[])std.conv.to!wstring(toStr);
 	}
 
 	auto files = targets.map!(target => target.empty || target.isDir ? dirEntries(target, SpanMode.breadth).map!`a.name`().array : [target]).join();
@@ -59,9 +52,9 @@ void main(string[] args)
 			if (!noContent)
 			{
 				if (data.countUntil(to)>=0)
-					throw new Exception("File " ~ file ~ " already contains " ~ args[2]);
+					throw new Exception("File " ~ file ~ " already contains " ~ toStr);
 				if (wide && data.countUntil(tow)>=0)
-					throw new Exception("File " ~ file ~ " already contains " ~ args[2] ~ " (in UTF-16)");
+					throw new Exception("File " ~ file ~ " already contains " ~ toStr ~ " (in UTF-16)");
 			}
 		}
 	}
@@ -108,9 +101,9 @@ void main(string[] args)
 			}
 		}
 
-		if (file.indexOf(args[1])>=0)
+		if (file.indexOf(fromStr)>=0)
 		{
-			string newName = file.replace(args[1], args[2]);
+			string newName = file.replace(fromStr, toStr);
 			writeln(file, " -> ", newName);
 	
 			if (!exists(dirName(newName)))
@@ -129,3 +122,5 @@ void main(string[] args)
 		}
 	}
 }
+
+mixin main!(funopt!greplace);
