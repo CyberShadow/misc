@@ -155,7 +155,8 @@ string[] argSplit(string s)
 		else
 		if (isWhite(c) && !quoted)
 		{
-			result ~= current;
+			if (current.length)
+				result ~= current;
 			current = null;
 		}
 		else
