@@ -20,7 +20,7 @@ import std.string;
 import ae.utils.main;
 import ae.utils.funopt;
 
-void greplace(bool force, bool wide, bool noContent, string fromStr, string toStr, string[] targets = null)
+void greplace(bool force, bool wide, bool noContent, bool followSymlinks, string fromStr, string toStr, string[] targets = null)
 {
 	if (!targets.length)
 		targets = [""];
@@ -35,7 +35,7 @@ void greplace(bool force, bool wide, bool noContent, string fromStr, string toSt
 		tow   = cast(ubyte[])std.conv.to!wstring(toStr);
 	}
 
-	auto files = targets.map!(target => target.empty || target.isDir ? dirEntries(target, SpanMode.breadth).map!`a.name`().array : [target]).join();
+	auto files = targets.map!(target => target.empty || target.isDir ? dirEntries(target, SpanMode.breadth, followSymlinks).map!`a.name`().array : [target]).join();
 	if (!force)
 	{
 		foreach (file; files)
