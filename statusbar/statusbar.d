@@ -570,10 +570,8 @@ void main()
 		new MpdBlock();
 
 		// Volume
-		version (HOST_vaio)
-			new PulseBlock("alsa_output.pci-0000_00_1b.0.analog-stereo");
-		else
-			new PulseBlock("combined");
+		auto adPath = expandTilde("~/.config/private/main-audio-device/" ~ Socket.hostName);
+		new PulseBlock(adPath.exists ? adPath.readText : "0");
 
 		// Brightness
 		new BrightnessBlock();
