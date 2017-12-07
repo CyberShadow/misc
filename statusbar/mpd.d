@@ -1,5 +1,6 @@
 import core.sys.posix.unistd;
 
+import std.conv;
 import std.process;
 import std.string;
 
@@ -26,6 +27,7 @@ struct MpdStatus
 {
 	string nowPlaying;
 	string status;
+	int volume;
 }
 
 MpdStatus getMpdStatus()
@@ -39,6 +41,7 @@ MpdStatus getMpdStatus()
 		{
 			status.nowPlaying = lines[0];
 			status.status = lines[1].split()[0][1..$-1];
+			status.volume = lines[2][7..10].strip.to!int;
 		}
 	}
 	return status;

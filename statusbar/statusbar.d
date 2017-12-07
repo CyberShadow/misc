@@ -302,7 +302,10 @@ final class MpdBlock : Block
 		switch (status.status)
 		{
 			case "playing":
-				iconChar = FontAwesome.fa_play;
+				if (status.volume <= 0)
+					iconChar = FontAwesome.fa_volume_off;
+				else
+					iconChar = FontAwesome.fa_play;
 				break;
 			case "paused":
 				iconChar = FontAwesome.fa_pause;
@@ -316,6 +319,7 @@ final class MpdBlock : Block
 		}
 
 		icon.full_text = text(iconChar);
+		icon.color = status.volume == 100 ? null : "#ffff00";
 		block.full_text = status.nowPlaying;
 		icon.separator = status.nowPlaying.length == 0;
 		send();
