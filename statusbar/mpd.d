@@ -27,7 +27,7 @@ struct MpdStatus
 {
 	string nowPlaying;
 	string status;
-	int volume;
+	int volume = -1;
 }
 
 MpdStatus getMpdStatus()
@@ -41,7 +41,9 @@ MpdStatus getMpdStatus()
 		{
 			status.nowPlaying = lines[0];
 			status.status = lines[1].split()[0][1..$-1];
-			status.volume = lines[2][7..10].strip.to!int;
+			try
+				status.volume = lines[2][7..10].strip.to!int;
+			catch (Exception) {}
 		}
 	}
 	return status;

@@ -319,7 +319,7 @@ final class MpdBlock : Block
 		}
 
 		icon.full_text = text(iconChar);
-		icon.color = status.volume == 100 ? null : "#ffff00";
+		icon.color = status.volume == 0 ? "#ffff00" : null;
 		block.full_text = status.nowPlaying;
 		icon.separator = status.nowPlaying.length == 0;
 		send();
