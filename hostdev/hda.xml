@@ -1,5 +1,0 @@
-<hostdev mode='subsystem' type='pci' managed='yes'>
-  <source>
-     <address domain='0' bus='0' slot='27' function='0'/>
-  </source>
-</hostdev>

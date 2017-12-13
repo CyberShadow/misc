@@ -3,13 +3,8 @@ set -eux
 
 # Give the GPU and HID devices to the Windows VM using VFIO.
 
-#WIN_VM=win
-WIN_VM=win-vfio
-
-#DM=sddm.service
-DM=nodm.service
-
-RAM=8 # in GB
+# shellcheck source=gpu-common.sh
+source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/gpu-common.sh"
 
 ###################################################################################
 
@@ -67,28 +62,17 @@ fi
 #fi
 
 # Unbind GPU HDMI audio from snd_hda_intel
-if [[ -e /sys/bus/pci/drivers/snd_hda_intel/0000:05:00.1 ]]
+if [[ -e /sys/bus/pci/drivers/snd_hda_intel/$PCI_ADDR.1 ]]
 then
-	echo 0000:05:00.1 | sudo tee /sys/bus/pci/drivers/snd_hda_intel/unbind
+	echo $PCI_ADDR.1 | sudo tee /sys/bus/pci/drivers/snd_hda_intel/unbind
 	sleep 1
 fi
 
 # lsmod | grep nvidia
 
-if lsmod | grep nvidia_drm
-then
-	sudo rmmod nvidia_drm
-fi
-
-#if lsmod | grep nvidia_modeset
-#then
-#	sudo rmmod nvidia_modeset
-#fi
-
-#if lsmod | grep nvidia
-#then
-#	sudo rmmod nvidia
-#fi
+rmmod_if_loaded nvidia_drm
+#rmmod_if_loaded nvidia_modeset
+#rmmod_if_loaded nvidia
 
 # Check that nvidia_modeset is not in use
 # Sometimes this fails for no apparent reason and the only solution is a reboot
@@ -100,19 +84,19 @@ fi
 # Finally, unbind GPU from NVIDIA driver
 if [[ -e /sys/bus/pci/drivers/nvidia ]]
 then
-	echo 0000:05:00.0 | sudo tee /sys/bus/pci/drivers/nvidia/unbind
+	echo $PCI_ADDR.0 | sudo tee /sys/bus/pci/drivers/nvidia/unbind
 fi
 
 # Unload the drivers
-sudo modprobe -r nvidia_drm
-sudo modprobe -r nvidia_modeset
-sudo modprobe -r nvidia
+rmmod_if_loaded nvidia_drm
+rmmod_if_loaded nvidia_modeset
+rmmod_if_loaded nvidia
 
 # Load VFIO meta-driver
 sudo modprobe vfio-pci
 
 # Assign devices to VFIO
-echo 10de 1005 | sudo tee /sys/bus/pci/drivers/vfio-pci/new_id
+echo "$gpu_vendor $gpu_device" | sudo tee /sys/bus/pci/drivers/vfio-pci/new_id
 #echo 10de 0e1a | sudo tee /sys/bus/pci/drivers/vfio-pci/new_id
 
 sleep 1
@@ -121,7 +105,7 @@ sleep 1
 #virsh nodedev-dumpxml pci_0000_05_00_0 > gpu.xml
 
 # Assign devices to VM
-for D in gpu gpu-audio mouse keyboard
+for D in "${host_devices[@]}"
 do
-	sudo virsh attach-device $WIN_VM ~/work/misc/hostdev/$D.xml
+	sudo virsh attach-device $WIN_VM "$HOME/.config/vfio/devices/$D.xml"
 done
