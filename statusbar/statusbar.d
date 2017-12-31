@@ -116,7 +116,7 @@ class TimeBlock(string timeFormat) : TimerBlock
 	BarBlock block;
 	immutable(TimeZone) tz;
 
-	static immutable iconStr = text(wchar(FontAwesome.fa_clock_o)) ~ "  ";
+	static immutable iconStr = text(wchar(FontAwesome.fa_clock)) ~ "  ";
 
 	this(immutable(TimeZone) tz)
 	{
@@ -387,7 +387,7 @@ final class BrightnessBlock : Block
 
 	this()
 	{
-		icon.full_text = text(wchar(FontAwesome.fa_sun_o));
+		icon.full_text = text(wchar(FontAwesome.fa_sun));
 		icon.min_width = iconWidth;
 		icon.separator = false;
 

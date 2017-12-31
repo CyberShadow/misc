@@ -1,0 +1,8 @@
+#!/bin/bash
+set -eu
+
+curl https://use.fontawesome.com/releases/v5.0.2/css/all.css | \
+	sed 's/}/}\n/g' | \
+	sed -nE 's/^\.fa-([^:]*):before\{content:"\\(.*)"\}/fa_\1 \2/p' | \
+	tr - _ | \
+	awk '{printf "\t%-40s= '\''\\u%s'\'',\n",$1,$2}'
