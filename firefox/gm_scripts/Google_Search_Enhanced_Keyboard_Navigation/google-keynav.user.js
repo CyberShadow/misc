@@ -258,7 +258,7 @@ sc.handleBlur = function () {
 };
 sc.handleKeyDown = function (a) {
     a = a || window.event;
-    if (a.ctrlKey || a.altKey || a.metaKey) return;
+    if (a.shiftKey || a.altKey || a.metaKey) return;
     var b = a.target || a.srcElement;
     if (b.tagName == "INPUT") {
         if (b.name == "q" && a.keyCode == 27) {
@@ -269,8 +269,11 @@ sc.handleKeyDown = function (a) {
         return;
     }
     if (a.keyCode == 13 || a.keyCode == 79) if (sc.a >= 0 && sc.a < sc.resultCount) {
-        if (a.shiftKey) window.open(sc.results[sc.a].linkElement.href, "_blank");
-        else {
+        if (a.ctrlKey) {
+            var w = window.open(sc.results[sc.a].linkElement.href);
+            w.focus();
+            // GM.openInTab(sc.results[sc.a].linkElement.href, false);
+        } else {
             //window.location.replace("#i=" + sc.a);
             window.location = sc.results[sc.a].linkElement.href;
         }
