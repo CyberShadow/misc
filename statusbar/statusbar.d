@@ -593,12 +593,9 @@ void main()
 		new UtcTimeBlock();
 
 		// Local time
-		string timeZone;
-		try
-			timeZone = readText(expandTilde("~/.config/tz").strip());
-		catch (FileException)
-			timeZone = "Europe/Chisinau";
-		new TzTimeBlock(PosixTimeZone.getTimeZone(timeZone));
+		auto tzFile = expandTilde("~/.config/tz");
+		if (tzFile.exists)
+			new TzTimeBlock(PosixTimeZone.getTimeZone(readText(tzFile).strip()));
 
 		socketManager.loop();
 	}
