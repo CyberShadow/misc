@@ -60,7 +60,7 @@ void main(string[] args)
 		extCountStr ~= format("%d %s", count, ext);
 	writefln("Sort %d files (%-(%s, %)) to %d per-date directories? (Enter to continue, ^C to abort)",
 		targets.length,
-		extCount.pairs.map!(p => "%d %s".format(p.value, p.key)),
+		extCount.pairs.map!(p => "%d %s".format(p.value, p.key.length ? p.key : "extensionless")),
 		dateCount.length,
 	);
 	readln();
