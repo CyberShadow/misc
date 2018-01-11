@@ -48,7 +48,7 @@ void main(string[] args)
 	{
 		if (!sortDirs && de.isDir)
 			continue;
-		if (de.isDir && de.baseName.match(re!`^20\d\d-\d\d-\d\d$`))
+		if (de.isDir && de.baseName.match(re!`^20\d\d-\d\d-\d\d`))
 			continue;
 		targets ~= de;
 		extCount[toLower(de.name.extension)]++;
