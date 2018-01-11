@@ -391,7 +391,7 @@ final class SystemStatusBlock : TimerBlock
 		addBlock(&block);
 
 		import core.sys.posix.unistd;
-		auto p = pipeProcess(["upower", "--monitor"], Redirect.stdout);
+		auto p = pipeProcess(["journalctl", "--follow"], Redirect.stdout);
 		auto sock = new FileConnection(p.stdout.fileno.dup);
 		auto lines = new LineBufferedAdapter(sock);
 		lines.delimiter = "\n";
