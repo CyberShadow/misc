@@ -380,6 +380,54 @@ class ProcessBlock : Block
 	}
 }
 
+final class SystemStatusBlock : TimerBlock
+{
+	BarBlock block;
+	SysTime lastUpdate;
+	bool dirty = true;
+
+	this()
+	{
+		addBlock(&block);
+
+		import core.sys.posix.unistd;
+		auto p = pipeProcess(["upower", "--monitor"], Redirect.stdout);
+		auto sock = new FileConnection(p.stdout.fileno.dup);
+		auto lines = new LineBufferedAdapter(sock);
+		lines.delimiter = "\n";
+
+		lines.handleReadData = (Data data) { dirty = true; };
+
+		super();
+	}
+
+	override void update(SysTime now)
+	{
+		auto result = execute(["system-status"], /*Config.stderrPassThrough*/);
+		if (result.status == 0)
+		{
+			block.full_text = wchar(FontAwesome.fa_check).text;
+			// block.background = null;
+			block.color = "#00ff00";
+			block.urgent = false;
+		}
+		else
+		{
+			block.full_text = format("\&nbsp;\&nbsp;\&nbsp;%s\&nbsp;\&nbsp;\&nbsp;%s ", dchar(FontAwesome.fa_times), result.output.strip);
+			// block.background = "#ff0000";
+			block.color = null;
+			block.urgent = true;
+		}
+		dirty = false;
+	}
+
+	override void handleClick(BarClick click)
+	{
+		if (click.button == 1)
+			spawnProcess(["t", "sh", "-c", "systemctl --failed ; read -n 1"]).wait();
+	}
+}
+
 final class BrightnessBlock : Block
 {
 	BarBlock icon, block;
@@ -588,6 +636,9 @@ void main()
 
 		// Load
 		new LoadBlock();
+
+		// System status
+		new SystemStatusBlock();
 
 		// UTC time
 		new UtcTimeBlock();
