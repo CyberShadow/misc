@@ -162,7 +162,7 @@ class TimeBlock(string timeFormat) : TimerBlock
 	override void handleClick(BarClick click)
 	{
 		if (click.button == 1)
-			spawnProcess(["t", "sh", "-c", "cal -y ; read -n 1"]).wait();
+			spawnProcess(["datetime-popup"]).wait();
 	}
 }
 
