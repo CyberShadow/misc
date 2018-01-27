@@ -330,14 +330,7 @@ final class MpdBlock : Block
 		if (click.name == "icon")
 		{
 			if (click.button == 1)
-			{
-				string cmd;
-				if (status == "playing")
-					cmd = click.button == 1 ? "pause" : "stop";
-				else
-					cmd = "play";
-				spawnProcess(["mpc", cmd], stdin, File("/dev/null", "wb")).wait();
-			}
+				spawnProcess(["mpc-toggle"], stdin, File("/dev/null", "wb")).wait();
 			else
 				spawnProcess(["x", "cantata"]).wait();
 		}
