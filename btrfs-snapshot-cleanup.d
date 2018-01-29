@@ -29,6 +29,7 @@ int btrfs_snapshot_cleanup(
 	Switch!("Be more verbose") verbose,
 	Switch!("Delete partially-transferred snapshots, too") deletePartial,
 	Option!(string, "Only consider snapshots matching this glob") mask = null,
+	Option!(string, "Do not consider snapshots matching this glob") notMask = null,
 	Option!(string[], "Only consider snapshots with all of the given marks", "MARK") mark = null,
 	Option!(string, "Only consider snapshots older than this duration", "DUR") olderThan = null,
 	Option!(int, "Number of considered snapshots to keep", "COUNT") keep = 2,
@@ -105,6 +106,12 @@ int btrfs_snapshot_cleanup(
 				if (mask && !globMatch(snapshotSubvolume, mask))
 				{
 					if (verbose) stderr.writefln(">>>> Mask mismatch, skipping");
+					continue;
+				}
+
+				if (notMask && globMatch(snapshotSubvolume, notMask))
+				{
+					if (verbose) stderr.writefln(">>>> Not-mask match, skipping");
 					continue;
 				}
 
