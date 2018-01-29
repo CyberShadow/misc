@@ -9,7 +9,7 @@ import std.algorithm.searching;
 import std.algorithm.sorting;
 import std.array;
 import std.conv;
-import std.datetime.systime;
+import std.datetime;
 import std.math : isNaN;
 import std.path;
 import std.stdio : stderr, File;
