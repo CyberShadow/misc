@@ -162,6 +162,11 @@ void btrfs_subvolume_delete(string path)
 	run(remotify(["btrfs", "subvolume", "delete", "-c", path]));
 }
 
+void btrfs_subvolume_sync(string path)
+{
+	run(remotify(["btrfs", "subvolume", "sync", path]));
+}
+
 string run(string[] args)
 {
 	import std.stdio : stdin;

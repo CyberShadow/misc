@@ -29,8 +29,6 @@ import btrfs_common;
 
   - TODO:
     - don't use -p, use -c,
-    - don't clean up ALL snapshots, leave a few days' worth
-      - move cleanup to a separate tool
  */
 
 int btrfs_snapshot_archive(
