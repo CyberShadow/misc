@@ -175,7 +175,10 @@ int btrfs_snapshot_cleanup(
 							Thread.sleep(30.seconds);
 						}
 						else
+						{
+							if (verbose) stderr.writefln(">>>> Load OK (%s < %s)", loadStr, maxLoad);
 							break;
+						}
 					}
 				}
 
