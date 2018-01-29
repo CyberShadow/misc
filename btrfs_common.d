@@ -143,10 +143,9 @@ string[string] btrfs_subvolume_show(string path)
 	auto output = run(remotify(["btrfs", "subvolume", "show", path]));
 
 	auto lines = output.splitLines();
-	auto acceptedFirstLines = [localPart(path).absolutePath, localPart(path).baseName];
-	enforce(lines[0].isIn(acceptedFirstLines),
-		"Unexpected btrfs-subvolume-show output: First line is `%s`, expected one of %(`%s`%|, %)"
-		.format(lines[0], acceptedFirstLines));
+	enforce(lines[0] == localPart(path).absolutePath || lines[0].endsWith(localPart(path).baseName),
+		"Unexpected btrfs-subvolume-show output: First line is `%s`, expected absolute or root-relative of `%s`"
+		.format(lines[0], localPart(path)));
 
 	string[string] result;
 	foreach (line; lines[1..$])
