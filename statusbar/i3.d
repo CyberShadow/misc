@@ -88,6 +88,7 @@ struct BarBlock
     @JSONOptional string markup = "none";
 }
 
+@JSONPartial
 struct BarClick
 {
 	/// Name of the block, if set
@@ -101,4 +102,11 @@ struct BarClick
 
 	/// X11 button ID (for example 1 to 3 for left/middle/right mouse button)
 	int button;
+
+	/// Coordinates where the click occurred, with respect to the top
+	/// left corner of the block
+	int relative_x, relative_y;
+
+	/// Width and height (in px) of the block
+	int width, height;
 }
