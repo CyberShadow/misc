@@ -34,6 +34,7 @@ void pulseSubscribe(void delegate() callback)
 		(string reason, DisconnectType type)
 		{
 			callback();
+			wait(p.pid);
 			setTimeout({ pulseSubscribe(callback); }, 1.seconds);
 		};
 
