@@ -82,8 +82,9 @@ int btrfs_snapshot_archive(
 
 	bool error;
 
-	foreach (subvolume, snapshots; allSnapshots)
+	foreach (subvolume; allSnapshots.keys.sort)
 	{
+		auto snapshots = allSnapshots[subvolume];
 		snapshots.sort();
 		stderr.writefln("> Subvolume %s", subvolume);
 

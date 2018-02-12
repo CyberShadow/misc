@@ -74,8 +74,9 @@ int btrfs_snapshot_cleanup(
 	auto olderThanDur = olderThan ? olderThan.parseDuration : Duration.init;
 	auto sleepDur = sleep ? sleep.parseDuration : Duration.init;
 
-	foreach (subvolume, snapshots; allSnapshots)
+	foreach (subvolume; allSnapshots.keys.sort)
 	{
+		auto snapshots = allSnapshots[subvolume];
 		snapshots.sort();
 		stderr.writefln("> Subvolume %s", subvolume);
 
