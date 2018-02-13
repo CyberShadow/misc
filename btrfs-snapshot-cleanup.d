@@ -183,18 +183,24 @@ int btrfs_snapshot_cleanup(
 					}
 				}
 
-				if (!dryRun)
 				{
-					if (verbose) stderr.writeln(">>>> Acquiring lock...");
-					auto flag = Lock(flagPath);
+					Lock flag;
+					if (!dryRun)
+					{
+						if (verbose) stderr.writeln(">>>> Acquiring lock...");
+						flag = Lock(flagPath);
+					}
 
 					if (verbose) stderr.writefln(">>>> Deleting...");
-					btrfs_subvolume_delete(path);
-					flagPath.remove();
-					if (verbose) stderr.writeln(">>>>> OK");
+					if (!dryRun)
+					{
+						btrfs_subvolume_delete(path);
+						flagPath.remove();
+						if (verbose) stderr.writeln(">>>>> OK");
+					}
+					else
+						if (verbose) stderr.writeln(">>>>> OK (dry-run)");
 				}
-				else
-					if (verbose) stderr.writeln(">>>>> OK (dry-run)");
 
 				if (sync)
 				{
