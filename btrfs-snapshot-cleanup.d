@@ -200,6 +200,22 @@ int btrfs_snapshot_cleanup(
 					}
 					else
 						if (verbose) stderr.writeln(">>>>> OK (dry-run)");
+
+					foreach (fn; dir)
+					{
+						auto markName = fn;
+						if (markName.skipOver(snapshotSubvolume ~ ".success-"))
+						{
+							if (verbose) stderr.writefln(">>>> Deleting success mark %s ...", markName);
+							if (!dryRun)
+							{
+								buildPath(root, fn).remove();
+								if (verbose) stderr.writeln(">>>>> OK");
+							}
+							else
+								if (verbose) stderr.writeln(">>>>> OK (dry-run)");
+						}
+					}
 				}
 
 				if (sync)
