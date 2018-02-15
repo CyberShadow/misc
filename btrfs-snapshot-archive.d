@@ -38,8 +38,8 @@ int btrfs_snapshot_archive(
 	Switch!("Delete redundant snapshots from the source afterwards") cleanUp,
 	Switch!("Show transfer details by piping data through pv") pv,
 	Switch!("Never copy snapshots whole (require a parent)") requireParent,
-	Option!(string, "Only copy snapshots matching this glob") mask = null,
-	Option!(string, "Do not copy snapshots matching this glob") notMask = null,
+	Option!(string[], "Only copy snapshots matching this glob") mask = null,
+	Option!(string[], "Do not copy snapshots matching this glob") notMask = null,
 	Option!(string, "Leave a file in the source root dir for each successfully copied snapshot, based on the snapshot name and MARK", "MARK") successMark = null,
 	Option!(string, "Name of file in subvolume root which indicates which subvolumes to skip", "MARK") noBackupFile = ".nobackup",
 	Switch!("Only sync marks, don't copy new snapshots") markOnly = false,
@@ -102,13 +102,13 @@ int btrfs_snapshot_archive(
 				auto dstPath = buildPath(dstRoot, snapshotSubvolume);
 				auto flagPath = dstPath ~ ".partial";
 
-				if (mask && !globMatch(snapshotSubvolume, mask))
+				if (mask.length && !mask.any!(m => globMatch(snapshotSubvolume, m)))
 				{
 					stderr.writefln(">>> Mask mismatch, skipping");
 					continue;
 				}
 
-				if (notMask && globMatch(snapshotSubvolume, notMask))
+				if (notMask.any!(m => globMatch(snapshotSubvolume, m)))
 				{
 					stderr.writefln(">>> Not-mask match, skipping");
 					continue;
