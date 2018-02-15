@@ -16,6 +16,7 @@ import ae.sys.vfs;
 import ae.utils.aa;
 import ae.utils.funopt;
 import ae.utils.main;
+import ae.utils.meta;
 
 import btrfs_common;
 
@@ -35,6 +36,7 @@ int btrfs_snapshot_archive(
 	Parameter!(string, "Path to source btrfs root directory") srcRoot,
 	Parameter!(string, "Path to target btrfs root directory") dstRoot,
 	Switch!("Dry run (only pretend to do anything)") dryRun,
+	Switch!("Be more verbose") verbose,
 	Switch!("Delete redundant snapshots from the source afterwards") cleanUp,
 	Switch!("Show transfer details by piping data through pv") pv,
 	Switch!("Never copy snapshots whole (require a parent)") requireParent,
@@ -92,7 +94,10 @@ int btrfs_snapshot_archive(
 		{
 			if (!snapshot.length)
 				continue; // live subvolume
-			stderr.writefln(">> Snapshot %s", snapshot);
+
+			bool snapshotHeaderLogged = false;
+			void needSnapshotHeader() { if (prog1(!snapshotHeaderLogged, snapshotHeaderLogged = true)) stderr.writefln(">> Snapshot %s", snapshot); }
+			if (verbose) needSnapshotHeader();
 
 			try
 			{
@@ -104,13 +109,13 @@ int btrfs_snapshot_archive(
 
 				if (mask.length && !mask.any!(m => globMatch(snapshotSubvolume, m)))
 				{
-					stderr.writefln(">>> Mask mismatch, skipping");
+					if (verbose) stderr.writefln(">>> Mask mismatch, skipping");
 					continue;
 				}
 
 				if (notMask.any!(m => globMatch(snapshotSubvolume, m)))
 				{
-					stderr.writefln(">>> Not-mask match, skipping");
+					if (verbose) stderr.writefln(">>> Not-mask match, skipping");
 					continue;
 				}
 
@@ -121,7 +126,7 @@ int btrfs_snapshot_archive(
 						auto markPath = srcPath ~ ".success-" ~ successMark;
 						if (markPath.baseName !in srcDir)
 						{
-							stderr.writefln(">>> Creating mark: %s", markPath);
+							needSnapshotHeader(); stderr.writefln(">>> Creating mark: %s", markPath);
 							if (!dryRun)
 								write(markPath, "");
 						}
@@ -132,10 +137,10 @@ int btrfs_snapshot_archive(
 				{
 					if (snapshotSubvolume ~ ".partial" in dstDir) // flagPath.exists
 					{
-						stderr.writeln(">>> Acquiring lock...");
+						if (verbose) stderr.writeln(">>> Acquiring lock...");
 						auto flag = Lock(flagPath);
 
-						stderr.writeln(">>> Cleaning up partially-received snapshot");
+						needSnapshotHeader(); stderr.writeln(">>> Cleaning up partially-received snapshot");
 						if (!dryRun)
 						{
 							btrfs_subvolume_delete(dstPath);
@@ -146,7 +151,7 @@ int btrfs_snapshot_archive(
 					}
 					else
 					{
-						stderr.writeln(">>> Already in destination, skipping");
+						if (verbose) stderr.writeln(">>> Already in destination, skipping");
 						createMark();
 						continue;
 					}
@@ -155,14 +160,14 @@ int btrfs_snapshot_archive(
 				{
 					if (snapshotSubvolume ~ ".partial" in dstDir) // flagPath.exists
 					{
-						stderr.writeln(">>> Deleting orphan flag file: ", flagPath);
+						needSnapshotHeader(); stderr.writeln(">>> Deleting orphan flag file: ", flagPath);
 						if (!dryRun)
 							flagPath.remove();
 					}
 				}
 				if (markOnly)
 				{
-					stderr.writeln(">>> --mark-only specified, skipping");
+					if (verbose) stderr.writeln(">>> --mark-only specified, skipping");
 					continue;
 				}
 
@@ -171,20 +176,20 @@ int btrfs_snapshot_archive(
 
 				if (srcPath.buildPath(noBackupFile).exists)
 				{
-					stderr.writefln(">>> Has no-backup file (%s), skipping", srcPath.buildPath(noBackupFile));
+					if (verbose) stderr.writefln(">>> Has no-backup file (%s), skipping", srcPath.buildPath(noBackupFile));
 					continue;
 				}
 
 				if (!srcPath.exists)
 				{
-					stderr.writefln(">>> Gone, skipping");
+					if (verbose) stderr.writefln(">>> Gone, skipping");
 					continue;
 				}
 
 				auto info = btrfs_subvolume_show(srcPath);
 				if (!info["Flags"].split(" ").canFind("readonly"))
 				{
-					stderr.writeln(">>> Not readonly, skipping");
+					if (verbose) stderr.writeln(">>> Not readonly, skipping");
 					continue;
 				}
 
@@ -196,7 +201,7 @@ int btrfs_snapshot_archive(
 					//debug stderr.writefln(">>> Checking for parent: %s", dstParentPath);
 					if (dstParentPath.exists && !(dstParentPath ~ ".partial").exists)
 					{
-						stderr.writefln(">>> Found parent: %s", parentSnapshot);
+						if (verbose) stderr.writefln(">>> Found parent: %s", parentSnapshot);
 						parent = parentSubvolume;
 						break;
 					}
@@ -204,7 +209,7 @@ int btrfs_snapshot_archive(
 				if (!parent)
 				{
 					enforce(!requireParent, "No parent found, skipping");
-					stderr.writefln(">>> No parent found, sending whole.");
+					needSnapshotHeader(); stderr.writefln(">>> No parent found, sending whole.");
 				}
 
 				auto sendArgs = ["btrfs", "send"];
@@ -221,7 +226,8 @@ int btrfs_snapshot_archive(
 				sendArgs = remotify(sendArgs);
 				recvArgs = remotify(recvArgs);
 
-				stderr.writefln(">>> %s | %s", sendArgs.escapeShellCommand, recvArgs.escapeShellCommand);
+				needSnapshotHeader();
+				if (verbose) stderr.writefln(">>> %s | %s", sendArgs.escapeShellCommand, recvArgs.escapeShellCommand);
 				if (!dryRun)
 				{
 					auto flag = Lock(flagPath);
@@ -235,7 +241,7 @@ int btrfs_snapshot_archive(
 							stderr.writefln(">>> Error, deleting partially-sent subvolume...");
 							btrfs_subvolume_delete(dstPath);
 							// sync();
-							stderr.writefln(">>>> Done.");
+							if (verbose) stderr.writefln(">>>> Done.");
 						}
 					}
 
@@ -263,7 +269,7 @@ int btrfs_snapshot_archive(
 					if (pv)
 						enforce(pvPid.wait() == 0, "pv failed");
 					enforce(dstPath.exists, "Sent subvolume does not exist: " ~ dstPath);
-					stderr.writeln(">>>> OK");
+					if (verbose) stderr.writeln(">>>> OK");
 				}
 
 				if (parent && cleanUp)
@@ -274,7 +280,7 @@ int btrfs_snapshot_archive(
 						assert(dstPath.exists);
 						auto srcParentPath = buildPath(srcRoot, parent);
 						btrfs_subvolume_delete(srcParentPath);
-						stderr.writeln(">>>> OK");
+						if (verbose) stderr.writeln(">>>> OK");
 					}
 				}
 
@@ -282,7 +288,7 @@ int btrfs_snapshot_archive(
 			}
 			catch (Exception e)
 			{
-				stderr.writefln(">>> Error! %s", e.msg);
+				needSnapshotHeader(); stderr.writefln(">>> Error! %s", e.msg);
 				error = true;
 			}
 		}
