@@ -82,7 +82,7 @@ int btrfs_snapshot_cleanup(
 		snapshots.sort();
 		stderr.writefln("> Subvolume %s", subvolume);
 
-		if (verbose) stderr.writefln(">> Listing snapshots");
+		stderr.writefln(">> Listing snapshots");
 		string[] candidates;
 
 	snapshotLoop:
@@ -147,6 +147,7 @@ int btrfs_snapshot_cleanup(
 			}
 			catch (Exception e)
 			{
+				if (!verbose) stderr.writefln(">>> Snapshot %s", snapshot);
 				stderr.writefln(">>>> Error! %s", e.msg);
 				error = true;
 			}
@@ -208,7 +209,7 @@ int btrfs_snapshot_cleanup(
 						auto markName = fn;
 						if (markName.skipOver(snapshotSubvolume ~ ".success-"))
 						{
-							if (verbose) stderr.writefln(">>>> Deleting success mark %s ...", markName);
+							stderr.writefln(">>>> Deleting success mark %s ...", markName);
 							if (!dryRun)
 							{
 								buildPath(root, fn).remove();
@@ -261,14 +262,14 @@ int btrfs_snapshot_cleanup(
 			auto p = fn.indexOf(".success-");
 			if (p > 0 && fn[0..p] !in dir)
 			{
-				if (verbose) stderr.writeln(">> ", fn);
+				stderr.writeln(">> ", fn);
 				if (!dryRun)
 				{
 					buildPath(root, fn).remove();
-					if (verbose) stderr.writeln(">>> OK");
+					stderr.writeln(">>> OK");
 				}
 				else
-					if (verbose) stderr.writeln(">>> OK (dry-run)");
+					stderr.writeln(">>> OK (dry-run)");
 			}
 		}
 	}
