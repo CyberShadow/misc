@@ -13,6 +13,7 @@ import std.datetime;
 import std.math : isNaN;
 import std.path;
 import std.stdio : stderr, File;
+import std.string;
 
 import ae.sys.vfs;
 import ae.utils.aa;
@@ -28,6 +29,7 @@ int btrfs_snapshot_cleanup(
 	Switch!("Dry run (only pretend to do anything)") dryRun,
 	Switch!("Be more verbose") verbose,
 	Switch!("Delete partially-transferred snapshots, too") deletePartial,
+	Switch!("Delete orphan success marks, too") cleanMarks,
 	Option!(string, "Only consider snapshots matching this glob") mask = null,
 	Option!(string, "Do not consider snapshots matching this glob") notMask = null,
 	Option!(string[], "Only consider snapshots with all of the given marks", "MARK") mark = null,
@@ -250,6 +252,27 @@ int btrfs_snapshot_cleanup(
 			warning = true;
 		}
 	}
+
+	if (cleanMarks)
+	{
+		stderr.writeln("> Cleaning up orphan marks...");
+		foreach (fn; dir.keys.sort)
+		{
+			auto p = fn.indexOf(".success-");
+			if (p > 0 && fn[0..p] !in dir)
+			{
+				if (verbose) stderr.writeln(">> ", fn);
+				if (!dryRun)
+				{
+					buildPath(root, fn).remove();
+					if (verbose) stderr.writeln(">>> OK");
+				}
+				else
+					if (verbose) stderr.writeln(">>> OK (dry-run)");
+			}
+		}
+	}
+
 	if (error)
 		stderr.writeln("> Done with some errors.");
 	else
