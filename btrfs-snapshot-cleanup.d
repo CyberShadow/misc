@@ -19,6 +19,7 @@ import ae.sys.vfs;
 import ae.utils.aa;
 import ae.utils.funopt;
 import ae.utils.main;
+import ae.utils.time.fpdur;
 import ae.utils.time.parse;
 import ae.utils.time.parsedur;
 
@@ -34,6 +35,7 @@ int btrfs_snapshot_cleanup(
 	Option!(string[], "Do not consider snapshots matching this glob") notMask = null,
 	Option!(string[], "Only consider snapshots with all of the given marks", "MARK") mark = null,
 	Option!(string, "Only consider snapshots older than this duration", "DUR") olderThan = null,
+	Switch!("Only consider snapshots older than the current uptime") olderThanBoot = false,
 	Option!(int, "Number of considered snapshots to keep", "COUNT") keep = 2,
 	Switch!("Run `btrfs subvolume sync` after every deleted snapshot") sync = false,
 	Option!(string, "Delay to sleep after deleting every snapshot", "DUR") sleep = null,
@@ -75,6 +77,9 @@ int btrfs_snapshot_cleanup(
 	auto now = Clock.currTime;
 	auto olderThanDur = olderThan ? olderThan.parseDuration : Duration.init;
 	auto sleepDur = sleep ? sleep.parseDuration : Duration.init;
+	SysTime bootTime;
+	if (olderThanBoot)
+		bootTime = Clock.currTime() - "/proc/uptime".readText.split[0].to!real.seconds;
 
 	foreach (subvolume; allSnapshots.keys.sort)
 	{
@@ -136,9 +141,16 @@ int btrfs_snapshot_cleanup(
 				}
 
 				auto creationTime = info["Creation time"].parseTime!`Y-m-d H:i:s O`;
+
 				if (olderThan && now - creationTime < olderThanDur)
 				{
 					if (verbose) stderr.writefln(">>>> Too new (created %s ago), skipping", now - creationTime);
+					continue;
+				}
+
+				if (olderThanBoot && creationTime > bootTime)
+				{
+					if (verbose) stderr.writefln(">>>> Too new (created %s after last boot), skipping", creationTime - bootTime);
 					continue;
 				}
 
