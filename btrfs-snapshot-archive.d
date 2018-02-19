@@ -3,9 +3,12 @@
 /// ssh://user@host//path/to/btrfs/root URLs.
 module btrfs_snapshot_archive;
 
+import core.time;
+
 import std.algorithm.searching;
 import std.algorithm.sorting;
 import std.array;
+import std.datetime.systime;
 import std.exception;
 import std.path;
 import std.process;
@@ -17,6 +20,8 @@ import ae.utils.aa;
 import ae.utils.funopt;
 import ae.utils.main;
 import ae.utils.meta;
+import ae.utils.time.parse;
+import ae.utils.time.parsedur;
 
 import btrfs_common;
 
@@ -42,6 +47,7 @@ int btrfs_snapshot_archive(
 	Switch!("Never copy snapshots whole (require a parent)") requireParent,
 	Option!(string[], "Only copy snapshots matching this glob") mask = null,
 	Option!(string[], "Do not copy snapshots matching this glob") notMask = null,
+	Option!(string, "Only copy snapshots newer than this duration", "DUR") newerThan = null,
 	Option!(string, "Leave a file in the source root dir for each successfully copied snapshot, based on the snapshot name and MARK", "MARK") successMark = null,
 	Option!(string, "Name of file in subvolume root which indicates which subvolumes to skip", "MARK") noBackupFile = ".nobackup",
 	Switch!("Only sync marks, don't copy new snapshots") markOnly = false,
@@ -83,6 +89,8 @@ int btrfs_snapshot_archive(
 	}
 
 	bool error;
+	auto now = Clock.currTime;
+	auto newerThanDur = newerThan ? newerThan.parseDuration : Duration.init;
 
 	foreach (subvolume; allSnapshots.keys.sort)
 	{
@@ -190,6 +198,13 @@ int btrfs_snapshot_archive(
 				if (!info["Flags"].split(" ").canFind("readonly"))
 				{
 					if (verbose) stderr.writeln(">>> Not readonly, skipping");
+					continue;
+				}
+
+				auto creationTime = info["Creation time"].parseTime!`Y-m-d H:i:s O`;
+				if (newerThan && now - creationTime < newerThanDur)
+				{
+					if (verbose) stderr.writefln(">>> Too old (created %s ago), skipping", now - creationTime);
 					continue;
 				}
 
