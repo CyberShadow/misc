@@ -20,7 +20,7 @@ import std.string;
 import ae.utils.main;
 import ae.utils.funopt;
 
-void greplace(bool force, bool wide, bool noContent, bool followSymlinks, string fromStr, string toStr, string[] targets = null)
+void greplace(bool force, bool dryRun, bool wide, bool noContent, bool followSymlinks, string fromStr, string toStr, string[] targets = null)
 {
 	if (!targets.length)
 		targets = [""];
@@ -88,16 +88,19 @@ void greplace(bool force, bool wide, bool noContent, bool followSymlinks, string
 			{
 				writeln(file);
 
-				if (file.isFile())
-					std.file.write(file, s);
-				else
-				if (file.isSymlink())
+				if (!dryRun)
 				{
-					remove(file);
-					symlink(cast(string)s, file);
+					if (file.isFile())
+						std.file.write(file, s);
+					else
+					if (file.isSymlink())
+					{
+						remove(file);
+						symlink(cast(string)s, file);
+					}
+					else
+						assert(false);
 				}
-				else
-					assert(false);
 			}
 		}
 
@@ -105,20 +108,23 @@ void greplace(bool force, bool wide, bool noContent, bool followSymlinks, string
 		{
 			string newName = file.replace(fromStr, toStr);
 			writeln(file, " -> ", newName);
-	
-			if (!exists(dirName(newName)))
-				mkdirRecurse(dirName(newName));
-			std.file.rename(file, newName);
-	
-			// TODO: empty folders
 
-			auto segments = array(pathSplitter(file))[0..$-1];
-			foreach_reverse (i; 0..segments.length)
+			if (!dryRun)
 			{
-				auto dir = buildPath(segments[0..i+1]);
-				if (array(map!`a.name`(dirEntries(dir, SpanMode.shallow))).length==0)
-					rmdir(dir);
-			}	
+				if (!exists(dirName(newName)))
+					mkdirRecurse(dirName(newName));
+				std.file.rename(file, newName);
+
+				// TODO: empty folders
+
+				auto segments = array(pathSplitter(file))[0..$-1];
+				foreach_reverse (i; 0..segments.length)
+				{
+					auto dir = buildPath(segments[0..i+1]);
+					if (array(map!`a.name`(dirEntries(dir, SpanMode.shallow))).length==0)
+						rmdir(dir);
+				}
+			}
 		}
 	}
 }
