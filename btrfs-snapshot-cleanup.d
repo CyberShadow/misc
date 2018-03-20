@@ -34,6 +34,8 @@ int btrfs_snapshot_cleanup(
 	Option!(string[], "Only consider snapshots matching this glob") mask = null,
 	Option!(string[], "Do not consider snapshots matching this glob") notMask = null,
 	Option!(string[], "Only consider snapshots with all of the given marks", "MARK") mark = null,
+	Option!(string, "Only consider snapshots which do not exist at this location", "DIR") notIn = null,
+	Option!(string, "Only consider snapshots which also exist at this location", "DIR") alsoIn = null,
 	Option!(string, "Only consider snapshots older than this duration", "DUR") olderThan = null,
 	Switch!("Only consider snapshots older than the current uptime") olderThanBoot = false,
 	Option!(int, "Number of considered snapshots to keep", "COUNT") keep = 2,
@@ -120,6 +122,18 @@ int btrfs_snapshot_cleanup(
 				if (notMask.any!(m => globMatch(snapshotSubvolume, m)))
 				{
 					if (verbose) stderr.writefln(">>>> Not-mask match, skipping");
+					continue;
+				}
+
+				if (notIn && notIn.buildPath(snapshotSubvolume).exists)
+				{
+					if (verbose) stderr.writefln(">>>> %s exists, skipping", notIn.buildPath(snapshotSubvolume));
+					continue;
+				}
+
+				if (alsoIn && !alsoIn.buildPath(snapshotSubvolume).exists)
+				{
+					if (verbose) stderr.writefln(">>>> %s does not exist, skipping", alsoIn.buildPath(snapshotSubvolume));
 					continue;
 				}
 
