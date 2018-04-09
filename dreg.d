@@ -36,7 +36,7 @@ void main(string[] args)
 	string maxVer;
 	bool doBisect, singleThreadedSwitch;
 	string[] dverArgs = [];
-	string[] without = ["rdmd"];
+	string[] without = null;
 	getopt(args,
 		"b", &doBisect,
 		"without", &without,
@@ -81,6 +81,9 @@ void main(string[] args)
 	bool multiThreaded = !singleThreadedSwitch;
 	if (args.canFind("-run") || args[1] == "rdmd" || args[1].endsWith("sh"))
 		multiThreaded = false;
+
+	if (without is null && args[1] != "rdmd")
+		without ~= "rdmd";
 
 	alias ExecResult = typeof(execute(args));
 	ExecResult[string] results;
