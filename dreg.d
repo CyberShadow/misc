@@ -33,6 +33,7 @@ enum canBisectAfter = Date(2011, 07, 01);
 void main(string[] args)
 {
 	string minVer = "1.0";
+	string maxVer;
 	bool doBisect, singleThreadedSwitch;
 	string[] dverArgs = [];
 	string[] without = ["rdmd"];
@@ -41,6 +42,8 @@ void main(string[] args)
 		"without", &without,
 		"s", &singleThreadedSwitch,
 		"32", { dverArgs ~= "--32"; },
+		"min", &minVer,
+		"max", &maxVer,
 		config.stopOnFirstNonOption,
 	);
 
@@ -62,7 +65,8 @@ void main(string[] args)
 		.filter!(de => de.isDir)
 		.filter!(de => !de.name.endsWith(".windows"))
 		.map!(de => de.baseName[4..$].chomp(".linux"))
-		.filter!(ver => ver >= minVer)
+		.filter!(ver =>          ver >= minVer       )
+		.filter!(ver => maxVer ? ver <= maxVer : true)
 		.array
 		.sort!compareVersion
 		.release;
