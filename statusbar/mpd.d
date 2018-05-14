@@ -2,9 +2,11 @@ import core.sys.posix.unistd;
 
 import std.conv;
 import std.process;
+import std.stdio;
 import std.string;
 
 import ae.net.asockets;
+import ae.sys.timing;
 
 void mpdSubscribe(void delegate() callback)
 {
@@ -19,7 +21,9 @@ void mpdSubscribe(void delegate() callback)
 	sock.handleDisconnect =
 		(string reason, DisconnectType type)
 		{
-			mpdSubscribe(callback);
+			stderr.writeln("mpd disconnected: ", reason);
+			wait(p.pid);
+			setTimeout({ mpdSubscribe(callback); }, 100.msecs);
 		};
 }
 
