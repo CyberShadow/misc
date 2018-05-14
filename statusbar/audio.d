@@ -127,20 +127,7 @@ class Pulse : Audio
 class ALSA : Audio
 {
 	ProcessPipes p;
-	string sinkName;
 	bool subscribed;
-
-	this()
-	{
-		try
-		{
-			auto result = execute(["audio-get-pa-sink"], null, Config.stderrPassThrough);
-			enforce(result.status == 0);
-			sinkName = result.output.strip();
-		}
-		catch (Exception)
-			sinkName = "0";
-	}
 
 	override void subscribe(void delegate() callback)
 	{
