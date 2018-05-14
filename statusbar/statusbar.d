@@ -206,7 +206,7 @@ final class VolumeBlock : Block
 
 	this()
 	{
-		icon.min_width = iconWidth;
+		icon.min_width = iconWidth + 7;
 		icon.separator = false;
 		icon.name = "icon";
 
@@ -242,7 +242,7 @@ final class VolumeBlock : Block
 			volumeStr = "%3d%%".format(volume.percent);
 		}
 
-		icon.full_text = text(iconChar);
+		icon.full_text = audio.getSymbol() ~ text(iconChar);
 		icon.color = volume.muted ? "#ff0000" : null;
 		block.full_text = volumeStr;
 		block.color = volume.percent > 100 ? "#ff0000" : null;

@@ -19,6 +19,7 @@ struct Volume
 
 class Audio
 {
+	abstract string getSymbol();
 	abstract void subscribe(void delegate() callback);
 	abstract void unsubscribe();
 	abstract Volume getVolume();
@@ -52,6 +53,8 @@ class Pulse : Audio
 		catch (Exception)
 			sinkName = "0";
 	}
+
+	override string getSymbol() { return "Ⓟ"; }
 
 	override void subscribe(void delegate() callback)
 	{
@@ -128,6 +131,8 @@ class ALSA : Audio
 {
 	ProcessPipes p;
 	bool subscribed;
+
+	override string getSymbol() { return "Ⓐ"; }
 
 	override void subscribe(void delegate() callback)
 	{
