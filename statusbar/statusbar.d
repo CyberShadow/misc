@@ -201,8 +201,9 @@ final class LoadBlock : TimerBlock
 final class VolumeBlock : Block
 {
 	BarBlock icon, block;
-	Volume oldValue;
+	Volume oldVolume;
 	Audio audio;
+	AudioAPI api, oldAPI;
 
 	this()
 	{
@@ -216,18 +217,33 @@ final class VolumeBlock : Block
 		addBlock(&icon);
 		addBlock(&block);
 
-		audio = getAudio();
-
-		audio.subscribe(&update);
 		update();
+		listenForAPIChange({ setTimeout(&updateAPI, 100.msecs);});
+	}
+
+	void updateAPI()
+	{
+		immutable currentAPI = getAudioAPI();
+		//stderr.writefln("updateAPI: %s => %s", api, currentAPI);
+		if (api != currentAPI || !audio)
+		{
+			api = currentAPI;
+			if (audio)
+				audio.unsubscribe();
+			audio = getAudio(api);
+			audio.subscribe(&update);
+		}
 	}
 
 	void update()
 	{
+		updateAPI();
+
 		auto volume = audio.getVolume();
-		if (oldValue == volume)
+		if (oldVolume == volume && api == oldAPI)
 			return;
-		oldValue = volume;
+		oldVolume = volume;
+		oldAPI = api;
 
 		wchar iconChar = FontAwesome.fa_volume_off;
 		string volumeStr = "???%";

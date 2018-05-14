@@ -9,6 +9,7 @@ import std.stdio;
 import std.string;
 
 import ae.net.asockets;
+import ae.sys.inotify;
 import ae.sys.timing;
 
 struct Volume
@@ -26,15 +27,74 @@ class Audio
 	abstract void runControlPanel();
 }
 
-Audio getAudio()
+enum AudioAPI
 {
-	if (readLink("/etc/asound.conf") == "asound-native.conf")
-		return new ALSA();
-	else
-		return new Pulse();
+	none,
+	alsa,
+	pulseAudio
+}
+
+AudioAPI getAudioAPI()
+{
+	try
+	{
+		switch (readLink("/etc/asound.conf"))
+		{
+			case "asound-native.conf":
+				return AudioAPI.alsa;
+			case "asound-pulse.conf":
+				return AudioAPI.pulseAudio;
+			default:
+		}
+	}
+	catch (Exception e) {}
+	return AudioAPI.none;
+}
+
+void listenForAPIChange(void delegate() callback)
+{
+	void register()
+	{
+		iNotify.add("/etc/asound.conf", INotify.Mask.removeSelf | INotify.Mask.dontFollow,
+			(in char[] name, INotify.Mask mask, uint cookie)
+			{
+				stderr.writeln(mask);
+				if (mask == INotify.Mask.removeSelf)
+					callback();
+				if (mask == INotify.Mask.ignored)
+					register();
+			}
+		);
+	}
+
+	register();
+}
+
+Audio getAudio(AudioAPI api)
+{
+	final switch (api)
+	{
+		case AudioAPI.none:
+			return new NoAudio();
+		case AudioAPI.alsa:
+			return new ALSA();
+		case AudioAPI.pulseAudio:
+			return new Pulse();
+	}
 }
 
 private:
+
+class NoAudio : Audio
+{
+	override string getSymbol() { return "?"; }
+
+	override void subscribe(void delegate() callback) { callback(); }
+	override void unsubscribe() {}
+
+	override Volume getVolume() { return Volume.init; }
+	override void runControlPanel() {}
+}
 
 class Pulse : Audio
 {
@@ -85,8 +145,9 @@ class Pulse : Audio
 				stderr.writeln("pactl disconnect: " ~ reason);
 				callback();
 				wait(p.pid);
+				p = ProcessPipes.init;
 				if (subscribed)
-					setTimeout({ subscribe(callback); }, 1.seconds);
+					setTimeout({ if (subscribed) subscribe(callback); }, 1.seconds);
 			};
 
 		callback();
@@ -95,7 +156,8 @@ class Pulse : Audio
 	override void unsubscribe()
 	{
 		subscribed = false;
-		p.pid.kill();
+		if (p.pid)
+			p.pid.kill();
 	}
 
 	override Volume getVolume()
@@ -152,8 +214,9 @@ class ALSA : Audio
 				stderr.writeln("alsamixer disconnect: " ~ reason);
 				callback();
 				wait(p.pid);
+				p = ProcessPipes.init;
 				if (subscribed)
-					setTimeout({ subscribe(callback); }, 1.seconds);
+					setTimeout({ if (subscribed) subscribe(callback); }, 1.seconds);
 			};
 
 		callback();
@@ -162,7 +225,8 @@ class ALSA : Audio
 	override void unsubscribe()
 	{
 		subscribed = false;
-		p.pid.kill();
+		if (p.pid)
+			p.pid.kill();
 	}
 
 	override Volume getVolume()
