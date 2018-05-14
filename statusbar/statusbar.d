@@ -200,20 +200,26 @@ final class LoadBlock : TimerBlock
 
 final class VolumeBlock : Block
 {
-	BarBlock icon, block;
+	BarBlock apiIcon, icon, block;
 	Volume oldVolume;
 	Audio audio;
 	AudioAPI api, oldAPI;
 
 	this()
 	{
-		icon.min_width = iconWidth + 7;
+		apiIcon.min_width = 6;
+		apiIcon.separator = false;
+		apiIcon.separator_block_width = -1;
+		apiIcon.name = "apiIcon";
+
+		icon.min_width = iconWidth + 1;
 		icon.separator = false;
 		icon.name = "icon";
 
 		block.min_width_str = "100%";
 		block.alignment = "right";
 
+		addBlock(&apiIcon);
 		addBlock(&icon);
 		addBlock(&block);
 
@@ -258,7 +264,9 @@ final class VolumeBlock : Block
 			volumeStr = "%3d%%".format(volume.percent);
 		}
 
-		icon.full_text = audio.getSymbol() ~ text(iconChar);
+		apiIcon.full_text = audio.getSymbol();
+		apiIcon.color = audio.getSymbolColor();
+		icon.full_text = text(iconChar);
 		icon.color = volume.muted ? "#ff0000" : null;
 		block.full_text = volumeStr;
 		block.color = volume.percent > 100 ? "#ff0000" : null;

@@ -21,6 +21,7 @@ struct Volume
 class Audio
 {
 	abstract string getSymbol();
+	abstract string getSymbolColor();
 	abstract void subscribe(void delegate() callback);
 	abstract void unsubscribe();
 	abstract Volume getVolume();
@@ -88,6 +89,7 @@ private:
 class NoAudio : Audio
 {
 	override string getSymbol() { return "?"; }
+	override string getSymbolColor() { return "#666666"; }
 
 	override void subscribe(void delegate() callback) { callback(); }
 	override void unsubscribe() {}
@@ -115,6 +117,7 @@ class Pulse : Audio
 	}
 
 	override string getSymbol() { return "Ⓟ"; }
+	override string getSymbolColor() { return "#bbbbff"; }
 
 	override void subscribe(void delegate() callback)
 	{
@@ -195,6 +198,7 @@ class ALSA : Audio
 	bool subscribed;
 
 	override string getSymbol() { return "Ⓐ"; }
+	override string getSymbolColor() { return "#aaffcc"; }
 
 	override void subscribe(void delegate() callback)
 	{
