@@ -28,11 +28,11 @@ import ae.utils.meta.args;
 import ae.utils.path;
 import ae.utils.time.format;
 
+import audio;
 import fontawesome;
 import i3;
 import i3conn;
 import mpd;
-import pulse;
 
 I3Connection conn;
 
@@ -198,16 +198,14 @@ final class LoadBlock : TimerBlock
 	}
 }
 
-final class PulseBlock : Block
+final class VolumeBlock : Block
 {
 	BarBlock icon, block;
-	string sinkName;
 	Volume oldValue;
+	Audio audio;
 
-	this(string sinkName)
+	this()
 	{
-		this.sinkName = sinkName;
-
 		icon.min_width = iconWidth;
 		icon.separator = false;
 		icon.name = "icon";
@@ -218,13 +216,15 @@ final class PulseBlock : Block
 		addBlock(&icon);
 		addBlock(&block);
 
-		pulseSubscribe(&update);
+		audio = getAudio();
+
+		audio.subscribe(&update);
 		update();
 	}
 
 	void update()
 	{
-		auto volume = getVolume(sinkName);
+		auto volume = audio.getVolume();
 		if (oldValue == volume)
 			return;
 		oldValue = volume;
@@ -263,18 +263,18 @@ final class PulseBlock : Block
 	{
 		if (click.button == 1)
 			if (click.name == "icon")
-				spawnProcess(["pactl", "set-sink-mute", sinkName, "toggle"]).wait();
+				spawnProcess(["volume-mute-toggle"]).wait();
 			else
-				spawnProcess(["x", "pavucontrol"]).wait();
+				audio.runControlPanel();
 		else
 		if (click.button == 3)
 			spawnProcess(["speakers"], stdin, File(nullFileName, "w")).wait();
 		else
 		if (click.button == 4)
-			spawnProcess(["pactl", "set-sink-volume", sinkName, "+5%"]).wait();
+			spawnProcess(["volume-up"]).wait();
 		else
 		if (click.button == 5)
-			spawnProcess(["pactl", "set-sink-volume", sinkName, "-5%"]).wait();
+			spawnProcess(["volume-down"]).wait();
 	}
 }
 
@@ -615,8 +615,7 @@ void main()
 		new MpdBlock();
 
 		// Volume
-		auto adPath = expandTilde("~/.config/private/main-audio-device/" ~ Socket.hostName);
-		new PulseBlock(adPath.exists ? adPath.readText : "0");
+		new VolumeBlock();
 
 		// Brightness
 		new BrightnessBlock();
