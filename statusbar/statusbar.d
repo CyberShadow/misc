@@ -420,22 +420,25 @@ final class SystemStatusBlock : TimerBlock
 
 	override void update(SysTime now)
 	{
-		auto result = execute(["system-status"], /*Config.stderrPassThrough*/);
-		if (result.status == 0)
+		if (dirty)
 		{
-			block.full_text = wchar(FontAwesome.fa_check).text;
-			// block.background = null;
-			block.color = "#00ff00";
-			block.urgent = false;
+			auto result = execute(["system-status"], /*Config.stderrPassThrough*/);
+			if (result.status == 0)
+			{
+				block.full_text = wchar(FontAwesome.fa_check).text;
+				// block.background = null;
+				block.color = "#00ff00";
+				block.urgent = false;
+			}
+			else
+			{
+				block.full_text = format("\&nbsp;\&nbsp;\&nbsp;%s\&nbsp;\&nbsp;\&nbsp;%s ", dchar(FontAwesome.fa_times), result.output.strip);
+				// block.background = "#ff0000";
+				block.color = null;
+				block.urgent = true;
+			}
+			dirty = false;
 		}
-		else
-		{
-			block.full_text = format("\&nbsp;\&nbsp;\&nbsp;%s\&nbsp;\&nbsp;\&nbsp;%s ", dchar(FontAwesome.fa_times), result.output.strip);
-			// block.background = "#ff0000";
-			block.color = null;
-			block.urgent = true;
-		}
-		dirty = false;
 	}
 
 	override void handleClick(BarClick click)
