@@ -108,7 +108,7 @@ class Pulse : Audio
 	{
 		try
 		{
-			auto result = execute(["audio-get-pa-sink"], null, Config.stderrPassThrough);
+			auto result = execute(["audio-get-pa-sink"]/*, null, Config.stderrPassThrough*/);
 			enforce(result.status == 0);
 			sinkName = result.output.strip();
 		}
