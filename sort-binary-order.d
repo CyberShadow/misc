@@ -1,3 +1,12 @@
+/**
+   Sort lines in binary bisection order, i.e.:
+   0 1 2 3 4 5 6 7 -> 4 2 6 1 3 5 7 0
+
+   Example use case: Non-interactively warm up a ccache cache for a
+   later interactive bisection:
+   git log v4.14..v4.15 --pretty=format:%H | sort-binary-order | sed 's#^#./buildver.sh #g' | bash
+*/
+
 module sort_binary_order;
 
 import ae.sys.file;
