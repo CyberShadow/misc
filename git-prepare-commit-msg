@@ -1,11 +1,36 @@
-#!/bin/sh
+#!/bin/bash
 set -eu
 
 # Hook for preparing a commit message template based on which files
 # are modified. Install by symlinking .git/hooks/prepare-commit-msg to
 # this script. Invokes git-status-to-commit-msg to do the real work.
 
+# Recently, GIT_DIR is no longer set. Try to detect it instead.
+
+if [[ ! -v GIT_DIR ]]
+then
+	if [[ -d .git ]]
+	then
+		GIT_DIR=.git
+	fi
+fi
+
+# Remove our template from git-gui
+
+# We only want to edit the template for NEW commits.
+
+if [[ $# -gt 1 ]]
+then
+	exit 0
+fi
+
 test -f "$GIT_DIR"/GITGUI_MSG && ! grep -vqE '^[a-z0-9._]+:$' "$GIT_DIR"/GITGUI_MSG && rm "$GIT_DIR"/GITGUI_MSG
-( test -s "$GIT_DIR"/COMMIT_EDITMSG && grep -q '^[^#]' "$GIT_DIR"/COMMIT_EDITMSG ) || (
-	git status --porcelain | git-status-to-commit-msg > "$1"
-)
+
+# Update commit message file
+
+old_message=$(cat "$1")
+(
+	git status --porcelain | git-status-to-commit-msg
+	printf '\n'
+	grep -v '^[a-z0-9._]+: ?$' <<< "$old_message"
+) > "$1"
