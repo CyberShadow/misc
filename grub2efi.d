@@ -100,30 +100,33 @@ void grub2efi(bool dryRun, int initialBootNum = 2000)
 		else
 		if (args == ["}"] && name)
 		{
-			if (bootNum in bootEntries)
-				maybeRun(["efibootmgr", "--bootnum", text(bootNum), "--delete-bootnum"]);
-
-			auto commandLine = parameters ~ initrd.map!(path => "initrd=" ~ path).array;
-			maybeRun([
-				"efibootmgr",
-				"--create",
-				"--bootnum", text(bootNum),
-				"--gpt",
-				"--disk", disk,
-				"--part", diskPart,
-				"--label", "%d. %s".format(bootNum - initialBootNum + 1, name),
-				"--loader", kernel,
-				"--unicode", commandLine.map!escapeKernelParam.join(" "),
-			]);
-
-			maybePut(linkDir ~ "/by-name/" ~ name, text(bootNum));
-			if (kernel.baseName() !in sawKernel)
+			if (kernel)
 			{
-				maybePut(linkDir ~ "/by-kernel/" ~ kernel.baseName(), text(bootNum));
-				sawKernel[kernel.baseName()] = true;
-			}
+				if (bootNum in bootEntries)
+					maybeRun(["efibootmgr", "--bootnum", text(bootNum), "--delete-bootnum"]);
 
-			bootNum++;
+				auto commandLine = parameters ~ initrd.map!(path => "initrd=" ~ path).array;
+				maybeRun([
+					"efibootmgr",
+					"--create",
+					"--bootnum", text(bootNum),
+					"--gpt",
+					"--disk", disk,
+					"--part", diskPart,
+					"--label", "%d. %s".format(bootNum - initialBootNum + 1, name),
+					"--loader", kernel,
+					"--unicode", commandLine.map!escapeKernelParam.join(" "),
+				]);
+
+				maybePut(linkDir ~ "/by-name/" ~ name, text(bootNum));
+				if (kernel.baseName() !in sawKernel)
+				{
+					maybePut(linkDir ~ "/by-kernel/" ~ kernel.baseName(), text(bootNum));
+					sawKernel[kernel.baseName()] = true;
+				}
+
+				bootNum++;
+			}
 			name = kernel = null;
 			initrd = parameters = null;
 		}
