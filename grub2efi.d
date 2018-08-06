@@ -147,10 +147,20 @@ string[] argSplit(string s)
 {
 	string[] result;
 	string current;
-	bool quoted;
+	char quoted = 0;
+	bool escaped = false;
 	foreach (c; s)
-		if (c == '\'')
-			quoted = !quoted;
+		if (escaped)
+		{
+			current ~= c;
+			escaped = false;
+		}
+		else
+		if (quoted && c == quoted)
+			quoted = 0;
+		else
+		if (!quoted && (c == '\'' || c == '"'))
+			quoted = c;
 		else
 		if (isWhite(c) && !quoted)
 		{
@@ -158,6 +168,9 @@ string[] argSplit(string s)
 				result ~= current;
 			current = null;
 		}
+		else
+		if (quoted != '\'' && c == '\\')
+			escaped = true;
 		else
 			current ~= c;
 	result ~= current;
