@@ -25,9 +25,14 @@ enum linkDir = "/var/local/grub2efi/links/";
 
 void grub2efi(bool dryRun, int initialBootNum = 2000)
 {
+	void log(string s)
+	{
+		stderr.writeln("grub2efi: ", s);
+	}
+
 	void maybeDo(string desc, scope void delegate() action)
 	{
-		stderr.writeln(desc);
+		log(desc);
 		if (!dryRun)
 			action();
 	}
@@ -50,7 +55,7 @@ void grub2efi(bool dryRun, int initialBootNum = 2000)
 			diskPart = m[2];
 		}
 	enforce(disk, "Can't detect boot disk");
-	stderr.writeln("Detected boot disk: ", disk);
+	log("Detected boot disk: " ~ disk);
 
 	string[int] bootEntries;
 	{
