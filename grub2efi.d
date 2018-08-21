@@ -137,6 +137,8 @@ void grub2efi(bool dryRun, int initialBootNum = 2000)
 		}
 	}
 
+	log("Found %d boot entries.".format(bootNum - initialBootNum));
+
 	auto lastBootNum = bootNum;
 
 	// Delete trailing bootnums
