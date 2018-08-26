@@ -115,6 +115,12 @@ int btrfs_snapshot_archive(
 				auto dstPath = buildPath(dstRoot, snapshotSubvolume);
 				auto flagPath = dstPath ~ ".partial";
 
+				if (snapshotSubvolume ~ ".partial" in srcDir)
+				{
+					if (verbose) stderr.writefln(">>> Source has .partial flag, skipping");
+					continue;
+				}
+
 				if (mask.length && !mask.any!(m => globMatch(snapshotSubvolume, m)))
 				{
 					if (verbose) stderr.writefln(">>> Mask mismatch, skipping");
