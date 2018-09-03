@@ -5,6 +5,8 @@ module btrfs_snapshot_archive;
 
 import core.time;
 
+import std.algorithm.iteration;
+import std.algorithm.mutation;
 import std.algorithm.searching;
 import std.algorithm.sorting;
 import std.array;
@@ -14,6 +16,7 @@ import std.path;
 import std.process;
 import std.range;
 import std.stdio : stderr, File;
+import std.typecons;
 
 import ae.sys.vfs;
 import ae.utils.aa;
@@ -60,6 +63,7 @@ int btrfs_snapshot_archive(
 	setvbuf(stderr.getFP(), null, _IOLBF, 1024);
 
 	string[][string] srcSubvolumes;
+	HashSet!string[string] allSubvolumes;
 
 	stderr.writefln("> Enumerating %s", srcRoot);
 	auto srcDir = srcRoot.listDir.toSet;
@@ -86,6 +90,8 @@ int btrfs_snapshot_archive(
 			continue;
 		}
 		srcSubvolumes[name] ~= time;
+		if (name !in allSubvolumes) allSubvolumes[name] = HashSet!string.init;
+		allSubvolumes[name].add(time);
 	}
 
 	bool error;
@@ -96,12 +102,52 @@ int btrfs_snapshot_archive(
 	{
 		auto srcSnapshots = srcSubvolumes[subvolume];
 		srcSnapshots.sort();
+		auto allSnapshots = allSubvolumes[subvolume].keys;
+		allSnapshots.sort();
+
 		stderr.writefln("> Subvolume %s", subvolume);
 
-		foreach (snapshotIndex, snapshot; srcSnapshots)
+		// Remove live subvolume
+		srcSnapshots = srcSnapshots.filter!(s => s.length > 0).array;
+
+		while (srcSnapshots.length)
 		{
-			if (!snapshot.length)
-				continue; // live subvolume
+			Tuple!(size_t, "distance", string, "snapshot") findParent(string snapshot)
+			{
+				auto snapshotIndex = allSnapshots.countUntil(snapshot);
+				assert(snapshotIndex >= 0);
+				foreach (distance, parentSnapshot; roundRobin(allSnapshots[snapshotIndex..$], allSnapshots[0..snapshotIndex].retro).enumerate)
+				{
+					if (!parentSnapshot.length)
+						continue;
+					auto parentSubvolume = subvolume ~ "-" ~ parentSnapshot;
+					//debug stderr.writefln(">>> Checking for parent: %s", dstParentPath);
+					if (parentSubvolume in srcDir && (parentSubvolume ~ ".partial") !in srcDir &&
+						parentSubvolume in dstDir && (parentSubvolume ~ ".partial") !in dstDir)
+						return typeof(return)(distance, parentSnapshot);
+				}
+				return typeof(return)(size_t.max - 1, string.init);
+			}
+
+			// Find the snapshot closest to an existing one.
+			auto snapshotIndex = {
+				string bestSnapshot;
+				size_t bestDistance = size_t.max;
+				foreach (snapshotIndex, snapshot; srcSnapshots)
+				{
+					auto parent = findParent(snapshot);
+					if (bestDistance > parent.distance)
+					{
+						bestDistance = parent.distance;
+						bestSnapshot = snapshot;
+					}
+				}
+				assert(bestSnapshot);
+				return srcSnapshots.countUntil(bestSnapshot);
+			}();
+			assert(snapshotIndex >= 0);
+			auto snapshot = srcSnapshots[snapshotIndex];
+			srcSnapshots = srcSnapshots.remove(snapshotIndex);
 
 			bool snapshotHeaderLogged = false;
 			void needSnapshotHeader() { if (prog1(!snapshotHeaderLogged, snapshotHeaderLogged = true)) stderr.writefln(">> Snapshot %s", snapshot); }
@@ -214,28 +260,25 @@ int btrfs_snapshot_archive(
 					continue;
 				}
 
-				string parent;
-				foreach (parentSnapshot; chain(srcSnapshots[0..snapshotIndex].retro, srcSnapshots[snapshotIndex..$]))
+				string parentSubvolume;
 				{
-					auto parentSubvolume = subvolume ~ "-" ~ parentSnapshot;
-					//debug stderr.writefln(">>> Checking for parent: %s", dstParentPath);
-					if (parentSubvolume in dstDir && (parentSubvolume ~ ".partial") !in dstDir)
+					auto parent = findParent(snapshot);
+					if (parent.snapshot)
 					{
-						if (verbose) stderr.writefln(">>> Found parent: %s", parentSnapshot);
-						parent = parentSubvolume;
-						break;
+						if (verbose) stderr.writefln(">>> Found parent: %s", parent.snapshot);
+						parentSubvolume = parent.snapshot ? subvolume ~ "-" ~ parent.snapshot : null;
 					}
 				}
-				if (!parent)
+				if (!parentSubvolume)
 				{
 					enforce(!requireParent, "No parent found, skipping");
 					needSnapshotHeader(); stderr.writefln(">>> No parent found, sending whole.");
 				}
 
 				auto sendArgs = ["btrfs", "send"];
-				if (parent)
+				if (parentSubvolume)
 				{
-					auto srcParentPath = buildPath(srcRoot, parent);
+					auto srcParentPath = buildPath(srcRoot, parentSubvolume);
 					assert(srcParentPath.exists);
 					sendArgs ~= ["-p", srcParentPath];
 				}
@@ -292,13 +335,13 @@ int btrfs_snapshot_archive(
 					if (verbose) stderr.writeln(">>>> OK");
 				}
 
-				if (parent && cleanUp)
+				if (parentSubvolume && cleanUp)
 				{
-					stderr.writefln(">>> Clean-up: parent %s", parent);
+					stderr.writefln(">>> Clean-up: parent %s", parentSubvolume);
 					if (!dryRun)
 					{
 						assert(dstPath.exists);
-						auto srcParentPath = buildPath(srcRoot, parent);
+						auto srcParentPath = buildPath(srcRoot, parentSubvolume);
 						btrfs_subvolume_delete(srcParentPath);
 						if (verbose) stderr.writeln(">>>> OK");
 					}
