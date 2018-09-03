@@ -218,9 +218,8 @@ int btrfs_snapshot_archive(
 				foreach (parentSnapshot; chain(snapshots[0..snapshotIndex].retro, snapshots[snapshotIndex..$]))
 				{
 					auto parentSubvolume = subvolume ~ "-" ~ parentSnapshot;
-					auto dstParentPath = buildPath(dstRoot, parentSubvolume);
 					//debug stderr.writefln(">>> Checking for parent: %s", dstParentPath);
-					if (dstParentPath.exists && !(dstParentPath ~ ".partial").exists)
+					if (parentSubvolume in dstDir && (parentSubvolume ~ ".partial") !in dstDir)
 					{
 						if (verbose) stderr.writefln(">>> Found parent: %s", parentSnapshot);
 						parent = parentSubvolume;
@@ -306,6 +305,7 @@ int btrfs_snapshot_archive(
 				}
 
 				createMark();
+				dstDir.add(snapshotSubvolume);
 			}
 			catch (Exception e)
 			{
