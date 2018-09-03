@@ -59,7 +59,7 @@ int btrfs_snapshot_archive(
 	import core.stdc.stdio : setvbuf, _IOLBF;
 	setvbuf(stderr.getFP(), null, _IOLBF, 1024);
 
-	string[][string] allSnapshots;
+	string[][string] srcSubvolumes;
 
 	stderr.writefln("> Enumerating %s", srcRoot);
 	auto srcDir = srcRoot.listDir.toSet;
@@ -85,20 +85,20 @@ int btrfs_snapshot_archive(
 			//stderr.writeln("Flag file, skipping: " ~ name);
 			continue;
 		}
-		allSnapshots[name] ~= time;
+		srcSubvolumes[name] ~= time;
 	}
 
 	bool error;
 	auto now = Clock.currTime;
 	auto newerThanDur = newerThan ? newerThan.parseDuration : Duration.init;
 
-	foreach (subvolume; allSnapshots.keys.sort)
+	foreach (subvolume; srcSubvolumes.keys.sort)
 	{
-		auto snapshots = allSnapshots[subvolume];
-		snapshots.sort();
+		auto srcSnapshots = srcSubvolumes[subvolume];
+		srcSnapshots.sort();
 		stderr.writefln("> Subvolume %s", subvolume);
 
-		foreach (snapshotIndex, snapshot; snapshots)
+		foreach (snapshotIndex, snapshot; srcSnapshots)
 		{
 			if (!snapshot.length)
 				continue; // live subvolume
@@ -215,7 +215,7 @@ int btrfs_snapshot_archive(
 				}
 
 				string parent;
-				foreach (parentSnapshot; chain(snapshots[0..snapshotIndex].retro, snapshots[snapshotIndex..$]))
+				foreach (parentSnapshot; chain(srcSnapshots[0..snapshotIndex].retro, srcSnapshots[snapshotIndex..$]))
 				{
 					auto parentSubvolume = subvolume ~ "-" ~ parentSnapshot;
 					//debug stderr.writefln(">>> Checking for parent: %s", dstParentPath);
