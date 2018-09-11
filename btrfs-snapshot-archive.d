@@ -70,26 +70,29 @@ int btrfs_snapshot_archive(
 	stderr.writefln("> Enumerating %s", dstRoot);
 	auto dstDir = dstRoot.listDir.toSet;
 
-	foreach (name; srcDir.byKey)
+	foreach (fileName; chain(srcDir.byKey, dstDir.byKey))
 	{
-		if (!name.startsWith("@"))
+		if (!fileName.startsWith("@"))
 		{
-			stderr.writeln("Invalid name, skipping: " ~ name);
+			stderr.writeln("Invalid name, skipping: " ~ fileName);
 			continue;
 		}
-		auto parts = name.findSplit("-");
-		string time = null;
+		auto parts = fileName.findSplit("-");
+		string name, time;
 		if (parts[1].length)
 		{
 			time = parts[2];
 			name = parts[0];
 		}
+		else
+			name = fileName;
 		if (time.canFind("."))
 		{
 			//stderr.writeln("Flag file, skipping: " ~ name);
 			continue;
 		}
-		srcSubvolumes[name] ~= time;
+		if (fileName in srcDir)
+			srcSubvolumes[name] ~= time;
 		if (name !in allSubvolumes) allSubvolumes[name] = HashSet!string.init;
 		allSubvolumes[name].add(time);
 	}
