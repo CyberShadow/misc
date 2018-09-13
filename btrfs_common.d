@@ -80,6 +80,12 @@ class SSHFS : VFS
 		run(["ssh", host, escapeShellCommand(["rm", "--", path])]);
 	}
 
+	override void rmdirRecurse(string path)
+	{
+		auto host = parseHost(path);
+		run(["ssh", host, escapeShellCommand(["rm", "-rf", "--", path])]);
+	}
+
 	static this()
 	{
 		registry["ssh"] = new SSHFS();
@@ -129,6 +135,20 @@ string[] remotify(string[] args)
 					}).array)];
 		}
 	return args;
+}
+
+string toRsyncPath(string path)
+{
+	if (path.startsWith("ssh://"))
+	{
+		auto host = SSHFS.parseHost(path);
+		enforce(path.isAbsolute,
+			"Using non-absolute paths via ssh is dangerous " ~
+			"(did you mean ssh://host//path instead of ssh://host/path?): " ~ path);
+		return host ~ ":" ~ path;
+	}
+	else
+		return path;
 }
 
 string localPart(string path)

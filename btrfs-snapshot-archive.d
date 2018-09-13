@@ -12,6 +12,7 @@ import std.algorithm.sorting;
 import std.array;
 import std.datetime.systime;
 import std.exception;
+import std.format;
 import std.path;
 import std.process;
 import std.range;
@@ -20,6 +21,7 @@ import std.typecons;
 
 import ae.sys.vfs;
 import ae.utils.aa;
+import ae.utils.array;
 import ae.utils.funopt;
 import ae.utils.main;
 import ae.utils.meta;
@@ -40,6 +42,13 @@ import btrfs_common;
     - don't use -p, use -c,
  */
 
+enum RsyncCondition
+{
+	never,
+	error,
+	always,
+}
+
 int btrfs_snapshot_archive(
 	Parameter!(string, "Path to source btrfs root directory") srcRoot,
 	Parameter!(string, "Path to target btrfs root directory") dstRoot,
@@ -54,6 +63,7 @@ int btrfs_snapshot_archive(
 	Option!(string, "Leave a file in the source root dir for each successfully copied snapshot, based on the snapshot name and MARK", "MARK") successMark = null,
 	Option!(string, "Name of file in subvolume root which indicates which subvolumes to skip", "MARK") noBackupFile = ".nobackup",
 	Switch!("Only sync marks, don't copy new snapshots") markOnly = false,
+	Option!(RsyncCondition, "When to use rsync instead of btrfs-send/receive (never/error/always). 'error' tries btrfs-send/receive first, and falls back to rsync on error.", "WHEN") rsync = RsyncCondition.never,
 )
 {
 	if (markOnly)
@@ -91,8 +101,7 @@ int btrfs_snapshot_archive(
 			//stderr.writeln("Flag file, skipping: " ~ name);
 			continue;
 		}
-		if (fileName in srcDir)
-			srcSubvolumes[name] ~= time;
+		if (fileName in srcDir) srcSubvolumes[name] ~= time;
 		if (name !in allSubvolumes) allSubvolumes[name] = HashSet!string.init;
 		allSubvolumes[name].add(time);
 	}
@@ -103,10 +112,8 @@ int btrfs_snapshot_archive(
 
 	foreach (subvolume; srcSubvolumes.keys.sort)
 	{
-		auto srcSnapshots = srcSubvolumes[subvolume];
-		srcSnapshots.sort();
-		auto allSnapshots = allSubvolumes[subvolume].keys;
-		allSnapshots.sort();
+		auto srcSnapshots = srcSubvolumes[subvolume].sort().release;
+		auto allSnapshots = allSubvolumes[subvolume].keys.sort().release;
 
 		stderr.writefln("> Subvolume %s", subvolume);
 
@@ -196,36 +203,55 @@ int btrfs_snapshot_archive(
 					}
 				}
 
-				if (snapshotSubvolume in dstDir) // dstPath.exists
+				if (snapshotSubvolume ~ ".partial" in dstDir) // flagPath.exists
 				{
-					if (snapshotSubvolume ~ ".partial" in dstDir) // flagPath.exists
+					auto haveSnapshot = snapshotSubvolume in dstDir; // dstPath.exists
+					auto haveRsync = snapshotSubvolume ~ ".rsync" in dstDir;
+
+					if (haveSnapshot || haveRsync)
 					{
 						if (verbose) stderr.writeln(">>> Acquiring lock...");
 						auto flag = Lock(flagPath);
 
-						needSnapshotHeader(); stderr.writeln(">>> Cleaning up partially-received snapshot");
+						if (haveSnapshot)
+						{
+							needSnapshotHeader(); stderr.writeln(">>> Cleaning up partially-received snapshot");
+							if (!dryRun)
+							{
+								btrfs_subvolume_delete(dstPath);
+								stderr.writeln(">>>> OK");
+							}
+						}
+						if (haveRsync)
+						{
+							needSnapshotHeader(); stderr.writeln(">>> Cleaning up partially-rsynced snapshot");
+							if (!dryRun)
+							{
+								btrfs_subvolume_delete(dstPath ~ ".rsync");
+								stderr.writeln(">>>> OK");
+							}
+						}
+
 						if (!dryRun)
 						{
-							btrfs_subvolume_delete(dstPath);
 							// sync();
 							flagPath.remove();
-							stderr.writeln(">>>> OK");
 						}
 					}
 					else
 					{
-						if (verbose) stderr.writeln(">>> Already in destination, skipping");
-						createMark();
-						continue;
+						needSnapshotHeader(); stderr.writeln(">>> Deleting orphan flag file: ", flagPath);
+						if (!dryRun)
+							flagPath.remove();
 					}
 				}
 				else
 				{
-					if (snapshotSubvolume ~ ".partial" in dstDir) // flagPath.exists
+					if (snapshotSubvolume in dstDir) // dstPath.exists
 					{
-						needSnapshotHeader(); stderr.writeln(">>> Deleting orphan flag file: ", flagPath);
-						if (!dryRun)
-							flagPath.remove();
+						if (verbose) stderr.writeln(">>> Already in destination, skipping");
+						createMark();
+						continue;
 					}
 				}
 				if (markOnly)
@@ -264,38 +290,94 @@ int btrfs_snapshot_archive(
 				}
 
 				string parentSubvolume;
+
+				void copyBtrfsSendReceive()
 				{
-					auto parent = findParent(snapshot);
-					if (parent.snapshot)
 					{
-						if (verbose) stderr.writefln(">>> Found parent: %s", parent.snapshot);
-						parentSubvolume = parent.snapshot ? subvolume ~ "-" ~ parent.snapshot : null;
+						auto parent = findParent(snapshot);
+						if (parent.snapshot)
+						{
+							if (verbose) stderr.writefln(">>> Found parent: %s", parent.snapshot);
+							parentSubvolume = parent.snapshot ? subvolume ~ "-" ~ parent.snapshot : null;
+						}
 					}
+					if (!parentSubvolume)
+					{
+						enforce(!requireParent, "No parent found, skipping");
+						needSnapshotHeader(); stderr.writefln(">>> No parent found, sending whole.");
+					}
+
+					auto sendArgs = ["btrfs", "send"];
+					if (parentSubvolume)
+					{
+						auto srcParentPath = buildPath(srcRoot, parentSubvolume);
+						assert(srcParentPath.exists);
+						sendArgs ~= ["-p", srcParentPath];
+					}
+
+					sendArgs ~= srcPath;
+					auto recvArgs = ["btrfs", "receive", dstRoot];
+
+					sendArgs = remotify(sendArgs);
+					recvArgs = remotify(recvArgs);
+
+					needSnapshotHeader();
+					if (verbose) stderr.writefln(">>> %s | %s", sendArgs.escapeShellCommand, recvArgs.escapeShellCommand);
+					if (!dryRun)
+					{
+						auto flag = Lock(flagPath);
+						// sync();
+						scope(exit) flagPath.remove();
+
+						scope(failure)
+						{
+							if (dstPath.exists)
+							{
+								stderr.writefln(">>> Error, deleting partially-received subvolume...");
+								btrfs_subvolume_delete(dstPath);
+								// sync();
+								if (verbose) stderr.writefln(">>>> Done.");
+							}
+						}
+
+						auto btrfsPipe = pipe();
+						File readEnd, writeEnd;
+						Pid pvPid;
+
+						if (pv)
+						{
+							auto pvPipe = pipe();
+							pvPid = spawnProcess(["pv"], btrfsPipe.readEnd, pvPipe.writeEnd);
+							writeEnd = btrfsPipe.writeEnd;
+							readEnd = pvPipe.readEnd;
+						}
+						else
+						{
+							readEnd = btrfsPipe.readEnd;
+							writeEnd = btrfsPipe.writeEnd;
+						}
+
+						auto sendPid = spawnProcess(sendArgs, File("/dev/null"), writeEnd);
+						auto recvPid = spawnProcess(recvArgs, readEnd, stderr);
+						auto recvStatus = recvPid.wait();
+						auto sendStatus = sendPid.wait();
+						int pvStatus;
+						if (pv)
+							pvStatus = pvPid.wait();
+						enforce(recvStatus == 0, "btrfs-receive failed");
+						enforce(sendStatus == 0, "btrfs-send failed");
+						enforce(pvStatus == 0, "pv failed");
+						enforce(dstPath.exists, "Sent subvolume does not exist: " ~ dstPath);
+						if (verbose) stderr.writeln(">>>> OK");
+					}
+					dstDir.add(snapshotSubvolume);
 				}
-				if (!parentSubvolume)
+
+				void copyRsync()
 				{
-					enforce(!requireParent, "No parent found, skipping");
-					needSnapshotHeader(); stderr.writefln(">>> No parent found, sending whole.");
-				}
+					dstPath ~= ".rsync";
+					snapshotSubvolume ~= ".rsync";
 
-				auto sendArgs = ["btrfs", "send"];
-				if (parentSubvolume)
-				{
-					auto srcParentPath = buildPath(srcRoot, parentSubvolume);
-					assert(srcParentPath.exists);
-					sendArgs ~= ["-p", srcParentPath];
-				}
-
-				sendArgs ~= srcPath;
-				auto recvArgs = ["btrfs", "receive", dstRoot];
-
-				sendArgs = remotify(sendArgs);
-				recvArgs = remotify(recvArgs);
-
-				needSnapshotHeader();
-				if (verbose) stderr.writefln(">>> %s | %s", sendArgs.escapeShellCommand, recvArgs.escapeShellCommand);
-				if (!dryRun)
-				{
 					auto flag = Lock(flagPath);
 					// sync();
 					scope(exit) flagPath.remove();
@@ -304,38 +386,96 @@ int btrfs_snapshot_archive(
 					{
 						if (dstPath.exists)
 						{
-							stderr.writefln(">>> Error, deleting partially-sent subvolume...");
+							stderr.writefln(">>> Error, deleting partially-rsynced subvolume...");
 							btrfs_subvolume_delete(dstPath);
-							// sync();
 							if (verbose) stderr.writefln(">>>> Done.");
 						}
 					}
 
-					auto btrfsPipe = pipe();
-					File readEnd, writeEnd;
-					Pid pvPid;
-
-					if (pv)
+					string parentSubvolume; // not the same as used by btrfs - this one need not exist in the source
 					{
-						auto pvPipe = pipe();
-						pvPid = spawnProcess(["pv"], btrfsPipe.readEnd, pvPipe.writeEnd);
-						writeEnd = btrfsPipe.writeEnd;
-						readEnd = pvPipe.readEnd;
+						auto dstSnapshots = dstDir.keys.filter!(fn => fn.startsWith(subvolume ~ "-")).array.sort;
+						auto lb = dstSnapshots.lowerBound(subvolume ~ "-" ~ snapshot);
+						if (!lb.empty)
+						{
+							parentSubvolume = lb.back;
+							if (verbose) stderr.writeln(">>> Found a \"parent\" snapshot to use as rsync base: ", parentSubvolume);
+						}
+						else
+						if (!dstSnapshots.empty)
+						{
+							parentSubvolume = dstSnapshots.front;
+							if (verbose) stderr.writeln(">>> Using first snapshot as rsync base: ", parentSubvolume);
+						}
+					}
+					if (!parentSubvolume)
+					{
+						enforce(!requireParent, "No parent found, skipping");
+						needSnapshotHeader(); stderr.writefln(">>> No parent found, sending whole.");
 					}
 					else
 					{
-						readEnd = btrfsPipe.readEnd;
-						writeEnd = btrfsPipe.writeEnd;
+						if (dstPath.exists) assert(false, "Trying to snapshot to existing path");
+						auto parentPath = buildPath(dstRoot, parentSubvolume);
+						string[] args = ["btrfs", "subvolume", "snapshot", parentPath, dstPath].remotify;
+						if (verbose) stderr.writefln(">>> %s", args.escapeShellCommand);
+						if (!dryRun) enforce(spawnProcess(args).wait() == 0, "'btrfs subvolume snapshot' failed");
+
+						args = ["btrfs", "property", "set", "-ts", dstPath, "ro", "false"];
+						if (verbose) stderr.writefln(">>> %s", args.escapeShellCommand);
+						if (!dryRun) enforce(spawnProcess(args).wait() == 0, "'btrfs property set' failed");
 					}
 
-					auto sendPid = spawnProcess(sendArgs, File("/dev/null"), writeEnd);
-					auto recvPid = spawnProcess(recvArgs, readEnd, stderr);
-					enforce(recvPid.wait() == 0, "btrfs-receive failed");
-					enforce(sendPid.wait() == 0, "btrfs-send failed");
-					if (pv)
-						enforce(pvPid.wait() == 0, "pv failed");
-					enforce(dstPath.exists, "Sent subvolume does not exist: " ~ dstPath);
-					if (verbose) stderr.writeln(">>>> OK");
+					{
+						string[] args = [
+							"rsync",
+							"--archive", "--hard-links", "--acls", "--xattrs", // copy everything
+							"--inplace", // only update changed parts of files
+							"--delete", // delete deleted files
+							"--ignore-errors", // ignore errors
+						];
+						if (dryRun)
+							args ~= "--dry-run";
+						if (verbose)
+						{
+							args ~= "--verbose";
+							if (pv)
+								args ~= "--progress";
+						}
+						args ~= [
+							srcPath.toRsyncPath ~ "/",
+							dstPath.toRsyncPath,
+						];
+
+						if (verbose) stderr.writefln(">>> %s", args.escapeShellCommand);
+						auto rsyncStatus = spawnProcess(args).wait();
+						enforce(rsyncStatus.isOneOf(0, 23), "rsync failed (exit status %s)".format(rsyncStatus));
+						if (!dryRun)
+						{
+							enforce(dstPath.exists, "Sent subvolume does not exist: " ~ dstPath);
+							if (verbose) stderr.writeln(">>>> OK");
+						}
+					}
+					dstDir.add(snapshotSubvolume);
+				}
+
+				final switch (rsync)
+				{
+					case RsyncCondition.never:
+						copyBtrfsSendReceive();
+						break;
+					case RsyncCondition.error:
+						try
+							copyBtrfsSendReceive();
+						catch (Exception e)
+						{
+							stderr.writefln(">> Error (%s), falling back to rsync...", e.msg);
+							copyRsync();
+						}
+						break;
+					case RsyncCondition.always:
+						copyRsync();
+						break;
 				}
 
 				if (parentSubvolume && cleanUp)
@@ -351,7 +491,6 @@ int btrfs_snapshot_archive(
 				}
 
 				createMark();
-				dstDir.add(snapshotSubvolume);
 			}
 			catch (Exception e)
 			{
