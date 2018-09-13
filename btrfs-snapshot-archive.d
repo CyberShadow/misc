@@ -106,7 +106,7 @@ int btrfs_snapshot_archive(
 		allSubvolumes[name].add(time);
 	}
 
-	bool error;
+	bool error, warning;
 	auto now = Clock.currTime;
 	auto newerThanDur = newerThan ? newerThan.parseDuration : Duration.init;
 
@@ -469,6 +469,7 @@ int btrfs_snapshot_archive(
 							copyBtrfsSendReceive();
 						catch (Exception e)
 						{
+							warning = true;
 							stderr.writefln(">> Error (%s), falling back to rsync...", e.msg);
 							copyRsync();
 						}
@@ -502,8 +503,11 @@ int btrfs_snapshot_archive(
 	if (error)
 		stderr.writeln("> Done with some errors.");
 	else
-		stderr.writeln("> Done with no errors.");
-	return error ? 2 : 0;
+	if (warning)
+		stderr.writeln("> Done with some warnings.");
+	else
+		stderr.writeln("> Done with no warnings or errors.");
+	return error ? 2 : warning ? 3 : 0;
 }
 
 mixin main!(funopt!btrfs_snapshot_archive);
