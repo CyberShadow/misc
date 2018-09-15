@@ -412,6 +412,9 @@ int btrfs_snapshot_archive(
 					{
 						enforce(!requireParent, "No parent found, skipping");
 						needSnapshotHeader(); stderr.writefln(">>> No parent found, sending whole.");
+						string[] args = ["btrfs", "subvolume", "create", dstPath].remotify;
+						if (verbose) stderr.writefln(">>> %s", args.escapeShellCommand);
+						if (!dryRun) enforce(spawnProcess(args).wait() == 0, "'btrfs subvolume create' failed");
 					}
 					else
 					{
