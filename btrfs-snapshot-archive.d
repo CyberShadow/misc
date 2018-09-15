@@ -433,7 +433,8 @@ int btrfs_snapshot_archive(
 						string[] args = [
 							"rsync",
 							"--archive", "--hard-links", "--acls", "--xattrs", // copy everything
-							"--inplace", // only update changed parts of files
+							"--append-verify", // extend appended files
+							"--inplace", // only update changed parts of files (implied by --append-verify)
 							"--delete", // delete deleted files
 							"--ignore-errors", // ignore errors
 						];
