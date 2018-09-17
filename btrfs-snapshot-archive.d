@@ -203,57 +203,62 @@ int btrfs_snapshot_archive(
 					}
 				}
 
-				if (snapshotSubvolume ~ ".partial" in dstDir) // flagPath.exists
 				{
 					auto haveSnapshot = snapshotSubvolume in dstDir; // dstPath.exists
 					auto haveRsync = snapshotSubvolume ~ ".rsync" in dstDir;
+					auto haveDst = haveSnapshot || haveRsync;
 
-					if (haveSnapshot || haveRsync)
+					if (snapshotSubvolume ~ ".partial" in dstDir) // flagPath.exists
 					{
-						if (verbose) stderr.writeln(">>> Acquiring lock...");
-						auto flag = Lock(flagPath);
 
-						if (haveSnapshot)
+						if (haveDst)
 						{
-							needSnapshotHeader(); stderr.writeln(">>> Cleaning up partially-received snapshot");
+							if (verbose) stderr.writeln(">>> Acquiring lock...");
+							auto flag = Lock(flagPath);
+
+							if (haveSnapshot)
+							{
+								needSnapshotHeader(); stderr.writeln(">>> Cleaning up partially-received snapshot");
+								if (!dryRun)
+								{
+									btrfs_subvolume_delete(dstPath);
+									stderr.writeln(">>>> OK");
+								}
+							}
+							if (haveRsync)
+							{
+								needSnapshotHeader(); stderr.writeln(">>> Cleaning up partially-rsynced snapshot");
+								if (!dryRun)
+								{
+									btrfs_subvolume_delete(dstPath ~ ".rsync");
+									stderr.writeln(">>>> OK");
+								}
+							}
+
 							if (!dryRun)
 							{
-								btrfs_subvolume_delete(dstPath);
-								stderr.writeln(">>>> OK");
+								// sync();
+								flagPath.remove();
 							}
 						}
-						if (haveRsync)
+						else
 						{
-							needSnapshotHeader(); stderr.writeln(">>> Cleaning up partially-rsynced snapshot");
+							needSnapshotHeader(); stderr.writeln(">>> Deleting orphan flag file: ", flagPath);
 							if (!dryRun)
-							{
-								btrfs_subvolume_delete(dstPath ~ ".rsync");
-								stderr.writeln(">>>> OK");
-							}
-						}
-
-						if (!dryRun)
-						{
-							// sync();
-							flagPath.remove();
+								flagPath.remove();
 						}
 					}
 					else
 					{
-						needSnapshotHeader(); stderr.writeln(">>> Deleting orphan flag file: ", flagPath);
-						if (!dryRun)
-							flagPath.remove();
+						if (haveDst) // dstPath.exists
+						{
+							if (verbose) stderr.writeln(">>> Already in destination, skipping");
+							createMark();
+							continue;
+						}
 					}
 				}
-				else
-				{
-					if (snapshotSubvolume in dstDir) // dstPath.exists
-					{
-						if (verbose) stderr.writeln(">>> Already in destination, skipping");
-						createMark();
-						continue;
-					}
-				}
+
 				if (markOnly)
 				{
 					if (verbose) stderr.writeln(">>> --mark-only specified, skipping");
