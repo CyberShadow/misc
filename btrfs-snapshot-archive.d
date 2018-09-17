@@ -17,6 +17,7 @@ import std.path;
 import std.process;
 import std.range;
 import std.stdio : stderr, File;
+import std.string : indexOf;
 import std.typecons;
 
 import ae.sys.vfs;
@@ -399,7 +400,8 @@ int btrfs_snapshot_archive(
 
 					string parentSubvolume; // not the same as used by btrfs - this one need not exist in the source
 					{
-						auto dstSnapshots = dstDir.keys.filter!(fn => fn.startsWith(subvolume ~ "-")).array.sort;
+						bool isSnapshot(string fn) { return fn.indexOf('.') < 0 || fn.endsWith(".rsync"); }
+						auto dstSnapshots = dstDir.keys.filter!(fn => fn.startsWith(subvolume ~ "-") && isSnapshot(fn)).array.sort;
 						auto lb = dstSnapshots.lowerBound(subvolume ~ "-" ~ snapshot);
 						if (!lb.empty)
 						{
