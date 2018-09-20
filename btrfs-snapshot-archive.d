@@ -430,10 +430,6 @@ int btrfs_snapshot_archive(
 						string[] args = ["btrfs", "subvolume", "snapshot", parentPath, dstPath].remotify;
 						if (verbose) stderr.writefln(">>> %s", args.escapeShellCommand);
 						if (!dryRun) enforce(spawnProcess(args).wait() == 0, "'btrfs subvolume snapshot' failed");
-
-						args = ["btrfs", "property", "set", "-ts", dstPath, "ro", "false"];
-						if (verbose) stderr.writefln(">>> %s", args.escapeShellCommand);
-						if (!dryRun) enforce(spawnProcess(args).wait() == 0, "'btrfs property set' failed");
 					}
 
 					{
@@ -467,6 +463,13 @@ int btrfs_snapshot_archive(
 							if (verbose) stderr.writeln(">>>> OK");
 						}
 					}
+
+					{
+						string[] args = ["btrfs", "property", "set", "-ts", dstPath, "ro", "true"];
+						if (verbose) stderr.writefln(">>> %s", args.escapeShellCommand);
+						if (!dryRun) enforce(spawnProcess(args).wait() == 0, "'btrfs property set' failed");
+					}
+
 					dstDir.add(snapshotSubvolume);
 				}
 
