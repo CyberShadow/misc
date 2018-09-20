@@ -73,8 +73,7 @@ int btrfs_snapshot_archive(
 	import core.stdc.stdio : setvbuf, _IOLBF;
 	setvbuf(stderr.getFP(), null, _IOLBF, 1024);
 
-	string[][string] srcSubvolumes;
-	HashSet!string[string] allSubvolumes;
+	HashSet!string[string] srcSubvolumes, allSubvolumes;
 
 	stderr.writefln("> Enumerating %s", srcRoot);
 	auto srcDir = srcRoot.listDir.toSet;
@@ -102,9 +101,8 @@ int btrfs_snapshot_archive(
 			//stderr.writeln("Flag file, skipping: " ~ name);
 			continue;
 		}
-		if (fileName in srcDir) srcSubvolumes[name] ~= time;
-		if (name !in allSubvolumes) allSubvolumes[name] = HashSet!string.init;
-		allSubvolumes[name].add(time);
+		if (fileName in srcDir) srcSubvolumes.getOrAdd(name).add(time);
+		if (true              ) allSubvolumes.getOrAdd(name).add(time);
 	}
 
 	bool error, warning;
@@ -113,7 +111,7 @@ int btrfs_snapshot_archive(
 
 	foreach (subvolume; srcSubvolumes.keys.sort)
 	{
-		auto srcSnapshots = srcSubvolumes[subvolume].sort().release;
+		auto srcSnapshots = srcSubvolumes[subvolume].keys.sort().release;
 		auto allSnapshots = allSubvolumes[subvolume].keys.sort().release;
 
 		stderr.writefln("> Subvolume %s", subvolume);
