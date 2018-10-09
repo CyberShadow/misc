@@ -24,7 +24,7 @@ then
 	exit 0
 fi
 
-test -f "$GIT_DIR"/GITGUI_MSG && ! grep -vqE '^[a-z0-9._]+:$' "$GIT_DIR"/GITGUI_MSG && rm "$GIT_DIR"/GITGUI_MSG
+test -f "$GIT_DIR"/GITGUI_MSG && ! grep -vqE '^[^ ]+:$' "$GIT_DIR"/GITGUI_MSG && rm "$GIT_DIR"/GITGUI_MSG
 
 # Update commit message file
 
@@ -32,5 +32,5 @@ old_message=$(cat "$1")
 (
 	git status --porcelain | git-status-to-commit-msg
 	printf '\n'
-	grep -v '^[a-z0-9._]+: ?$' <<< "$old_message"
+	grep -v '^[^ ]+: ?$' <<< "$old_message"
 ) > "$1"
