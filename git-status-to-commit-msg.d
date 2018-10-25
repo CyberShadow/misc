@@ -25,7 +25,7 @@ void main(string[] args)
 	while (!stdin.eof)
 		lines ~= readln().chomp().idup;
 
-	auto files = lines.filter!(line => line.length && line[0].isOneOf("AM")).map!(line => line[3..$]).array;
+	auto files = lines.filter!(line => line.length && line[0] != ' ').map!(line => line[3..$]).array;
 	string targetExt;
 	foreach (ext; [".d", ".el", ".bash", ".sh"])
 		if (files.any!(file => file.endsWith(ext)))
@@ -60,7 +60,7 @@ void main(string[] args)
 				else
 					pack = mod;
 			}
-			handleLine(line[3..$], line[0].isOneOf("AM") ? packStaged : packWD);
+			handleLine(line[3..$], line[0] != ' ' ? packStaged : packWD);
 		}
 	}
 	if (packStaged.length)
