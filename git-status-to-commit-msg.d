@@ -7,6 +7,7 @@ module git_status_to_commit_msg;
 
 import std.algorithm;
 import std.array;
+import std.exception;
 import std.file;
 import std.path;
 import std.process;
@@ -14,28 +15,87 @@ import std.stdio;
 import std.string;
 
 import ae.utils.array;
+import ae.utils.sini;
+
+struct Config
+{
+	string[] maskPriority;
+
+	struct Mask
+	{
+		string mask;
+		bool stripExt = true;
+		char delim = 0;
+		string[] stripPrefixes;
+		bool addPrefix;
+		string prefix;
+	}
+	OrderedMap!(string, Mask) masks;
+}
+
+enum defaultConfig = q"EOF
+maskPriority = ["*.d", "*.el", "*.{bash,sh}"]
+
+[masks.src-d]
+mask = {src/,*/src/}*.d
+delim = .
+stripPrefixes = ["src."]
+
+[masks.d]
+mask = *.d
+delim = .
+addPrefix = true
+EOF";
 
 void main(string[] args)
 {
-	string prefix = args.length > 1
+	string gitDir = environment.get("GIT_DIR");
+	string workTree;
+	if (gitDir)
+		workTree = gitDir.buildPath("..");
+	else
+	{
+		workTree = getcwd;
+		while (true)
+		{
+			gitDir = workTree.buildPath(".git");
+			if (gitDir.exists)
+				break;
+			auto parentDir = workTree.dirName;
+			enforce(parentDir != workTree, "Can't find .git directory");
+			workTree = parentDir;
+		}
+		enforce(gitDir.isDir, "TODO: file .gitdir");
+	}
+
+	Config config;
+	if (gitDir.buildPath("git-status-to-commit-msg.ini").exists)
+		config = loadIni!Config(gitDir.buildPath("git-status-to-commit-msg.ini"));
+	else
+	if (workTree.buildPath("git-status-to-commit-msg.ini").exists)
+		config = loadIni!Config(workTree.buildPath("git-status-to-commit-msg.ini"));
+	else
+		config = parseIni!Config(defaultConfig.splitLines);
+
+	string defaultPrefix = args.length > 1
 		? args[1]
-		: getcwd.buildNormalizedPath(environment.get("GIT_DIR", ".git")).dirName().baseName();
+		: workTree.absolutePath.baseName();
 
 	string[] lines;
 	while (!stdin.eof)
 		lines ~= readln().chomp().idup;
 
 	auto files = lines.filter!(line => line.length && line[0] != ' ').map!(line => line[3..$]).array;
-	string targetExt;
-	foreach (ext; [".d", ".el", ".bash", ".sh"])
-		if (files.any!(file => file.endsWith(ext)))
+	string targetMask;
+	foreach (mask; config.maskPriority)
+		if (files.any!(file => file.globMatch(mask)))
 		{
-			targetExt = ext;
+			targetMask = mask;
 			break;
 		}
-	auto extensions = files.map!extension.array.sort.uniq.array;
-	if (extensions.length == 1)
-		targetExt = extensions[0];
+	// auto extensions = files.map!extension.array.sort.uniq.array;
+	// if (extensions.length == 1)
+	// 	targetExt = extensions[0];
 
 	string packStaged, packWD;
 	foreach (line; lines)
@@ -44,17 +104,29 @@ void main(string[] args)
 		{
 			void handleLine(string line, ref string pack)
 			{
-				if (targetExt.length && !line.endsWith(targetExt))
+				if (targetMask.length && !line.globMatch(targetMask))
 					return;
-				auto mod = line[0 .. $ - targetExt.length];
+				Config.Mask mask;
+				foreach (name, maskConfig; config.masks)
+					if (line.globMatch(maskConfig.mask))
+					{
+						mask = maskConfig;
+						break;
+					}
+				string mod = line;
+				if (mask.stripExt)
+					mod = mod.stripExtension;
 				char delim = '/';
-				if (targetExt == ".d")
+				if (mask.delim)
 				{
-					delim = '.';
+					delim = mask.delim;
 					mod = mod.replace("/", [delim]);
-					if (!mod.skipOver("src" ~ delim))
-						mod = prefix ~ delim ~ mod;
 				}
+				foreach (prefix; mask.stripPrefixes)
+					if (mod.skipOver(prefix))
+						break;
+				if (mask.addPrefix)
+					mod = (mask.prefix ? mask.prefix : defaultPrefix) ~ delim ~ mod;
 				if (pack)
 					pack = commonPrefix(mod, pack).stripRight(delim);
 				else
