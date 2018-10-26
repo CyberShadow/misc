@@ -11,7 +11,7 @@ import std.exception;
 import std.file;
 import std.path;
 import std.process;
-import std.stdio;
+import std.stdio : stdin, stdout;
 import std.string;
 
 import ae.utils.array;
@@ -83,7 +83,7 @@ void main(string[] args)
 
 	string[] lines;
 	while (!stdin.eof)
-		lines ~= readln().chomp().idup;
+		lines ~= stdin.readln().chomp().idup;
 
 	auto files = lines.filter!(line => line.length && line[0] != ' ').map!(line => line[3..$]).array;
 	string targetMask;
