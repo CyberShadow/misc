@@ -85,7 +85,7 @@ void main(string[] args)
 	while (!stdin.eof)
 		lines ~= stdin.readln().chomp().idup;
 
-	auto files = lines.filter!(line => line.length && line[0] != ' ').map!(line => line[3..$]).array;
+	auto files = lines.filter!(line => line.length && !line[0].isOneOf(" ?")).map!(line => line[3..$]).array;
 	string targetMask;
 	foreach (mask; config.maskPriority)
 		if (files.any!(file => file.globMatch(mask)))
@@ -132,7 +132,7 @@ void main(string[] args)
 				else
 					pack = mod;
 			}
-			handleLine(line[3..$], line[0] != ' ' ? packStaged : packWD);
+			handleLine(line[3..$], !line[0].isOneOf(" ?") ? packStaged : packWD);
 		}
 	}
 	auto pack = packStaged ? packStaged : packWD;
