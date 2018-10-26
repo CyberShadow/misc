@@ -135,9 +135,7 @@ void main(string[] args)
 			handleLine(line[3..$], line[0] != ' ' ? packStaged : packWD);
 		}
 	}
-	if (packStaged.length)
-		stdout.write(packStaged, ": ");
-	else
-	if (packWD.length)
-		stdout.write(packWD, ": ");
+	auto pack = packStaged ? packStaged : packWD;
+	if (pack.length)
+		stdout.write(pack, ": ");
 }
