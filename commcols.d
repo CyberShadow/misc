@@ -1,5 +1,5 @@
 /**
-   commcols - show common lines as colums
+   commcols - show common lines as columns
 
    This tool shows which (pre-sorted) files have which lines.
 
