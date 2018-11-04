@@ -344,7 +344,7 @@ final class MpdBlock : Block
 
 		icon.full_text = text(iconChar);
 		icon.color = status.volume == 0 ? "#ffff00" : null;
-		block.full_text = status.nowPlaying;
+		block.full_text = status.nowPlaying ? status.nowPlaying : "";
 		icon.separator = status.nowPlaying.length == 0;
 		send();
 	}
@@ -384,6 +384,8 @@ class ProcessBlock : Block
 			{
 				auto line = cast(char[])data.contents;
 				block.full_text = line.idup;
+				if (!block.full_text)
+					block.full_text = "";
 				send();
 			};
 
