@@ -3,16 +3,18 @@
 import std.stdio;
 import std.ascii;
 
+import ae.utils.funopt;
+import ae.utils.main;
 import ae.utils.text;
 
-void urlEncode(ref File f, ref File o)
+void urlEncodeFile(ref File f, ref File o, bool all)
 {
 	while (!f.eof)
 	{
 		char c;
 		if (f.rawRead((&c)[0..1]))
 		{
-			if (isAlphaNum(c))
+			if (!all && isAlphaNum(c))
 				o.rawWrite((&c)[0..1]);
 			else
 			{
@@ -27,7 +29,9 @@ void urlEncode(ref File f, ref File o)
 	}
 }
 
-void main()
+void urlEncode(bool all)
 {
-	urlEncode(stdin, stdout);
+	urlEncodeFile(stdin, stdout, all);
 }
+
+mixin main!(funopt!urlEncode);
