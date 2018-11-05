@@ -9,9 +9,10 @@ import std.algorithm;
 import std.array;
 import std.exception;
 import std.file;
+import std.getopt;
 import std.path;
 import std.process;
-import std.stdio : stdin, stdout;
+import std.stdio : stdin, stdout, stderr;
 import std.string;
 
 import ae.utils.array;
@@ -77,6 +78,10 @@ void main(string[] args)
 	else
 		config = parseIni!Config(defaultConfig.splitLines);
 
+	bool verbose;
+	getopt(args,
+		"v|verbose", &verbose,
+	);
 	string defaultPrefix = args.length > 1
 		? args[1]
 		: workTree.absolutePath.baseName();
@@ -90,6 +95,7 @@ void main(string[] args)
 	foreach (mask; config.maskPriority)
 		if (files.any!(file => file.globMatch(mask)))
 		{
+			if (verbose) stderr.writefln("Detected priority mask: %s (matched file %s)", mask, files.find!(file => file.globMatch(mask)).front);
 			targetMask = mask;
 			break;
 		}
