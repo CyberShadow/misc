@@ -16,6 +16,7 @@ import std.stdio : stdin, stdout, stderr;
 import std.string;
 
 import ae.utils.array;
+import ae.utils.meta;
 import ae.utils.sini;
 
 struct Config
@@ -66,7 +67,8 @@ void main(string[] args)
 			enforce(parentDir != workTree, "Can't find .git directory");
 			workTree = parentDir;
 		}
-		enforce(gitDir.isDir, "TODO: file .gitdir");
+		if (gitDir.isFile)
+			gitDir = gitDir.dirName.buildPath(gitDir.readText.strip.I!(gitDir => progn(enforce(gitDir.skipOver("gitdir: ", ".git file does not start with .gitdir")), gitDir)));
 	}
 
 	Config config;
