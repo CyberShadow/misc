@@ -47,6 +47,10 @@ stripPrefixes = ["src."]
 mask = *.d
 delim = .
 addPrefix = true
+
+[masks.all]
+mask = *
+stripExt = false
 EOF";
 
 void main(string[] args)
