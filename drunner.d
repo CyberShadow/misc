@@ -12,6 +12,8 @@ import std.exception;
 import std.string;
 //import ae.sys.cmd;
 
+extern(C) __gshared bool rt_cmdline_enabled = false;
+
 int drun(string builder, string[] args)
 {
 /*
