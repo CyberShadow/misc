@@ -24,8 +24,30 @@ class Audio
 	abstract string getSymbolColor();
 	abstract void subscribe(void delegate() callback);
 	abstract void unsubscribe();
-	abstract Volume getVolume();
 	abstract void runControlPanel();
+
+	Volume getVolume()
+	{
+		Volume volume;
+		try
+		{
+			auto result = execute(["volume-get"]);
+			if (result.status == 0 && result.output.length)
+			{
+				volume.known = true;
+				auto output = result.output;
+				if (output.endsWith("M"))
+				{
+					volume.muted = true;
+					output = output[0..$-1];
+				}
+				volume.percent = output.to!int;
+			}
+		}
+		catch (Exception e)
+			stderr.writeln("Error getting volume: " ~ e.msg);
+		return volume;
+	}
 }
 
 enum AudioAPI
@@ -101,20 +123,7 @@ class NoAudio : Audio
 class Pulse : Audio
 {
 	ProcessPipes p;
-	string sinkName;
 	bool subscribed;
-
-	this()
-	{
-		try
-		{
-			auto result = execute(["audio-get-pa-sink"]/*, null, Config.stderrPassThrough*/);
-			enforce(result.status == 0);
-			sinkName = result.output.strip();
-		}
-		catch (Exception)
-			sinkName = "0";
-	}
 
 	override string getSymbol() { return "Ⓟ"; }
 	override string getSymbolColor() { return "#bbbbff"; }
@@ -163,29 +172,6 @@ class Pulse : Audio
 			p.pid.kill();
 	}
 
-	override Volume getVolume()
-	{
-		Volume volume;
-		auto result = execute(["pactl", "list", "sinks"]);
-		bool inSelectedSink;
-		if (result.status == 0)
-		{
-			foreach (line; result.output.lineSplitter)
-				if (line.skipOver("\tName: "))
-					inSelectedSink = line == sinkName;
-				else
-				if (line.skipOver("\tVolume: ") && inSelectedSink)
-				{
-					volume.percent = line.split()[3].chomp("%").to!int;
-					volume.known = true;
-				}
-				else
-				if (line.skipOver("\tMute: ") && inSelectedSink)
-					volume.muted = line == "yes";
-		}
-		return volume;
-	}
-
 	override void runControlPanel()
 	{
 		spawnProcess(["x", "pavucontrol"]).wait();
@@ -231,26 +217,6 @@ class ALSA : Audio
 		subscribed = false;
 		if (p.pid)
 			p.pid.kill();
-	}
-
-	override Volume getVolume()
-	{
-		Volume volume;
-		auto result = execute(["amixer", "sget", "Master"]);
-		if (result.status == 0)
-		{
-			foreach (line; result.output.lineSplitter)
-				if (line.skipOver("  Mono: "))
-				{
-					auto parts = line.split();
-					enforce(parts.length == 5, "Unrecognized amixer output");
-					volume.known = true;
-					volume.muted = parts[4] == "[off]";
-					volume.percent = parts[2][1..$-2].to!int;
-					break;
-				}
-		}
-		return volume;
 	}
 
 	override void runControlPanel()
