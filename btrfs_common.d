@@ -25,8 +25,8 @@ class SSHFS : VFS
 	override void[] read(string path)
 	{
 		auto p = pipe();
-		auto host = parseHost(path);
-		auto pid = spawnProcess(["ssh", host, escapeShellCommand(["cat", "--", path])], File("/dev/null"), p.writeEnd);
+		auto args = parsePath(path);
+		auto pid = spawnProcess(["ssh"] ~ args ~ [escapeShellCommand(["cat", "--", path])], File("/dev/null"), p.writeEnd);
 		auto data = readFile(p.readEnd);
 		pid.wait();
 		return data;
@@ -35,8 +35,8 @@ class SSHFS : VFS
 	override void write(string path, const(void)[] data)
 	{
 		auto p = pipe();
-		auto host = parseHost(path);
-		auto pid = spawnProcess(["ssh", host, escapeShellCommand(["cat"]) ~ " > " ~ escapeShellFileName(path)], p.readEnd, stderr);
+		auto args = parsePath(path);
+		auto pid = spawnProcess(["ssh"] ~ args ~ [escapeShellCommand(["cat"]) ~ " > " ~ escapeShellFileName(path)], p.readEnd, stderr);
 		p.writeEnd.rawWrite(data);
 		p.writeEnd.close();
 		pid.wait();
@@ -44,9 +44,9 @@ class SSHFS : VFS
 
 	override bool exists(string path)
 	{
-		auto host = parseHost(path);
+		auto args = parsePath(path);
 		path = path.chomp("/");
-		auto output = run(["ssh", host, escapeShellCommand(["test", "-e", path]) ~ " && echo -n yes || echo -n no"]);
+		auto output = run(["ssh"] ~ args ~ [escapeShellCommand(["test", "-e", path]) ~ " && echo -n yes || echo -n no"]);
 		if (output == "yes")
 			return true;
 		else
@@ -58,9 +58,9 @@ class SSHFS : VFS
 
 	override string[] listDir(string path)
 	{
-		auto host = parseHost(path);
+		auto args = parsePath(path);
 		path = path.chomp("/");
-		auto output = run(["ssh", host, escapeShellCommand(["find", path, "-maxdepth", "1", "-print0"])]);
+		auto output = run(["ssh"] ~ args ~ [escapeShellCommand(["find", path, "-maxdepth", "1", "-print0"])]);
 		if (output.length)
 		{
 			enforce(output[$-1] == 0, "Output not null terminated");
@@ -76,14 +76,14 @@ class SSHFS : VFS
 
 	override void remove(string path)
 	{
-		auto host = parseHost(path);
-		run(["ssh", host, escapeShellCommand(["rm", "--", path])]);
+		auto args = parsePath(path);
+		run(["ssh"] ~ args ~ [escapeShellCommand(["rm", "--", path])]);
 	}
 
 	override void rmdirRecurse(string path)
 	{
-		auto host = parseHost(path);
-		run(["ssh", host, escapeShellCommand(["rm", "-rf", "--", path])]);
+		auto args = parsePath(path);
+		run(["ssh"] ~ args ~ [escapeShellCommand(["rm", "-rf", "--", path])]);
 	}
 
 	static this()
@@ -91,12 +91,18 @@ class SSHFS : VFS
 		registry["ssh"] = new SSHFS();
 	}
 
-	private static string parseHost(ref string path)
+	/// Extract and convert hostname/port from VFS path to ssh command-line parameters.
+	private static string[] parsePath(ref string path)
 	{
 		assert(path.skipOver("ssh://"));
 		auto parts = path.findSplit("/");
 		path = parts[2];
-		return parts[0];
+		auto host = parts[0];
+		parts = host.findSplit(":");
+		auto args = [parts[0]];
+		if (parts[1].length)
+			args ~= ["-p", parts[2]];
+		return args;
 	}
 }
 
@@ -125,12 +131,12 @@ string[] remotify(string[] args)
 		if (arg.startsWith("ssh://"))
 		{
 			auto path = arg;
-			auto host = SSHFS.parseHost(path);
-			return ["ssh", host, escapeShellCommand(
+			auto pathArgs = SSHFS.parsePath(path);
+			return ["ssh"] ~ pathArgs ~ [escapeShellCommand(
 					args.map!((arg)
 					{
 						if (arg.startsWith("ssh://"))
-							enforce(SSHFS.parseHost(arg) == host, "Inconsistent sshfs host");
+							enforce(SSHFS.parsePath(arg) == pathArgs, "Inconsistent sshfs root");
 						return arg;
 					}).array)];
 		}
@@ -141,7 +147,9 @@ string toRsyncPath(string path)
 {
 	if (path.startsWith("ssh://"))
 	{
-		auto host = SSHFS.parseHost(path);
+		auto args = SSHFS.parsePath(path);
+		enforce(args.length == 1, "Can't use SSH options (port) with Rsync");
+		auto host = args[0];
 		enforce(path.isAbsolute,
 			"Using non-absolute paths via ssh is dangerous " ~
 			"(did you mean ssh://host//path instead of ssh://host/path?): " ~ path);
@@ -154,7 +162,7 @@ string toRsyncPath(string path)
 string localPart(string path)
 {
 	if (path.startsWith("ssh://"))
-		SSHFS.parseHost(path);
+		SSHFS.parsePath(path);
 	return path;
 }
 
