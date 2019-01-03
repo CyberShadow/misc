@@ -76,13 +76,14 @@ void main(string[] args)
 	}
 
 	Config config;
-	if (gitDir.buildPath("git-status-to-commit-msg.ini").exists)
-		config = loadIni!Config(gitDir.buildPath("git-status-to-commit-msg.ini"));
-	else
-	if (workTree.buildPath("git-status-to-commit-msg.ini").exists)
-		config = loadIni!Config(workTree.buildPath("git-status-to-commit-msg.ini"));
-	else
+	auto configFiles = [
+		gitDir.buildPath("git-status-to-commit-msg.ini"),
+		workTree.buildPath("git-status-to-commit-msg.ini"),
+	].filter!exists;
+	if (configFiles.empty)
 		config = parseIni!Config(defaultConfig.splitLines);
+	else
+		config = loadIni!Config(configFiles.front);
 
 	bool verbose;
 	getopt(args,
