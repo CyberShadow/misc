@@ -79,6 +79,7 @@ void main(string[] args)
 	auto configFiles = [
 		gitDir.buildPath("git-status-to-commit-msg.ini"),
 		workTree.buildPath("git-status-to-commit-msg.ini"),
+		workTree.buildPath(".git-status-to-commit-msg"),
 	].filter!exists;
 	if (configFiles.empty)
 		config = parseIni!Config(defaultConfig.splitLines);
