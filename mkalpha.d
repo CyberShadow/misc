@@ -2,7 +2,7 @@
    Take two images of the same possibly-translucent object:
    first on a black background, second on a white background.
    Create a third PNG image with transparency,
-   so that overlaying it on a black on white canvas
+   so that overlaying it on a black or white canvas
    will produce the first / second image correspondingly.
 */
 
