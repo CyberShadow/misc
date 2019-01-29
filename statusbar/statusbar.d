@@ -446,7 +446,7 @@ final class SystemStatusBlock : TimerBlock
 	override void handleClick(BarClick click)
 	{
 		if (click.button == 1)
-			spawnProcess(["t", "sh", "-c", "systemctl --failed ; read -n 1"]).wait();
+			spawnProcess(["t", "sh", "-c", "system-status-detail ; read -n 1"]).wait();
 	}
 }
 
