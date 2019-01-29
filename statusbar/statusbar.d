@@ -434,7 +434,9 @@ final class SystemStatusBlock : TimerBlock
 			}
 			else
 			{
-				block.full_text = format("\&nbsp;\&nbsp;\&nbsp;%s\&nbsp;\&nbsp;\&nbsp;%s ", dchar(FontAwesome.fa_times), result.output.strip);
+				block.full_text = format("\&nbsp;\&nbsp;\&nbsp;%s\&nbsp;\&nbsp;\&nbsp;%s ",
+					dchar(FontAwesome.fa_times),
+					result.output.strip.replace("\n", " | "));
 				// block.background = "#ff0000";
 				block.color = null;
 				block.urgent = true;
