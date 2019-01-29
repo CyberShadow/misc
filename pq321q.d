@@ -6,7 +6,7 @@ module pq321q;
 
 import std.exception;
 import std.file;
-import std.stdio : File, writeln;
+import std.stdio : File, writeln, stderr;
 import std.string;
 
 import core.sys.posix.fcntl;
@@ -63,8 +63,11 @@ void writeValue(string name, string value)
 	assert(value.length <= 4, "Invalid value length");
 	sendCommand("%s%4s".format(name, value));
 	auto answer = readAnswer();
-	if (answer == "WAIT")
+	while (answer == "WAIT")
+	{
+		stderr.writeln("Waiting...");
 		answer = readAnswer();
+	}
 	enforce(answer != "ERR", "Writing value failed: " ~ name);
 	enforce(answer == "OK", "Unexpected reply when writing value " ~ name ~ ": " ~ answer);
 }
