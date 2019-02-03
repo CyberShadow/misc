@@ -143,11 +143,14 @@ void grub2efi(bool dryRun, int initialBootNum = 2000)
 
 	// Delete trailing bootnums
 	while (bootNum in bootEntries)
+	{
 	 	maybeRun([
 			"efibootmgr",
 			"--bootnum", text(bootNum++),
 			"--delete-bootnum"
 		]);
+		bootEntries.remove(bootNum);
+	}
 
 	auto order = iota(initialBootNum, lastBootNum).chain(bootEntries.keys.sort().filter!(n => n < initialBootNum || n > lastBootNum));
 	maybeRun(["efibootmgr", "--bootorder", order.map!(n => "%04d".format(n)).join(",")]);
