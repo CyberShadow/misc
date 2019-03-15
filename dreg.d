@@ -138,20 +138,21 @@ void main(string[] args)
 		auto r1 = results[v1];
 		auto r2 = results[v2];
 
-		auto d1 = verDate(v1)-40.days;
-		auto d2 = verDate(v2)+30.days;
-
 		auto iniFn = format!"bisect-%s-%s.ini"(v1, v2);
 		string[] ini;
 		bool reverse;
 		if (doBisectOutput)
 		{
+			auto lines1 = r1.output.splitAsciiLines;
+			auto lines2 = r2.output.splitAsciiLines;
+
 			string goodLine;
-			foreach (l1; r1.output.splitAsciiLines)
+
+			foreach (l1; lines1)
 			{
 				goodLine = l1;
-				foreach (l2; r2.output.splitAsciiLines)
-					if (l2 == l1)
+				foreach (l2; lines2)
+					if (l1 == l2)
 					{
 						goodLine = null;
 						break;
@@ -159,20 +160,36 @@ void main(string[] args)
 				if (goodLine)
 					break;
 			}
+
+			if (!goodLine)
+			{
+				reverse = true;
+				foreach (l2; lines2)
+				{
+					goodLine = l2;
+					foreach (l1; lines1)
+						if (l1 == l2)
+						{
+							goodLine = null;
+							break;
+						}
+					if (goodLine)
+						break;
+				}
+			}
+
 			enforce(goodLine, "Can't find unique line to bisect on");
 
-			ini ~= format!"good = %s @ %s"(branch, (verDate(v1)-40.days).formatTime!"Y-m-d H:i:s");
-			ini ~= format!"bad  = %s @ %s"(branch, (verDate(v2)+30.days).formatTime!"Y-m-d H:i:s");
-			ini ~= format!"tester = %s | %s"(args[1..$].I!toBisectIniCmd, escapeShellCommand(["grep", "-xF", goodLine]));
+			ini ~= format!"tester = %s 2>&1 | %s"(args[1..$].I!toBisectIniCmd, escapeShellCommand(["grep", "-xF", goodLine]));
 		}
 		else
 		{
 			assert((r1.status == 0) != (r2.status == 0));
 			reverse = r1.status != 0;
-			ini ~= format!"%s = %s @ %s"(reverse ? "bad " : "good", branch, d1.formatTime!"Y-m-d H:i:s");
-			ini ~= format!"%s = %s @ %s"(reverse ? "good" : "bad ", branch, d2.formatTime!"Y-m-d H:i:s");
 			ini ~= format!"tester = %s"(args[1..$].I!toBisectIniCmd);
 		}
+		ini ~= format!"%s = %s @ %s"(reverse ? "bad " : "good", branch, (verDate(v1)-40.days).formatTime!"Y-m-d H:i:s");
+		ini ~= format!"%s = %s @ %s"(reverse ? "good" : "bad ", branch, (verDate(v2)+30.days).formatTime!"Y-m-d H:i:s");
 		ini ~= format!"reverse = %s"(reverse);
 		foreach (c; without)
 			ini ~= format!"build.components.enable.%s = false"(c);
