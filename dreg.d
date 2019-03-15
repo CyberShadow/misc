@@ -25,6 +25,7 @@ import std.stdio;
 import std.string;
 
 import ae.utils.meta;
+import ae.utils.text;
 import ae.utils.time.format;
 
 enum dmdDir = "/home/vladimir/data/software/dmd";
@@ -34,11 +35,12 @@ void main(string[] args)
 {
 	string minVer = "1.0";
 	string maxVer;
-	bool doBisect, singleThreadedSwitch;
+	bool doBisect, doBisectOutput, singleThreadedSwitch;
 	string[] dverArgs = [];
 	string[] without = null;
 	getopt(args,
 		"b", &doBisect,
+		"output", &doBisectOutput,
 		"without", &without,
 		"s", &singleThreadedSwitch,
 		"32", { dverArgs ~= "--32"; },
@@ -135,16 +137,43 @@ void main(string[] args)
 		stderr.writefln!"=== Bisecting %s to %s (%s) ==="(v1, v2, branch);
 		auto r1 = results[v1];
 		auto r2 = results[v2];
-		assert((r1.status == 0) != (r2.status == 0), "TODO");
 
-		bool reverse = r1.status != 0;
+		auto d1 = verDate(v1)-40.days;
+		auto d2 = verDate(v2)+30.days;
 
 		auto iniFn = format!"bisect-%s-%s.ini"(v1, v2);
 		string[] ini;
-		ini ~= format!"%s = %s @ %s"(reverse ? "bad " : "good", branch, (verDate(v1)-40.days).formatTime!"Y-m-d H:i:s");
-		ini ~= format!"%s = %s @ %s"(reverse ? "good" : "bad ", branch, (verDate(v2)+30.days).formatTime!"Y-m-d H:i:s");
+		bool reverse;
+		if (doBisectOutput)
+		{
+			string goodLine;
+			foreach (l1; r1.output.splitAsciiLines)
+			{
+				goodLine = l1;
+				foreach (l2; r2.output.splitAsciiLines)
+					if (l2 == l1)
+					{
+						goodLine = null;
+						break;
+					}
+				if (goodLine)
+					break;
+			}
+			enforce(goodLine, "Can't find unique line to bisect on");
+
+			ini ~= format!"good = %s @ %s"(branch, (verDate(v1)-40.days).formatTime!"Y-m-d H:i:s");
+			ini ~= format!"bad  = %s @ %s"(branch, (verDate(v2)+30.days).formatTime!"Y-m-d H:i:s");
+			ini ~= format!"tester = %s | %s"(args[1..$].I!toBisectIniCmd, escapeShellCommand(["grep", "-xF", goodLine]));
+		}
+		else
+		{
+			assert((r1.status == 0) != (r2.status == 0));
+			reverse = r1.status != 0;
+			ini ~= format!"%s = %s @ %s"(reverse ? "bad " : "good", branch, d1.formatTime!"Y-m-d H:i:s");
+			ini ~= format!"%s = %s @ %s"(reverse ? "good" : "bad ", branch, d2.formatTime!"Y-m-d H:i:s");
+			ini ~= format!"tester = %s"(args[1..$].I!toBisectIniCmd);
+		}
 		ini ~= format!"reverse = %s"(reverse);
-		ini ~= format!"tester = %s"(args[1..$].I!toBisectIniCmd);
 		foreach (c; without)
 			ini ~= format!"build.components.enable.%s = false"(c);
 		ini.join("\n").toFile(iniFn);
@@ -187,7 +216,12 @@ void main(string[] args)
 
 			if (doBisect)
 			{
-				if ((results[versions[index-1]].status==0) != (results[versions[index]].status==0) && verDate(versions[index-1]) > SysTime(canBisectAfter))
+				bool eqv;
+				if (doBisectOutput)
+					eqv = results[versions[index-1]] == results[versions[index]];
+				else
+					eqv = (results[versions[index-1]].status==0) == (results[versions[index]].status==0);
+				if (!eqv && verDate(versions[index-1]) > SysTime(canBisectAfter))
 					try
 						bisectResults ~= bisect(versions[index-1], versions[index]);
 					catch (Exception e)
