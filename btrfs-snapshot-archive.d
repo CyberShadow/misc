@@ -60,6 +60,7 @@ int btrfs_snapshot_archive(
 	Switch!("Never copy snapshots whole (require a parent)") requireParent,
 	Option!(string[], "Only copy snapshots matching this glob") mask = null,
 	Option!(string[], "Do not copy snapshots matching this glob") notMask = null,
+	Option!(string, "Only copy snapshots older than this duration", "DUR") olderThan = null,
 	Option!(string, "Only copy snapshots newer than this duration", "DUR") newerThan = null,
 	Option!(string, "Leave a file in the source root dir for each successfully copied snapshot, based on the snapshot name and MARK", "MARK") successMark = null,
 	Option!(string, "Name of file in subvolume root which indicates which subvolumes to skip", "MARK") noBackupFile = ".nobackup",
@@ -108,6 +109,7 @@ int btrfs_snapshot_archive(
 	bool error, warning;
 	auto now = Clock.currTime;
 	auto newerThanDur = newerThan ? newerThan.parseDuration : Duration.init;
+	auto olderThanDur = olderThan ? olderThan.parseDuration : Duration.init;
 
 	foreach (subvolume; srcSubvolumes.keys.sort)
 	{
@@ -287,6 +289,11 @@ int btrfs_snapshot_archive(
 				}
 
 				auto creationTime = info["Creation time"].parseTime!`Y-m-d H:i:s O`;
+				if (olderThan && now - creationTime < olderThanDur)
+				{
+					if (verbose) stderr.writefln(">>> Too new (created %s ago), skipping", now - creationTime);
+					continue;
+				}
 				if (newerThan && now - creationTime > newerThanDur)
 				{
 					if (verbose) stderr.writefln(">>> Too old (created %s ago), skipping", now - creationTime);
