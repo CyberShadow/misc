@@ -287,7 +287,7 @@ int btrfs_snapshot_archive(
 				}
 
 				auto creationTime = info["Creation time"].parseTime!`Y-m-d H:i:s O`;
-				if (newerThan && now - creationTime < newerThanDur)
+				if (newerThan && now - creationTime > newerThanDur)
 				{
 					if (verbose) stderr.writefln(">>> Too old (created %s ago), skipping", now - creationTime);
 					continue;
