@@ -113,8 +113,11 @@ int btrfs_snapshot_archive(
 
 	foreach (subvolume; srcSubvolumes.keys.sort)
 	{
-		auto srcSnapshots = srcSubvolumes[subvolume].keys.sort().release;
-		auto allSnapshots = allSubvolumes[subvolume].keys.sort().release;
+		auto      srcSnapshots = srcSubvolumes[subvolume].keys.sort().release;
+		immutable allSnapshots = allSubvolumes[subvolume].keys.sort().release.idup;
+
+		auto snapshotIndexInSrcDir = allSnapshots.map!((snapshot) { auto snapshotSubvolume = snapshot.length ? subvolume ~ "-" ~ snapshot : subvolume; return snapshotSubvolume in srcDir && (snapshotSubvolume ~ ".partial") !in srcDir; }).array;
+		auto snapshotIndexInDstDir = allSnapshots.map!((snapshot) { auto snapshotSubvolume = snapshot.length ? subvolume ~ "-" ~ snapshot : subvolume; return snapshotSubvolume in dstDir && (snapshotSubvolume ~ ".partial") !in dstDir; }).array;
 
 		stderr.writefln("> Subvolume %s", subvolume);
 
@@ -127,14 +130,15 @@ int btrfs_snapshot_archive(
 			{
 				auto snapshotIndex = allSnapshots.countUntil(snapshot);
 				assert(snapshotIndex >= 0);
-				foreach (distance, parentSnapshot; roundRobin(allSnapshots[snapshotIndex..$], allSnapshots[0..snapshotIndex].retro).enumerate)
+				foreach (distance, parentSnapshotIndex; roundRobin(iota(snapshotIndex, allSnapshots.length), iota(0, snapshotIndex).retro).enumerate)
 				{
+					auto parentSnapshot = allSnapshots[parentSnapshotIndex];
 					if (!parentSnapshot.length)
 						continue;
-					auto parentSubvolume = subvolume ~ "-" ~ parentSnapshot;
+					//auto parentSubvolume = subvolume ~ "-" ~ parentSnapshot;
 					//debug stderr.writefln(">>> Checking for parent: %s", dstParentPath);
-					if (parentSubvolume in srcDir && (parentSubvolume ~ ".partial") !in srcDir &&
-						parentSubvolume in dstDir && (parentSubvolume ~ ".partial") !in dstDir)
+					if (snapshotIndexInSrcDir[parentSnapshotIndex] &&
+						snapshotIndexInDstDir[parentSnapshotIndex])
 						return typeof(return)(distance, parentSnapshot);
 				}
 				return typeof(return)(size_t.max - 1, string.init);
