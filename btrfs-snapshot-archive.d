@@ -266,8 +266,8 @@ int btrfs_snapshot_archive(
 					continue;
 				}
 
-				assert(!flagPath.exists || dryRun);
-				assert(!dstPath.exists || dryRun);
+				debug assert(!flagPath.exists || dryRun);
+				debug assert(!dstPath.exists || dryRun);
 
 				if (srcPath.buildPath(noBackupFile).exists)
 				{
