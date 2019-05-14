@@ -152,6 +152,8 @@ int btrfs_snapshot_archive(
 						bestDistance = parent.distance;
 						bestSnapshot = snapshot;
 					}
+					if (bestDistance == 0)
+						break;
 				}
 				assert(bestSnapshot);
 				return srcSnapshots.countUntil(bestSnapshot);
