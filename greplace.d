@@ -35,10 +35,10 @@ void greplace(bool force, bool dryRun, bool wide, bool noContent, bool followSym
 		tow   = cast(ubyte[])std.conv.to!wstring(toStr);
 	}
 
-	auto files = targets.map!(target => target.empty || target.isDir ? dirEntries(target, SpanMode.breadth, followSymlinks).map!`a.name`().array : [target]).join();
+	auto files = targets.map!(target => target.empty || target.isDir ? dirEntries(target, SpanMode.breadth, followSymlinks).array : [DirEntry(target)]).join();
 	if (!force)
 	{
-		foreach (file; files)
+		foreach (ref file; files)
 		{
 			ubyte[] data;
 			if (file.isSymlink())
@@ -59,7 +59,7 @@ void greplace(bool force, bool dryRun, bool wide, bool noContent, bool followSym
 		}
 	}
 
-	foreach (file; files)
+	foreach (ref file; files)
 	{
 		if (!noContent)
 		{
