@@ -26,7 +26,7 @@ struct BarHeader
 struct BarBlock
 {
 	/// The full_text will be displayed by i3bar on the status line. This is the only required key.
-	string full_text;
+	string full_text = "";
 
 	/// Where appropriate, the short_text (string) entry should also be provided.
 	/// It will be used in case the status line needs to be shortened because it uses more space than your screen provides.
