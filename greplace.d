@@ -42,19 +42,19 @@ void greplace(bool force, bool dryRun, bool wide, bool noContent, bool followSym
 		{
 			ubyte[] data;
 			if (file.isSymlink())
-				data = cast(ubyte[])readLink(file);
+				data = cast(ubyte[])readLink(file.name);
 			else
 			if (file.isFile())
-				data = cast(ubyte[])std.file.read(file);
+				data = cast(ubyte[])std.file.read(file.name);
 			else
 				continue;
 
 			if (!noContent)
 			{
 				if (data.countUntil(to)>=0)
-					throw new Exception("File " ~ file ~ " already contains " ~ toStr);
+					throw new Exception("File " ~ file.name ~ " already contains " ~ toStr);
 				if (wide && data.countUntil(tow)>=0)
-					throw new Exception("File " ~ file ~ " already contains " ~ toStr ~ " (in UTF-16)");
+					throw new Exception("File " ~ file.name ~ " already contains " ~ toStr ~ " (in UTF-16)");
 			}
 		}
 	}
@@ -65,10 +65,10 @@ void greplace(bool force, bool dryRun, bool wide, bool noContent, bool followSym
 		{
 			ubyte[] s;
 			if (file.isSymlink())
-				s = cast(ubyte[])readLink(file);
+				s = cast(ubyte[])readLink(file.name);
 			else
 			if (file.isFile())
-				s = cast(ubyte[])std.file.read(file);
+				s = cast(ubyte[])std.file.read(file.name);
 			else
 				continue;
 
@@ -86,38 +86,38 @@ void greplace(bool force, bool dryRun, bool wide, bool noContent, bool followSym
 
 			if (modified)
 			{
-				writeln(file);
+				writeln(file.name);
 
 				if (!dryRun)
 				{
 					if (file.isSymlink())
 					{
-						remove(file);
-						symlink(cast(string)s, file);
+						remove(file.name);
+						symlink(cast(string)s, file.name);
 					}
 					else
 					if (file.isFile())
-						std.file.write(file, s);
+						std.file.write(file.name, s);
 					else
 						assert(false);
 				}
 			}
 		}
 
-		if (file.indexOf(fromStr)>=0)
+		if (file.name.indexOf(fromStr)>=0)
 		{
-			string newName = file.replace(fromStr, toStr);
-			writeln(file, " -> ", newName);
+			string newName = file.name.replace(fromStr, toStr);
+			writeln(file.name, " -> ", newName);
 
 			if (!dryRun)
 			{
 				if (!exists(dirName(newName)))
 					mkdirRecurse(dirName(newName));
-				std.file.rename(file, newName);
+				std.file.rename(file.name, newName);
 
 				// TODO: empty folders
 
-				auto segments = array(pathSplitter(file))[0..$-1];
+				auto segments = array(pathSplitter(file.name))[0..$-1];
 				foreach_reverse (i; 0..segments.length)
 				{
 					auto dir = buildPath(segments[0..i+1]);
