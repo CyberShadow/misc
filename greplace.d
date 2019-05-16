@@ -90,14 +90,14 @@ void greplace(bool force, bool dryRun, bool wide, bool noContent, bool followSym
 
 				if (!dryRun)
 				{
-					if (file.isFile())
-						std.file.write(file, s);
-					else
 					if (file.isSymlink())
 					{
 						remove(file);
 						symlink(cast(string)s, file);
 					}
+					else
+					if (file.isFile())
+						std.file.write(file, s);
 					else
 						assert(false);
 				}
