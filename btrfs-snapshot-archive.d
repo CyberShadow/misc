@@ -117,7 +117,6 @@ int btrfs_snapshot_archive(
 		immutable allSnapshots = allSubvolumes[subvolume].keys.sort().release.idup;
 
 		auto snapshotIndexInSrcDir = allSnapshots.map!((snapshot) { auto snapshotSubvolume = snapshot.length ? subvolume ~ "-" ~ snapshot : subvolume; return snapshotSubvolume in srcDir && (snapshotSubvolume ~ ".partial") !in srcDir; }).array;
-		auto snapshotIndexInDstDir = allSnapshots.map!((snapshot) { auto snapshotSubvolume = snapshot.length ? subvolume ~ "-" ~ snapshot : subvolume; return snapshotSubvolume in dstDir && (snapshotSubvolume ~ ".partial") !in dstDir; }).array;
 
 		stderr.writefln("> Subvolume %s", subvolume);
 
@@ -126,6 +125,8 @@ int btrfs_snapshot_archive(
 
 		while (srcSnapshots.length)
 		{
+			auto snapshotIndexInDstDir = allSnapshots.map!((snapshot) { auto snapshotSubvolume = snapshot.length ? subvolume ~ "-" ~ snapshot : subvolume; return snapshotSubvolume in dstDir && (snapshotSubvolume ~ ".partial") !in dstDir; }).array;
+
 			Tuple!(size_t, "distance", string, "snapshot") findParent(string snapshot)
 			{
 				auto snapshotIndex = allSnapshots.countUntil(snapshot);
