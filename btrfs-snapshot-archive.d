@@ -62,6 +62,7 @@ int btrfs_snapshot_archive(
 	Option!(string[], "Do not copy snapshots matching this glob") notMask = null,
 	Option!(string, "Only copy snapshots older than this duration", "DUR") olderThan = null,
 	Option!(string, "Only copy snapshots newer than this duration", "DUR") newerThan = null,
+	Switch!("When copying a new subvolume and snapshot set, start with the newest snapshot") newerFirst = false,
 	Option!(string, "Leave a file in the source root dir for each successfully copied snapshot, based on the snapshot name and MARK", "MARK") successMark = null,
 	Option!(string, "Name of file in subvolume root which indicates which subvolumes to skip", "MARK") noBackupFile = ".nobackup",
 	Switch!("Only sync marks, don't copy new snapshots") markOnly = false,
@@ -149,7 +150,13 @@ int btrfs_snapshot_archive(
 			auto snapshotIndex = {
 				string bestSnapshot;
 				size_t bestDistance = size_t.max;
-				foreach (snapshotIndex, snapshot; srcSnapshots)
+				auto order = srcSnapshots;
+				if (newerFirst)
+				{
+					order = order.dup;
+					order.reverse;
+				}
+				foreach (snapshot; order)
 				{
 					auto parent = findParent(snapshot);
 					if (bestDistance > parent.distance)
