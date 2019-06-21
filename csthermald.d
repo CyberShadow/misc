@@ -117,6 +117,8 @@ void csthermald(string configFile = "/etc/csthermald.ini")
 
 		auto speed = config.speedMax - (config.speedMax - config.speedMin) * factor / factorMult;
 		auto speedClamped = speed.clamp(config.speedMin, min(config.speedMax, lastSpeed + config.speedStep));
+		if (exists("/tmp/fast"))
+			speedClamped = config.speedMax;
 		writefln("Speed %3d%% (clamped to %3d%%)", speed, speedClamped);
 		std.file.write(speedPath, speedClamped.text);
 		lastSpeed = speedClamped;
