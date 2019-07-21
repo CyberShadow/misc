@@ -44,7 +44,12 @@ void grub2efi(bool dryRun, bool noGrubMkconfig, int initialBootNum = 2000)
 	}
 
 	if (!noGrubMkconfig)
-		maybeRun(["grub-mkconfig"], File(grubConfig, "wb"));
+	{
+		enum tmp = grubConfig ~ ".tmp";
+		scope(failure) if (tmp.exists) tmp.remove();
+		maybeRun(["grub-mkconfig"], File(tmp, "wb"));
+		rename(tmp, grubConfig);
+	}
 
 	string disk, diskPart;
 	foreach (mount; getMounts())
