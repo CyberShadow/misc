@@ -23,7 +23,7 @@ import ae.utils.regex;
 enum grubConfig = "/boot/grub/grub.cfg";
 enum linkDir = "/var/local/grub2efi/links/";
 
-void grub2efi(bool dryRun, int initialBootNum = 2000)
+void grub2efi(bool dryRun, bool noGrubMkconfig, int initialBootNum = 2000)
 {
 	void log(string s)
 	{
@@ -43,7 +43,8 @@ void grub2efi(bool dryRun, int initialBootNum = 2000)
 			{ enforce(spawnProcess(command, stdin, output).wait() == 0, command[0] ~ " failed"); });
 	}
 
-	maybeRun(["grub-mkconfig"], File(grubConfig, "wb"));
+	if (!noGrubMkconfig)
+		maybeRun(["grub-mkconfig"], File(grubConfig, "wb"));
 
 	string disk, diskPart;
 	foreach (mount; getMounts())
