@@ -21,6 +21,7 @@
    runningAverage = 2
 */
 
+import core.stdc.stdio : printf;
 import core.thread;
 
 import std.algorithm.comparison;
@@ -30,7 +31,6 @@ import std.exception;
 import std.file;
 import std.format;
 import std.path;
-import std.stdio;
 import std.string;
 
 import ae.utils.funopt;
@@ -112,14 +112,16 @@ void csthermald(string configFile = "/etc/csthermald.ini")
 			if (factor < zoneFactor)
 				factor = zoneFactor;
 
-			writef("%s: %d [avg: %d] m°C -> %3d%% | ", zone.config.type, zone.values[$-1], avgTemp, 100 * zoneFactor / factorMult);
+			printf("%.*s: %d [avg: %lld] m°C -> %3d%% | ",
+				zone.config.type.length, zone.config.type.ptr,
+				zone.values[$-1], cast(int)avgTemp, cast(int)(100 * zoneFactor / factorMult));
 		}
 
 		auto speed = config.speedMax - (config.speedMax - config.speedMin) * factor / factorMult;
 		auto speedClamped = speed.clamp(config.speedMin, min(config.speedMax, lastSpeed + config.speedStep));
 		if (exists("/tmp/fast"))
 			speedClamped = config.speedMax;
-		writefln("Speed %3d%% (clamped to %3d%%)", speed, speedClamped);
+		printf("Speed %3d%% (clamped to %3d%%)\n", cast(int)speed, cast(int)speedClamped);
 		std.file.write(speedPath, speedClamped.text);
 		lastSpeed = speedClamped;
 		Thread.sleep(interval);
