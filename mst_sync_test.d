@@ -11,6 +11,7 @@ enum h = 1080;
 enum strip = 20;
 
 enum period = strip * 2;
+enum speed = 2;
 
 void main()
 {
@@ -22,7 +23,7 @@ void main()
 	auto i = Image!Color(w, h);
 
 	enum size = max(w, h);
-	foreach (phase; 0 .. period)
+	foreach (phase; iota(0, period, speed))
 	{
 		i.clear(bg);
 		foreach (pos; iota(-size, size, period))
