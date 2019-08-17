@@ -1,3 +1,4 @@
+import std.algorithm.comparison;
 import std.range;
 
 import ae.utils.graphics.color;
@@ -7,9 +8,9 @@ import ae.utils.graphics.image;
 
 enum w = 1920;
 enum h = 1080;
-enum stripH = 20;
+enum strip = 20;
 
-enum period = stripH * 2;
+enum period = strip * 2;
 
 void main()
 {
@@ -20,15 +21,14 @@ void main()
 	enum bg = Color.black;
 	auto i = Image!Color(w, h);
 
-	i.clear(bg);
-	foreach (y; iota(0, h, period))
-		i.fillRect(0, y, w, y + stripH, fg);
+	enum size = max(w, h);
 	foreach (phase; 0 .. period)
 	{
-		foreach (y; iota(0, h, period))
+		i.clear(bg);
+		foreach (pos; iota(-size, size, period))
 		{
-			i.hline(0, w,  phase + y              , bg);
-			i.hline(0, w, (phase + y + stripH) % h, fg);
+			auto d = phase + pos;
+			i.fillPoly([Coord(d, 0), Coord(d + size, size), Coord(d + size + strip, size), Coord(d + strip, 0)], fg);
 		}
 		v.put(i);
 	}
