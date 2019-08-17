@@ -1,3 +1,5 @@
+import std.range;
+
 import ae.utils.graphics.color;
 import ae.utils.graphics.draw;
 import ae.utils.graphics.ffmpeg;
@@ -6,6 +8,8 @@ import ae.utils.graphics.image;
 enum w = 1920;
 enum h = 1080;
 enum stripH = 20;
+
+enum period = stripH * 2;
 
 void main()
 {
@@ -17,11 +21,15 @@ void main()
 	auto i = Image!Color(w, h);
 
 	i.clear(bg);
-	i.fillRect(0, 0, w, stripH, fg);
-	foreach (y; 0 .. h)
+	foreach (y; iota(0, h, period))
+		i.fillRect(0, y, w, y + stripH, fg);
+	foreach (phase; 0 .. period)
 	{
-		i.hline(0, w, y, bg);
-		i.hline(0, w, (y + stripH) % h, fg);
+		foreach (y; iota(0, h, period))
+		{
+			i.hline(0, w,  phase + y              , bg);
+			i.hline(0, w, (phase + y + stripH) % h, fg);
+		}
 		v.put(i);
 	}
 }
