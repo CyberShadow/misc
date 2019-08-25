@@ -606,7 +606,10 @@ final class BatteryBlock : Block
 			blockText = props.get("percentage", "???");
 		}
 		catch (Exception e)
+		{
+			blockText = "ERROR";
 			stderr.writeln(e.msg);
+		}
 
 		icon.full_text = text(iconChar);
 		block.full_text = blockText;
