@@ -45,7 +45,7 @@ void grub2efi(bool dryRun, bool noGrubMkconfig, int initialBootNum = 2000)
 
 	if (!noGrubMkconfig)
 	{
-		enum tmp = grubConfig ~ ".tmp";
+		static immutable string tmp = grubConfig ~ ".tmp";
 		scope(failure) if (tmp.exists) tmp.remove();
 		maybeRun(["grub-mkconfig"], File(tmp, "wb"));
 		rename(tmp, grubConfig);
