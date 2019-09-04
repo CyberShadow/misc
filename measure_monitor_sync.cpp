@@ -1,3 +1,11 @@
+/**
+   Time and print difference between vsync times of several monitors.
+   Assumes all monitors are running at the same refresh rate.
+   Specify some coordinate within each monitor to be tested on the command line.
+   E.g. (with three monitors): ./measure_monitor_sync 0x0 1920x0 3840x0
+   Output is % difference from the first, one line for each additional monitor.
+ */
+
 // g++ -o X11Window X11.cpp -lX11 -lGL -lGLEW -L/usr/X11/lib -I/opt/X11/include
 #include <cstdio>
 #include <cstring>
