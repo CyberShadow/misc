@@ -1,3 +1,9 @@
+/**
+   Create a video file suitable for observing vertical sync
+   discrepancies between MST panels for monitors using DisplayPort MST
+   to display themselves as several such panels.
+*/
+
 import std.algorithm.comparison;
 import std.range;
 
