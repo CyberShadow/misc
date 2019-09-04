@@ -6,7 +6,6 @@
    Output is % difference from the first, one line for each additional monitor.
  */
 
-// g++ -o X11Window X11.cpp -lX11 -lGL -lGLEW -L/usr/X11/lib -I/opt/X11/include
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -36,14 +35,6 @@
 #define SLOT_CONFIDENCE 50
 
 typedef GLXContext (*glXCreateContextAttribsARBProc)(Display*, GLXFBConfig, GLXContext, Bool, const int*);
-
-// static double GetMilliseconds() {
-// 	static timeval s_tTimeVal;
-// 	gettimeofday(&s_tTimeVal, NULL);
-// 	double time = s_tTimeVal.tv_sec * 1000.0; // sec to ms
-// 	time += s_tTimeVal.tv_usec / 1000.0; // us to ms
-// 	return time;
-// }
 
 int numWindows;
 
@@ -134,29 +125,6 @@ private:
 #ifdef DEBUG
 		fprintf(stderr, "Window %d started!\n", index);
 #endif
-
-		/*
-		static struct timespec times[MAX_WINDOWS];
-		render();
-		clock_gettime(CLOCK_MONOTONIC_RAW, &times[index]);
-		if (index == 0)
-		{
-			render();
-			struct timespec main;
-			clock_gettime(CLOCK_MONOTONIC_RAW, &main);
-			render();
-			long long dur = ll(main) - ll(times[0]);
-			for (int w = 1; w < numWindows; w++)
-			{
-				if (!ll(times[0]))
-					printf("NOT READY\n");
-				long long ofs = ll(times[w]) - ll(times[0]);
-				ofs = (ofs + dur * 10) % dur;
-				printf("Window %d: %lld/%lld (%d%%)\n",
-					w, ofs, dur, 100 * ofs / dur);
-			}
-		}
-		*/
 
 		static std::atomic_int64_t times[MAX_WINDOWS];
 		times[index] = clock_gettime_ll();
@@ -381,25 +349,8 @@ int main(int argc, char** argv)
 	for (int i = 0; i < numWindows ; i++) {
 		int x = atoi(strtok(argv[1+i], "x"));
 		int y = atoi(strtok(NULL     , "x"));
-		//windows[i].create(x, y);
 		windows[i].run(i, x, y);
 	}
-
-	// double prevTime = GetMilliseconds();
-	// double currentTime = GetMilliseconds();
-	// double deltaTime = 0.0;
-
-	// timeval time;
-	// long sleepTime = 0;
-	// gettimeofday(&time, NULL);
-	// long nextGameTick = (time.tv_sec * 1000) + (time.tv_usec / 1000);
-
-	// Enter message loop
-	// while (true) {
-	// 	for (int i = 0; i < numWindows ; i++)
-	// 		if (windows[i].render())
-	// 			return 1;
-	// }
 
 	for (int i = 0; i < numWindows ; i++)
 		windows[i].wait();
