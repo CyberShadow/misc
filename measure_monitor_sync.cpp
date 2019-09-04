@@ -129,7 +129,7 @@ private:
 		static std::atomic_int64_t times[MAX_WINDOWS];
 		times[index] = clock_gettime_ll();
 		render();
-		int resultCounts[MAX_WINDOWS][NUM_VBLANK_SLOTS] = {0};
+		int resultCounts[MAX_WINDOWS][NUM_VBLANK_SLOTS] = {{0}};
 
 		static std::atomic_bool done(false);
 		while (!done)
@@ -306,7 +306,9 @@ private:
 		XMapRaised(display, window);
 	}
 
+#ifdef DEBUG
 	int frame = 0;
+#endif
 	bool render()
 	{
 		XEvent ev;
