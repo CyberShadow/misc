@@ -1,2 +1,2 @@
-X11 : X11.cpp
-	g++ -g -oX11 -lX11 -lGL -lpthread X11.cpp
+measure_monitor_sync : measure_monitor_sync.cpp
+	g++ -g -omeasure_monitor_sync -lX11 -lGL -lpthread measure_monitor_sync.cpp
