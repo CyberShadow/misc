@@ -1,0 +1,1 @@
+DFLAGS_MY="$DFLAGS_MY -J."
