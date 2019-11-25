@@ -107,6 +107,9 @@ void main(string[] args)
 			targetMask = mask;
 			break;
 		}
+	if (!targetMask)
+		if (verbose) stderr.writeln("No priority masks matched any files");
+
 	// auto extensions = files.map!extension.array.sort.uniq.array;
 	// if (extensions.length == 1)
 	// 	targetExt = extensions[0];
