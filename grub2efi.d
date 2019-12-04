@@ -30,17 +30,18 @@ void grub2efi(bool dryRun, bool noGrubMkconfig, int initialBootNum = 2000)
 		stderr.writeln("grub2efi: ", s);
 	}
 
-	void maybeDo(string desc, scope void delegate() action)
+	void maybeDo(scope void delegate() action, string desc = null)
 	{
-		log(desc);
+		if (desc)
+			log(desc);
 		if (!dryRun)
 			action();
 	}
 
 	void maybeRun(string[] command, lazy File output = stdout)
 	{
-		maybeDo(format("%s: %s", dryRun ? "Would run" : "Running", escapeShellCommand(command)),
-			{ enforce(spawnProcess(command, stdin, output).wait() == 0, command[0] ~ " failed"); });
+		maybeDo({ enforce(spawnProcess(command, stdin, output).wait() == 0, command[0] ~ " failed"); },
+			format("%s: %s", dryRun ? "Would run" : "Running", escapeShellCommand(command)));
 	}
 
 	if (!noGrubMkconfig)
@@ -76,13 +77,13 @@ void grub2efi(bool dryRun, bool noGrubMkconfig, int initialBootNum = 2000)
 	}
 
 	if (linkDir.exists)
-		maybeDo(format("%s %s", dryRun ? "Would clean up" : "Cleaning up", linkDir),
-			{ rmdirRecurse(linkDir); });
+		maybeDo({ rmdirRecurse(linkDir); },
+			format("%s %s", dryRun ? "Would clean up" : "Cleaning up", linkDir));
 
 	void maybePut(string fileName, string contents)
 	{
-		maybeDo(format("%s %s", dryRun ? "Would create" : "Creating", fileName),
-			{ ensurePathExists(fileName); std.file.write(fileName, contents); });
+		maybeDo({ ensurePathExists(fileName); std.file.write(fileName, contents); },
+			format("%s %s", dryRun ? "Would create" : "Creating", fileName));
 	}
 
 	string name, kernel;
