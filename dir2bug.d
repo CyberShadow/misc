@@ -6,11 +6,13 @@
 
 module dir2bug;
 
+import ae.utils.array;
 import ae.utils.funopt;
 import ae.utils.main;
 
 import std.algorithm;
 import std.array;
+import std.file;
 import std.path;
 import std.process;
 import std.stdio;
@@ -47,6 +49,7 @@ void dir2bug(bool script, string[] files)
 
 	foreach (arg; files)
 	{
+		string s = readText(arg);
 		final switch (mode)
 		{
 			case Mode.pretty:
@@ -77,18 +80,25 @@ void dir2bug(bool script, string[] files)
 					writefln("mkdir%s %s", needParents ? " -p" : "", maybeEscapeShellFileName(dir));
 				}
 
-				writefln("cat > %s <<'EOF'", maybeEscapeShellFileName(arg));
+				auto fn = maybeEscapeShellFileName(arg);
+				if (s == "")
+				{
+					writefln("touch %s", fn);
+					continue;
+				}
+				if (s.endsWith("\n") && !s.chomp("\n").contains('\n') && !s.contains('\''))
+				{
+					writefln("echo '%s' > %s", s.chomp("\n"), fn);
+					continue;
+				}
+				writefln("cat > %s <<'EOF'", fn);
 				break;
 			}
 		}
 
-		bool wasEOL;
-		foreach (s; File(arg, "rb").byLine(KeepTerminator.yes))
-		{
-			wasEOL = s.endsWith("\n");
-			stdout.rawWrite(s.replace("\t", "    "));
-		}
-		if (!wasEOL)
+		s = s.replace("\t", "    ");
+		stdout.rawWrite(s);
+		if (!s.endsWith("\n"))
 			writeln();
 
 		final switch (mode)
