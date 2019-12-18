@@ -57,6 +57,8 @@ void grub2efi(bool dryRun, bool noGrubMkconfig, int initialBootNum = 2000)
 		if (mount.file == "/boot")
 		{
 			auto m = mount.spec.matchFirst(regex("^(/dev/.d[a-z])([0-9]+)$"));
+			if (!m)
+				m = mount.spec.matchFirst(regex("^(/dev/nvme[0-9]+n[0-9]+)p([0-9]+)$"));
 			enforce(m, "Can't parse boot disk path");
 			disk = m[1];
 			diskPart = m[2];
