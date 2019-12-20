@@ -20,7 +20,16 @@ import std.string;
 import ae.utils.main;
 import ae.utils.funopt;
 
-void greplace(bool force, bool dryRun, bool wide, bool noContent, bool followSymlinks, string fromStr, string toStr, string[] targets = null)
+void greplace(
+	Switch!("Perform replacement even if it is not reversible", 'f') force,
+	Switch!("Do not actually make any changes", 'n') dryRun,
+	Switch!("Search and replace in UTF-16") wide,
+	Switch!("Only search and replace in file names and paths") noContent,
+	Switch!("Recurse in symlinked directories") followSymlinks,
+	Parameter!(string, "String to search") fromStr,
+	Parameter!(string, "String to replace with") toStr,
+	Parameter!(string[], "Paths (files or directories) to search in (default is current directory)") targets = null,
+)
 {
 	if (!targets.length)
 		targets = [""];
@@ -106,7 +115,7 @@ void greplace(bool force, bool dryRun, bool wide, bool noContent, bool followSym
 
 		if (file.name.indexOf(fromStr)>=0)
 		{
-			string newName = file.name.replace(fromStr, toStr);
+			string newName = file.name.replace(fromStr.value, toStr.value);
 			writeln(file.name, " -> ", newName);
 
 			if (!dryRun)
