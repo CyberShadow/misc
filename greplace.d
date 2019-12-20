@@ -26,6 +26,7 @@ void greplace(
 	Switch!("Search and replace in UTF-16") wide,
 	Switch!("Only search and replace in file names and paths") noContent,
 	Switch!("Recurse in symlinked directories") followSymlinks,
+	Switch!("Swap FROM-STR and TO-STR", 'r') reverse,
 	Parameter!(string, "String to search") fromStr,
 	Parameter!(string, "String to replace with") toStr,
 	Parameter!(string[], "Paths (files or directories) to search in (default is current directory)") targets = null,
@@ -33,6 +34,9 @@ void greplace(
 {
 	if (!targets.length)
 		targets = [""];
+
+	if (reverse)
+		swap(fromStr.value, toStr.value);
 
 	ubyte[] from, to, fromw, tow;
 	from = cast(ubyte[])fromStr;
