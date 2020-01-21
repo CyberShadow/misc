@@ -7,5 +7,6 @@
 !/gpu-linux
 /-/
 *.o
+*.exe
 /firefox/gm_scripts/config.xml
 /mst_sync_test.mp4
