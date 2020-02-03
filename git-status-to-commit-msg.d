@@ -43,6 +43,11 @@ mask = {src/,*/src/}*.d
 delim = .
 stripPrefixes = ["src."]
 
+[masks.source-d]
+mask = {source/,*/source/}*.d
+delim = .
+stripPrefixes = ["source."]
+
 [masks.d]
 mask = *.d
 delim = .
