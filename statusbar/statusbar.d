@@ -433,6 +433,14 @@ final class SystemStatusBlock : TimerBlock
 				block.urgent = false;
 			}
 			else
+			if (result.status == 42)
+			{
+				block.full_text = wchar(FontAwesome.fa_exclamation_triangle).text;
+				// block.background = null;
+				block.color = "#ffff00";
+				block.urgent = false;
+			}
+			else
 			{
 				block.full_text = format("\&nbsp;\&nbsp;\&nbsp;%s\&nbsp;\&nbsp;\&nbsp;%s ",
 					dchar(FontAwesome.fa_times),
