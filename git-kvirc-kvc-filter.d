@@ -4,6 +4,7 @@
 
 module git_kvirc_kvc_filter;
 
+import std.algorithm.comparison;
 import std.algorithm.searching;
 import std.algorithm.sorting;
 import std.ascii;
@@ -158,7 +159,7 @@ unittest
 
 Order!string stringOrder;
 
-ulong[] toCleanComparable(string s)
+ulong[] toCleanComparable(string s) pure
 {
 	ulong[] result;
 	foreach (char c; s)
@@ -179,10 +180,12 @@ struct KVC
 
 	private enum header = "# KVIrc configuration file\n";
 	private enum cleanHeader = "# KVIrc configuration file (cleaned by git-kvirc-kvc-filter)\n";
+	private enum nonNormalizedHeader = "# KVIrc configuration file (NON-NORMALIZED)\n";
 
 	static KVC read(File f = stdin)
 	{
 		KVC result;
+		bool normalized = true;
 
 		void checkOrder(string lt, string gt)
 		{
@@ -190,12 +193,14 @@ struct KVC
 				enforce(lt.toCleanComparable < gt.toCleanComparable,
 					"Wrong clean order: " ~ text([lt, gt]));
 			else
+			if (normalized)
 				stringOrder.add(lt, gt);
 		}
 
 		auto fileHeader = f.readln();
-		enforce(fileHeader == header || fileHeader == cleanHeader, "Bad header");
+		enforce(fileHeader.among(header, fileHeader, cleanHeader), "Bad header");
 		result.clean = fileHeader == cleanHeader;
+		normalized = fileHeader != nonNormalizedHeader;
 
 		string lastSectionName, lastName;
 		string[string]* currentSection;
@@ -240,22 +245,36 @@ struct KVC
 		return result;
 	}
 
+	private string[] kvcSort(bool clean, bool normalized, string[] input)
+	{
+		if (clean)
+			return input.schwartzSort!toCleanComparable.release();
+		if (!normalized)
+			return input;
+		else
+			return input.sort!((a, b) => stringOrder.cmp(a, b) < 0).release();
+	}
+
+	bool checkNormalized()
+	{
+		try
+			foreach (sectionName; kvcSort(false, true, data.keys).dup)
+				kvcSort(false, true, data[sectionName].keys.dup);
+		catch (Exception e)
+			return false;
+		return true;
+	}
+
 	void write(bool clean, File f = stdout)
 	{
-		f.write(clean ? cleanHeader : header);
-		string[] kvcSort(string[] input)
-		{
-			if (clean)
-				return input.schwartzSort!toCleanComparable.release();
-			else
-				return input.sort!((a, b) => stringOrder.cmp(a, b) < 0).release();
-		}
+		bool normalized = clean ? true : checkNormalized();
+		f.write(clean ? cleanHeader : !normalized ? nonNormalizedHeader : header);
 
-		foreach (sectionName; kvcSort(data.keys))
+		foreach (sectionName; kvcSort(clean, normalized, data.keys).dup)
 		{
 			f.write('[', sectionName, "]\n");
 			auto section = data[sectionName];
-			foreach (name; kvcSort(section.keys))
+			foreach (name; kvcSort(clean, normalized, section.keys.dup).dup)
 				f.write(name, '=', section[name], '\n');
 		}
 	}
