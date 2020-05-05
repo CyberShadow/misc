@@ -210,23 +210,29 @@ ulong[] toCleanComparable(string s)
 
 struct KVC
 {
+	bool clean;
 	string[string][string] data;
 
-	enum header = "# KVIrc configuration file\n";
+	private enum header = "# KVIrc configuration file\n";
+	private enum cleanHeader = "# KVIrc configuration file (cleaned by git-kvirc-kvc-filter)\n";
 
-	static KVC read(bool clean, File f = stdin)
+	static KVC read(File f = stdin)
 	{
+		KVC result;
+
 		void checkOrder(string lt, string gt)
 		{
-			if (clean)
+			if (result.clean)
 				enforce(lt.toCleanComparable < gt.toCleanComparable,
 					"Wrong clean order: " ~ text([lt, gt]));
 			else
 				stringOrder.add(lt, gt);
 		}
 
-		enforce(f.readln() == header, "Bad header");
-		KVC result;
+		auto fileHeader = f.readln();
+		enforce(fileHeader == header || fileHeader == cleanHeader, "Bad header");
+		result.clean = fileHeader == cleanHeader;
+
 		string lastSectionName, lastName;
 		string[string]* currentSection;
 		while (!f.eof)
@@ -271,7 +277,7 @@ struct KVC
 
 	void write(bool clean, File f = stdout)
 	{
-		f.write(header);
+		f.write(clean ? cleanHeader : header);
 		string[] kvcSort(string[] input)
 		{
 			if (clean)
@@ -313,59 +319,62 @@ void entry(
 	stringOrder.load(stringOrderFileName);
 	scope(success) stringOrder.save(stringOrderFileName);
 
-	auto kvc = KVC.read(!clean);
+	auto kvc = KVC.read();
 
-	switch (fileName.baseName)
+	if (clean != kvc.clean)
 	{
-		case "main.kvc":
-			if (clean)
-			{
-				kvc.data.get("None", null).remove("uintTotalConnectionTime");
-				kvc.data.get("Geometry", null).remove("rectFrameGeometry");
-				kvc.data.get("Recent", null).remove("stringlistRecentChannels");
-				kvc.data.get("Recent", null).remove("stringlistRecentServers");
-				kvc.data.get("Recent", null).remove("stringlistRecentNicknames");
-				kvc.data.get("Recent", null).remove("stringlistRecentIrcUrls");
-			}
-			break;
-		case "serverdb.kvc":
+		switch (fileName.baseName)
 		{
-			auto host = query(["hostname", "-s"]).chomp();
-			foreach (sectionName, ref section; kvc.data)
-			{
-				foreach (name, ref value; section)
-					if (name.endsWith("_Pass"))
-					{
-						if (clean)
-							value = value.replaceAll(re!`cybershadow@.*-kvirc`, `cybershadow@HOST-kvirc`);
-						else
-							value = value.replace(`cybershadow@HOST-kvirc`, `cybershadow@` ~ host ~ `-kvirc`);
-					}
-
-				// Swap #_... prefix and #_Id value
-				string[string] idMap;
-				foreach (name, value; section)
-					if (name.endsWith("_Id"))
-						idMap[name.findSplit("_")[0]] = value;
-
-				string[string] newSection;
-				foreach (name, value; section)
+			case "main.kvc":
+				if (clean)
 				{
-					auto parts = name.findSplit("_");
-					if (parts[1].length)
-						if (auto id = parts[0] in idMap)
-						{
-							name = *id ~ "_" ~ parts[2];
-							if (parts[2] == "Id")
-								value = parts[0];
-						}
-					newSection[name] = value;
+					kvc.data.get("None", null).remove("uintTotalConnectionTime");
+					kvc.data.get("Geometry", null).remove("rectFrameGeometry");
+					kvc.data.get("Recent", null).remove("stringlistRecentChannels");
+					kvc.data.get("Recent", null).remove("stringlistRecentServers");
+					kvc.data.get("Recent", null).remove("stringlistRecentNicknames");
+					kvc.data.get("Recent", null).remove("stringlistRecentIrcUrls");
 				}
-				section = newSection;
+				break;
+			case "serverdb.kvc":
+			{
+				auto host = query(["hostname", "-s"]).chomp();
+				foreach (sectionName, ref section; kvc.data)
+				{
+					foreach (name, ref value; section)
+						if (name.endsWith("_Pass"))
+						{
+							if (clean)
+								value = value.replaceAll(re!`cybershadow@.*-kvirc`, `cybershadow@HOST-kvirc`);
+							else
+								value = value.replace(`cybershadow@HOST-kvirc`, `cybershadow@` ~ host ~ `-kvirc`);
+						}
+
+					// Swap #_... prefix and #_Id value
+					string[string] idMap;
+					foreach (name, value; section)
+						if (name.endsWith("_Id"))
+							idMap[name.findSplit("_")[0]] = value;
+
+					string[string] newSection;
+					foreach (name, value; section)
+					{
+						auto parts = name.findSplit("_");
+						if (parts[1].length)
+							if (auto id = parts[0] in idMap)
+							{
+								name = *id ~ "_" ~ parts[2];
+								if (parts[2] == "Id")
+									value = parts[0];
+							}
+						newSection[name] = value;
+					}
+					section = newSection;
+				}
+				break;
 			}
-			break;
+			default:
 		}
-		default:
 	}
 
 	kvc.write(clean);
