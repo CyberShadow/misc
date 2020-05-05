@@ -67,6 +67,7 @@ struct Order(T)
 	bool[size_t][size_t] order; // order[a][b] = a > b
 
 	alias JSONData = T[2][];
+	JSONData jsonData;
 
 	void load(string fileName)
 	{
@@ -75,18 +76,19 @@ struct Order(T)
 		if (!fileName.exists)
 			return;
 
-		auto jsonData = fileName.readText.jsonParse!JSONData;
+		jsonData = fileName.readText.jsonParse!JSONData;
 		foreach (pair; jsonData)
-			add(pair[0], pair[1]);
+		{
+			auto ltIndex = getIndex(pair[0]);
+			auto gtIndex = getIndex(pair[1]);
+			assert(ltIndex != gtIndex);
+			order.require(ltIndex, null).update(gtIndex, () => false, (ref bool dir) { enforce(dir == false, "Order conflict"); });
+			order.require(gtIndex, null).update(ltIndex, () => true , (ref bool dir) { enforce(dir == true , "Order conflict"); });
+		}
 	}
 
 	void save(string fileName)
 	{
-		JSONData jsonData;
-		foreach (i, iOrder; order)
-			foreach (j, ijDir; iOrder)
-				if (ijDir == false)
-					jsonData ~= [values[i], values[j]];
 		jsonData.sort();
 		jsonData.toPrettyJson.toFile(fileName);
 	}
@@ -112,9 +114,21 @@ struct Order(T)
 	{
 		auto ltIndex = getIndex(lt);
 		auto gtIndex = getIndex(gt);
-		assert(lt != gt);
-		order.require(ltIndex, null).update(gtIndex, () => false, (ref bool dir) { enforce(dir == false, "Order conflict"); });
-		order.require(gtIndex, null).update(ltIndex, () => true , (ref bool dir) { enforce(dir == true , "Order conflict"); });
+		assert(ltIndex != gtIndex);
+
+		int result;
+		try
+			result = cmp(ltIndex, gtIndex);
+		catch (Exception e)
+		{
+			// unordered
+			order.require(ltIndex, null).update(gtIndex, () => false, (ref bool dir) { enforce(dir == false, "Order conflict"); });
+			order.require(gtIndex, null).update(ltIndex, () => true , (ref bool dir) { enforce(dir == true , "Order conflict"); });
+			jsonData ~= [lt, gt];
+			return;
+		}
+		// check existing order
+		enforce(result < 0, "Order conflict");
 	}
 
 	int cmp(T a, T b)
