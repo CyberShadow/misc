@@ -24,42 +24,6 @@ import ae.utils.json;
 import ae.utils.main;
 import ae.utils.regex;
 
-version (all)
-{
-	private enum bool isSafeCopyable(T) = is(typeof(() @safe { union U { T x; } T *x; auto u = U(*x); }));
-
-	private struct AA { void* impl; }
-	extern(C) private void* _aaGetX(AA* paa, const TypeInfo_AssociativeArray ti, const size_t valsz, const scope void* pkey, out bool found) pure nothrow;
-
-	ref V refUpdate(K, V, C, U)(ref V[K] aa, K key, scope C create, scope U update)
-	if (is(typeof(create()) : V) && (is(typeof(update(aa[K.init])) : V) || is(typeof(update(aa[K.init])) == void)))
-	{
-		bool found;
-		// if key is @safe-ly copyable, `update` may infer @safe
-		static if (isSafeCopyable!K)
-		{
-			auto p = () @trusted
-			{
-				return cast(V*) _aaGetX(cast(AA*) &aa, typeid(V[K]), V.sizeof, &key, found);
-			} ();
-		}
-		else
-		{
-			auto p = cast(V*) _aaGetX(cast(AA*) &aa, typeid(V[K]), V.sizeof, &key, found);
-		}
-		if (!found)
-			*p = create();
-		else
-		{
-			static if (is(typeof(update(*p)) == void))
-				update(*p);
-			else
-				*p = update(*p);
-		}
-		return *p;
-	}
-}
-
 struct Order(T)
 {
 	T[] values;
@@ -245,11 +209,12 @@ struct KVC
 			{
 				enforce(line[$-1] == ']');
 				auto sectionName = line[1..$-1];
-				currentSection = &result.data.refUpdate(
-					sectionName,
-					() => null,
-					(ref string[string] section) { throw new Exception("Duplicate section: " ~ sectionName); },
-				);
+
+				bool created;
+				currentSection = &result.data.require(
+					sectionName, (){ created = true; return null; }());
+				enforce(created, "Duplicate section: " ~ sectionName);
+
 				lastName = null;
 				if (lastSectionName)
 					checkOrder(lastSectionName, sectionName);
