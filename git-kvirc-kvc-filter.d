@@ -119,11 +119,13 @@ struct Order(T)
 
 	int cmp(T a, T b)
 	{
-		auto aIndex = getIndex(a);
-		auto bIndex = getIndex(b);
-		if (a == b)
-			return 0;
+		return cmp(getIndex(a), getIndex(b));
+	}
 
+	private int cmp(size_t aIndex, size_t bIndex)
+	{
+		if (aIndex == bIndex)
+			return 0;
 		// auto aOrder = order.get(aIndex);
 
 		static bool[] visited;
@@ -158,7 +160,7 @@ struct Order(T)
 			if (visit(aIndex))
 				return dir ? 1 : -1;
 		}
-		throw new Exception("Don't know the order of " ~ text([a, b]));
+		throw new Exception("Don't know the order of " ~ text([values[aIndex], values[bIndex]]));
 	}
 }
 
