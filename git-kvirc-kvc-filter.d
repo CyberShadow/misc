@@ -302,6 +302,13 @@ void entry(
 	enforce(clean != smudge, "Must specify --clean OR --smudge");
 	enforce(fileName.extension == ".kvc", "Expected a .kvc file");
 
+	if (fileName.baseName == "colorize.kvc")
+	{
+		foreach (chunk; stdin.byChunk(4096))
+			stdout.rawWrite(chunk);
+		return;
+	}
+
 	auto stringOrderFileName = "~/.config/private/kvircStringOrder.json".expandTilde;
 	stringOrder.load(stringOrderFileName);
 	scope(success) stringOrder.save(stringOrderFileName);
