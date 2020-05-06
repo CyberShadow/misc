@@ -159,18 +159,43 @@ unittest
 
 Order!string stringOrder;
 
-ulong[] toCleanComparable(string s) pure
+auto toCleanComparable(string s) pure nothrow @nogc
 {
-	ulong[] result;
-	foreach (char c; s)
-		if (isDigit(c))
-			if (result.length && result[$-1] >= 0x100)
-				result[$-1] = 0x100 + ((result[$-1] - 0x100) * 10 + (c - '0'));
+	static struct R
+	{
+		string s;
+		bool empty;
+		ulong front;
+		void popFront() pure nothrow @nogc
+		{
+			if (!s.length)
+			{
+				assert(!empty);
+				empty = true;
+				return;
+			}
+
+			auto c = s[0];
+			if (isDigit(s[0]))
+			{
+				front = 0x100 + (c - '0');
+				s = s[1..$];
+				while (s.length && isDigit(s[0]))
+				{
+					front = 0x100 + ((front - 0x100) * 10 + (s[0] - '0'));
+					s = s[1..$];
+				}
+			}
 			else
-				result ~= 0x100 + (c - '0');
-		else
-			result ~= ubyte(c);
-	return result;
+			{
+				front = ubyte(c);
+				s = s[1..$];
+			}
+		}
+	}
+	auto r = R(s);
+	r.popFront();
+	return r;
 }
 
 struct KVC
@@ -190,7 +215,7 @@ struct KVC
 		void checkOrder(string lt, string gt)
 		{
 			if (result.clean)
-				enforce(lt.toCleanComparable < gt.toCleanComparable,
+				enforce(cmp(lt.toCleanComparable, gt.toCleanComparable) < 0,
 					"Wrong clean order: " ~ text([lt, gt]));
 			else
 			if (normalized)
@@ -248,7 +273,7 @@ struct KVC
 	private string[] kvcSort(bool clean, bool normalized, string[] input)
 	{
 		if (clean)
-			return input.schwartzSort!toCleanComparable.release();
+			return input.sort!((a, b) => cmp(a.toCleanComparable, b.toCleanComparable) < 0).release();
 		if (!normalized)
 			return input;
 		else
