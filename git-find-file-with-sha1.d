@@ -19,7 +19,11 @@ import std.digest.sha;
 import std.stdio;
 import std.string;
 
-int git_find_file_with_sha1(string pathStr, string sha1)
+int git_find_file_with_sha1(
+	bool all,
+	string pathStr,
+	string sha1,
+)
 {
 	auto repo = Repository(".");
 	auto reader = repo.createObjectReader();
@@ -30,6 +34,7 @@ int git_find_file_with_sha1(string pathStr, string sha1)
 
 	string[Hash] hashCache;
 	HashSet!Hash visited;
+	bool found;
 
 commitLoop:
 	while (commits.length)
@@ -57,10 +62,14 @@ commitLoop:
 		if (hashCache.require(fileHash, reader.read(fileHash).data.getDigestString!SHA1().toLower) == sha1)
 		{
 			writeln(commitHash.toString());
-			return 0;
+			found = true;
+			if (!all)
+				return 0;
 		}
 		commits ~= commit.parents;
 	}
+	if (found)
+		return 0;
 	stderr.writeln("Not found.");
 	return 1;
 }
