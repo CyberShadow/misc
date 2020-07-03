@@ -232,7 +232,7 @@ int btrfs_snapshot_cleanup(
 
 					foreach (fn; dir)
 					{
-						auto markName = fn;
+						auto markName = fn[];
 						if (markName.skipOver(snapshotSubvolume ~ ".success-"))
 						{
 							stderr.writefln(">>>> Deleting success mark %s ...", markName);
