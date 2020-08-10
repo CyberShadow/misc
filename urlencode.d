@@ -39,7 +39,7 @@ void urlEncodeFile(ref File f, ref File o, bool all, string delim)
 		else
 		{
 			char c;
-			if (f.rawRead((&c)[0..1]))
+			if (f.rawRead((&c)[0..1]).length)
 				doChar(c);
 		}
 	}
