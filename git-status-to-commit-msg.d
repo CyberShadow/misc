@@ -53,6 +53,9 @@ mask = *.d
 delim = .
 addPrefix = true
 
+[masks.md]
+mask = *.md
+
 [masks.all]
 mask = *
 stripExt = false
