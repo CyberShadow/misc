@@ -21,6 +21,8 @@ version (Windows)
 else
 	enum BASE = `/home/vladimir/data/software/dmd/`;
 
+version (Posix) import core.sys.posix.sys.stat;
+
 int dver(
 	Switch!("Download versions if not present", 'd') download,
 	Switch!("Verbose output", 'v') verbose,
@@ -160,6 +162,16 @@ int dver(
 					binPath.buildPath("dmd.conf").File("a").write("\r\n; added by dver\r\nDFLAGS=-I%@P%/../src/phobos -L-L%@P%/../lib\r\n");
 					// Note: really old versions also need -m32 on gcc's command line - can't do that from dmd.conf or dmd's command line, need gcc wrapper
 				}
+			version (Posix)
+			{
+				auto dmdAttrs = dmd.getAttributes;
+				if (!(dmdAttrs & S_IRUSR))
+				{
+					stderr.writeln("dver: Making dmd readable");
+					dmd.setAttributes(dmdAttrs | S_IRUSR);
+				}
+			}
+
 			if (wine)
 				command = ["wine"] ~ binPath.buildPath(command[0]) ~ command[1..$];
 			else
