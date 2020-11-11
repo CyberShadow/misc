@@ -162,6 +162,14 @@ int dver(
 				environment["PATH"] = binPath ~ pathSeparator ~ environment["PATH"];
 				if (verbose) stderr.writefln("dver: PATH=%s", environment["PATH"]);
 			}
+			version (Posix)
+				if ("/etc/dmd.conf".exists)
+					command = [
+						"bwrap",
+						"--dev-bind", "/", "/",
+						"--bind", binPath ~ "/dmd.conf", "/etc/dmd.conf",
+					] ~ command;
+			if (verbose) stderr.writefln("dver: Running %s", command);
 			version (Windows)
 				return spawnProcess(command).wait();
 			else
