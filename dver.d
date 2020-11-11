@@ -152,6 +152,14 @@ int dver(
 		if (dmd.exists)
 		{
 			if (verbose) stderr.writefln("dver: Found dmd: %s", dmd);
+			auto confPath = binPath.buildPath("dmd.conf");
+			version (linux)
+				if (confPath.readText.endsWith("\r\nDFLAGS=-I/home/wgb/yourname/dmd/src/phobos\r\n"))
+				{
+					stderr.writeln("dver: Patching ", confPath);
+					binPath.buildPath("dmd.conf").File("a").write("\r\n; added by dver\r\nDFLAGS=-I%@P%/../src/phobos -L-L%@P%/../lib\r\n");
+					// Note: really old versions also need -m32 on gcc's command line - can't do that from dmd.conf or dmd's command line, need gcc wrapper
+				}
 			if (wine)
 				command = ["wine"] ~ binPath.buildPath(command[0]) ~ command[1..$];
 			else
