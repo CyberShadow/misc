@@ -92,14 +92,27 @@ int dver(
 	{
 		if (download)
 		{
-			string fn = "dmd." ~ dVersion ~ platformSuffix ~ ".zip";
+			string fn, url;
+			if (baseVersion.startsWith("0."))
+			{
+				fn = "dmd.%s.zip".format(
+					baseVersion[2 .. $],
+				);
+				url = "http://ftp.digitalmars.com/%s".format(
+					fn,
+				);
+			}
+			else
+			{
+				fn = "dmd." ~ dVersion ~ platformSuffix ~ ".zip";
+				url = "http://downloads.dlang.org/%sreleases/%s.x/%s/%s".format(
+					beta ? "pre-" : "",
+					baseVersion[0],
+					baseVersion,
+					fn,
+				);
+			}
 			if (verbose) stderr.writefln("dver: Downloading %s...", fn);
-			auto url = "http://downloads.dlang.org/%sreleases/%s.x/%s/%s".format(
-				beta ? "pre-" : "",
-				baseVersion[0],
-				baseVersion,
-				fn,
-			);
 			auto zip = BASE ~ fn;
 			if (!zip.exists)
 			{
