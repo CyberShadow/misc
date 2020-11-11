@@ -81,7 +81,7 @@ int dver(
 			auto dmd = binPath ~ "/dmd" ~ binExt;
 			if (dmd.exists)
 			{
-				if (verbose) stderr.writefln("Found dmd: %s", dmd);
+				if (verbose) stderr.writefln("dver: Found dmd: %s", dmd);
 				found = true;
 				break;
 			}
@@ -93,7 +93,7 @@ int dver(
 		if (download)
 		{
 			string fn = "dmd." ~ dVersion ~ platformSuffix ~ ".zip";
-			if (verbose) stderr.writefln("Downloading %s...", fn);
+			if (verbose) stderr.writefln("dver: Downloading %s...", fn);
 			auto url = "http://downloads.dlang.org/%sreleases/%s.x/%s/%s".format(
 				beta ? "pre-" : "",
 				baseVersion[0],
@@ -108,23 +108,23 @@ int dver(
 				enforce(zip.exists, "Expected to find file after download: " ~ zip);
 			}
 
-			if (verbose) stderr.writefln("Unzipping %s...", fn);
+			if (verbose) stderr.writefln("dver: Unzipping %s...", fn);
 			atomic!unzip(zip, dir);
 			found = true;
 		}
 		else
 		{
-			if (verbose) stderr.writeln("Directory not found, scanning similar versions...");
+			if (verbose) stderr.writeln("dver: Directory not found, scanning similar versions...");
 			auto dirs = dirEntries(BASE, `dmd.` ~ dVersion ~ ".*" ~ platformSuffix, SpanMode.shallow)
 				.filter!(de => de.isDir)
 				.map!(de => de.baseName.chomp(platformSuffix))
 				.array
 				.sort();
-			if (verbose) stderr.writefln("Found versions: ", dirs);
+			if (verbose) stderr.writefln("dver: Found versions: ", dirs);
 			if (dirs.length)
 			{
 				auto lastDir = dirs[$-1];
-				stderr.writefln("(auto-correcting D version %s to %s)", dVersion, lastDir[4..$]);
+				stderr.writefln("dver: (auto-correcting D version %s to %s)", dVersion, lastDir[4..$]);
 				dir = BASE ~ lastDir ~ platformSuffix;
 				found = true;
 			}
@@ -138,7 +138,7 @@ int dver(
 		auto dmd = binPath ~ "/dmd" ~ binExt;
 		if (dmd.exists)
 		{
-			if (verbose) stderr.writefln("Found dmd: %s", dmd);
+			if (verbose) stderr.writefln("dver: Found dmd: %s", dmd);
 			if (wine)
 				command = ["wine"] ~ binPath.buildPath(command[0]) ~ command[1..$];
 			else
@@ -147,7 +147,7 @@ int dver(
 				if (!(attributes & octal!111))
 					dmd.setAttributes((attributes & octal!444) >> 2);
 				environment["PATH"] = binPath ~ pathSeparator ~ environment["PATH"];
-				if (verbose) stderr.writefln("PATH=%s", environment["PATH"]);
+				if (verbose) stderr.writefln("dver: PATH=%s", environment["PATH"]);
 			}
 			version (Windows)
 				return spawnProcess(command).wait();
