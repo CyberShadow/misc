@@ -156,7 +156,7 @@ int dver(
 			if (verbose) stderr.writefln("dver: Found dmd: %s", dmd);
 			auto confPath = binPath.buildPath("dmd.conf");
 			version (linux)
-				if (confPath.readText.endsWith("\r\nDFLAGS=-I/home/wgb/yourname/dmd/src/phobos\r\n"))
+				if (confPath.exists && confPath.readText.endsWith("\r\nDFLAGS=-I/home/wgb/yourname/dmd/src/phobos\r\n"))
 				{
 					stderr.writeln("dver: Patching ", confPath);
 					binPath.buildPath("dmd.conf").File("a").write("\r\n; added by dver\r\nDFLAGS=-I%@P%/../src/phobos -L-L%@P%/../lib\r\n");
@@ -183,7 +183,7 @@ int dver(
 				if (verbose) stderr.writefln("dver: PATH=%s", environment["PATH"]);
 			}
 			version (Posix)
-				if ("/etc/dmd.conf".exists)
+				if ("/etc/dmd.conf".exists && confPath.exists)
 					command = [
 						"bwrap",
 						"--dev-bind", "/", "/",
