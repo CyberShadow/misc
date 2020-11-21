@@ -53,22 +53,26 @@ void greplace(
 	{
 		foreach (ref file; files)
 		{
-			ubyte[] data;
-			if (file.isSymlink())
-				data = cast(ubyte[])readLink(file.name);
-			else
-			if (file.isFile())
-				data = cast(ubyte[])std.file.read(file.name);
-			else
-				continue;
-
 			if (!noContent)
 			{
-				if (data.countUntil(to)>=0)
-					throw new Exception("File " ~ file.name ~ " already contains " ~ toStr);
-				if (wide && data.countUntil(tow)>=0)
-					throw new Exception("File " ~ file.name ~ " already contains " ~ toStr ~ " (in UTF-16)");
+				ubyte[] s;
+				if (file.isSymlink())
+					s = cast(ubyte[])readLink(file.name);
+				else
+				if (file.isFile())
+					s = cast(ubyte[])std.file.read(file.name);
+
+				if (s)
+				{
+					if (s.countUntil(to)>=0)
+						throw new Exception("File " ~ file.name ~ " already contains " ~ toStr);
+					if (wide && s.countUntil(tow)>=0)
+						throw new Exception("File " ~ file.name ~ " already contains " ~ toStr ~ " (in UTF-16)");
+				}
 			}
+
+			if (file.name.indexOf(toStr)>=0)
+				throw new Exception("File name " ~ file.name ~ " already contains " ~ toStr);
 		}
 	}
 
@@ -82,37 +86,38 @@ void greplace(
 			else
 			if (file.isFile())
 				s = cast(ubyte[])std.file.read(file.name);
-			else
-				continue;
 
-			bool modified = false;
-			if (s.countUntil(from)>=0)
+			if (s)
 			{
-				s = s.replace(from, to);
-				modified = true;
-			}
-			if (wide && s.countUntil(fromw)>=0)
-			{
-				s = s.replace(fromw, tow);
-				modified = true;
-			}
-
-			if (modified)
-			{
-				writeln(file.name);
-
-				if (!dryRun)
+				bool modified = false;
+				if (s.countUntil(from)>=0)
 				{
-					if (file.isSymlink())
+					s = s.replace(from, to);
+					modified = true;
+				}
+				if (wide && s.countUntil(fromw)>=0)
+				{
+					s = s.replace(fromw, tow);
+					modified = true;
+				}
+
+				if (modified)
+				{
+					writeln(file.name);
+
+					if (!dryRun)
 					{
-						remove(file.name);
-						symlink(cast(string)s, file.name);
+						if (file.isSymlink())
+						{
+							remove(file.name);
+							symlink(cast(string)s, file.name);
+						}
+						else
+						if (file.isFile())
+							std.file.write(file.name, s);
+						else
+							assert(false);
 					}
-					else
-					if (file.isFile())
-						std.file.write(file.name, s);
-					else
-						assert(false);
 				}
 			}
 		}
