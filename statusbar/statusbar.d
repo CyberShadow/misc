@@ -116,7 +116,7 @@ class TimeBlock(string timeFormat) : TimerBlock
 	BarBlock block;
 	immutable(TimeZone) tz;
 
-	static immutable iconStr = text(wchar(FontAwesome.fa_clock)) ~ "  ";
+	static immutable iconStr = text(wchar(FontAwesome.fa_clock)) ~ " ";
 
 	this(immutable(TimeZone) tz)
 	{
@@ -442,7 +442,7 @@ final class SystemStatusBlock : TimerBlock
 			}
 			else
 			{
-				block.full_text = format("\&nbsp;\&nbsp;\&nbsp;%s\&nbsp;\&nbsp;\&nbsp;%s ",
+				block.full_text = format("\&nbsp;\&nbsp;%s\&nbsp;%s ",
 					dchar(FontAwesome.fa_times),
 					result.output.strip.replace("\n", " | "));
 				// block.background = "#ff0000";

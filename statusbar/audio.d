@@ -125,7 +125,7 @@ class Pulse : Audio
 	ProcessPipes p;
 	bool subscribed;
 
-	override string getSymbol() { return "Ⓟ"; }
+	override string getSymbol() { return "P"; }
 	override string getSymbolColor() { return "#bbbbff"; }
 
 	override void subscribe(void delegate() callback)
@@ -183,7 +183,7 @@ class ALSA : Audio
 	ProcessPipes p;
 	bool subscribed;
 
-	override string getSymbol() { return "Ⓐ"; }
+	override string getSymbol() { return "A"; }
 	override string getSymbolColor() { return "#aaffcc"; }
 
 	override void subscribe(void delegate() callback)
