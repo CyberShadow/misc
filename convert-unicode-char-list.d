@@ -14,7 +14,7 @@ void main()
 	{
 		auto parts = line.split(";");
 		try
-			writefln("%c - %s", cast(dchar)(parts[0].to!int(16)), parts[1]);
+			writefln("%c - U+%s %s", cast(dchar)(parts[0].to!int(16)), parts[0], parts[1]);
 		catch (UTFException)
 			continue;
 	}
