@@ -653,14 +653,19 @@ void main()
 				}
 			});
 
-		// Current playing track
-		new MpdBlock();
+		version(HOST_n910f)
+			{}
+		else
+		{
+			// Current playing track
+			new MpdBlock();
 
-		// Volume
-		new VolumeBlock();
+			// Volume
+			new VolumeBlock();
 
-		// Brightness
-		new BrightnessBlock();
+			// Brightness
+			new BrightnessBlock();
+		}
 
 		// Battery
 		version (HOST_vaio)
