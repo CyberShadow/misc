@@ -155,7 +155,7 @@ void main(string[] args)
 					if (mod.skipOver(prefix))
 						break;
 				if (mask.addPrefix)
-					mod = (mask.prefix ? mask.prefix.stripQuotes : defaultPrefix) ~ delim ~ mod;
+					mod = (mask.prefix ? mask.prefix.stripQuotes : defaultPrefix ~ delim) ~ mod;
 				if (pack)
 					pack = commonPrefix(mod, pack).stripRight(delim);
 				else
