@@ -94,6 +94,10 @@ void main(string[] args)
 	else
 		config = loadIni!Config(configFiles.front);
 
+	foreach (ref mask; config.masks)
+		if (mask.prefix.length)
+			mask.addPrefix = true;
+
 	bool verbose;
 	getopt(args,
 		"v|verbose", &verbose,
