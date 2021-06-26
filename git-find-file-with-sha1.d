@@ -5,6 +5,8 @@
 
 module git_find_file_with_sha1;
 
+private:
+
 import ae.sys.git;
 import ae.utils.array;
 import ae.utils.digest;
@@ -27,15 +29,15 @@ int git_find_file_with_sha1(
 	string sha1,
 )
 {
-	auto repo = Repository(".");
+	auto repo = Git(".");
 	auto reader = repo.createObjectReader();
 
 	auto path = pathStr.split("/");
 	// Current search heads for breadth-first search
-	Hash[] commits = [repo.query(`rev-parse`, `HEAD`).toCommitHash()];
+	Git.CommitID[] commits = [repo.query(`rev-parse`, `HEAD`).I!(c => Git.CommitID(c))];
 
-	bool[Hash] blobCache;
-	bool checkBlobHash(Hash blobHash)
+	bool[Git.BlobID] blobCache;
+	bool checkBlobHash(Git.BlobID blobHash)
 	{
 		return blobCache.require(blobHash, {
 			auto blob = reader.read(blobHash).data;
@@ -43,9 +45,9 @@ int git_find_file_with_sha1(
 		}());
 	}
 
-	struct CommitResult { enum Status { gone, bad, good } Status status; Hash[] parents; }
-	CommitResult[Hash] commitCache;
-	CommitResult checkCommitHash(Hash commitHash)
+	struct CommitResult { enum Status { gone, bad, good } Status status; Git.CommitID[] parents; }
+	CommitResult[Git.CommitID] commitCache;
+	CommitResult checkCommitHash(Git.CommitID commitHash)
 	{
 		return commitCache.require(commitHash, {
 			auto commit = reader.read(commitHash).parseCommit();
@@ -53,7 +55,7 @@ int git_find_file_with_sha1(
 			CommitResult result;
 			result.parents = commit.parents;
 
-			auto fileHash = commit.tree;
+			Git.OID fileHash = commit.tree;
 			foreach (dir; path)
 			{
 				auto match = fileHash
@@ -67,12 +69,12 @@ int git_find_file_with_sha1(
 					.hash;
 			}
 
-			result.status = checkBlobHash(fileHash) ? CommitResult.Status.good : CommitResult.Status.bad;
+			result.status = checkBlobHash(Git.BlobID(fileHash)) ? CommitResult.Status.good : CommitResult.Status.bad;
 			return result;
 		}());
 	}
 
-	HashSet!Hash visited;
+	HashSet!(Git.CommitID) visited;
 	bool found;
 
 	while (commits.length)
