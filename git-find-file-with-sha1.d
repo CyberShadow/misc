@@ -36,9 +36,13 @@ int git_find_file_with_sha1(
 	// Current search heads for breadth-first search
 	Git.CommitID[] commits = [repo.query(`rev-parse`, `HEAD`).I!(c => Git.CommitID(c))];
 
+	auto sha1oid = Git.OID(sha1);
+
 	bool[Git.BlobID] blobCache;
 	bool checkBlobHash(Git.BlobID blobHash)
 	{
+		if (blobHash == sha1oid)
+			return true;
 		return blobCache.require(blobHash, {
 			auto blob = reader.read(blobHash).data;
 			return blob.getDigestString!SHA1().toLower == sha1;
