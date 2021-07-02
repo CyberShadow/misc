@@ -13,11 +13,13 @@ import std.exception;
 import std.file;
 import std.functional;
 import std.path;
+import std.regex;
 import std.stdio;
 import std.string;
 import std.process;
 
 import ae.net.asockets;
+import ae.sys.datamm;
 import ae.sys.file;
 import ae.sys.inotify;
 import ae.sys.timing;
@@ -632,6 +634,167 @@ final class BatteryBlock : Block
 	}
 }
 
+void trackFile(string fileName, void delegate(string) onChange)
+{
+	if (!fileName.exists)
+	{
+		fileName.ensurePathExists();
+		fileName.touch();
+	}
+	onChange(fileName);
+	iNotify.add(fileName, INotify.Mask.create | INotify.Mask.modify,
+		(in char[] name, INotify.Mask mask, uint cookie) {
+			stderr.writeln("Reloading " ~ fileName);
+			onChange(fileName);
+		}
+	);
+}
+
+bool reverseLineSplitter(char[] contents, bool delegate(char[] line) lineSink)
+{
+	sizediff_t newline1 = -1, newline2 = -1;
+
+	foreach_reverse (i, c; contents)
+		if (c == '\n')
+		{
+			newline2 = newline1;
+			newline1 = i;
+			if (newline2 > 0)
+				if (lineSink(contents[newline1 + 1.. newline2]))
+					return true;
+		}
+
+	if (newline1 > 0)
+		if (lineSink(contents[0 .. newline1]))
+			return true;
+
+	return false;
+}
+
+string truncateWithEllipsis(string s, size_t maxLength)
+{
+	auto ds = s.to!dstring;
+	if (ds.length > maxLength)
+		ds = ds[0 .. maxLength - 1] ~ '…';
+	return ds.to!string;
+}
+
+Data tryMapFile(string fn) { try return mapFile(fn, MmMode.read); catch (Exception e) return Data.init; }
+
+final class WorkBlock : Block
+{
+	BarBlock icon, block;
+	enum Mode { unknown, work, play }
+	Mode mode;
+	string project;
+
+	struct Def
+	{
+		bool work;
+		Regex!char re;
+	}
+	Def[] defs;
+
+	this()
+	{
+		icon.min_width = iconWidth;
+		icon.separator = false;
+
+		addBlock(&icon);
+		addBlock(&block);
+
+		trackFile(
+			"~/.config/private/work/titles.txt".expandTilde,
+			(string defsFn)
+			{
+				defs = null;
+				foreach (line; defsFn.readText.splitLines)
+				{
+					if (line.startsWith("+"))
+						defs ~= Def(true , regex(line[1 .. $]));
+					else
+					if (line.startsWith("-"))
+						defs ~= Def(false, regex(line[1 .. $]));
+				}
+				// TODO: reparse log file
+			}
+		);
+
+		trackFile(
+			"~/.config/private/work/project.log".expandTilde,
+			(string projectsFn)
+			{
+				auto data = tryMapFile(projectsFn);
+				auto contents = cast(char[])data.contents;
+				reverseLineSplitter(contents,
+					(line)
+					{
+						project = line.findSplit("] ")[2].idup;
+						update();
+						return true;
+					}
+				);
+			}
+		);
+
+		trackFile(
+			"~/.local/share/xtitle.log".expandTilde,
+			(string logFn)
+			{
+				auto data = tryMapFile(logFn);
+				auto contents = cast(char[])data.contents;
+
+				if (reverseLineSplitter(contents,
+					(line)
+					{
+						line = line.findSplit("] ")[2];
+						if (!line.length)
+							return false;
+
+						foreach (ref def; defs)
+							if (line.match(def.re))
+							{
+								mode = def.work ? Mode.work : Mode.play;
+								update();
+								return true;
+							}
+
+						return false;
+					}
+				))
+					return;
+
+				mode = Mode.unknown;
+				update();
+			}
+		);
+	}
+
+	void update()
+	{
+		final switch (mode)
+		{
+			case Mode.work:
+				icon.full_text = text(wchar(FontAwesome.fa_briefcase));
+				block.full_text = project.truncateWithEllipsis(8);
+				block.color = icon.color = "#ffff00";
+				break;
+			case Mode.play:
+				icon.full_text = text(wchar(FontAwesome.fa_tree));
+				block.full_text = "";
+				block.color = icon.color = null;
+				break;
+			case Mode.unknown:
+				icon.full_text = "🯄";
+				block.color = icon.color = "#ff0000";
+				block.full_text = " ";
+				break;
+		}
+		icon.separator = block.full_text.length == 0;
+		send();
+	}
+}
+
 void main()
 {
 	conn = new I3Connection();
@@ -659,6 +822,9 @@ void main()
 		{
 			// Current playing track
 			new MpdBlock();
+
+			// Time tracking
+			new WorkBlock();
 
 			// Volume
 			new VolumeBlock();
