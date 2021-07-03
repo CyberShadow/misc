@@ -4,6 +4,8 @@
 
 module statusbar;
 
+import core.thread;
+
 import std.algorithm.iteration;
 import std.algorithm;
 import std.array;
@@ -770,8 +772,15 @@ final class WorkBlock : Block
 		);
 	}
 
+	Mode oldMode;
+	string oldProject;
+
 	void update()
 	{
+		if (mode == oldMode && project == oldProject)
+			return;
+		oldMode = mode; oldProject = project;
+
 		final switch (mode)
 		{
 			case Mode.work:
@@ -790,6 +799,10 @@ final class WorkBlock : Block
 				block.full_text = " ";
 				break;
 		}
+		mode.to!string.toFile("/tmp/work-mode.txt");
+		new Thread({
+			spawnProcess(["~/bin/setwall".expandTilde]).wait();
+		}).start();
 		icon.separator = block.full_text.length == 0;
 		send();
 	}
