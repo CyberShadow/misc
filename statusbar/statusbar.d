@@ -712,11 +712,18 @@ final class WorkBlock : Block
 				defs = null;
 				foreach (line; defsFn.readText.splitLines)
 				{
-					if (line.startsWith("+"))
-						defs ~= Def(true , regex(line[1 .. $]));
+					if (!line.startsWith("["))
+						continue;
+					line = line.findSplit("] ")[2];
+					auto parts = line.findSplit("\t");
+					auto add = ["del", "add"].indexOf(parts[0]).to!bool;
+					line = parts[2];
+					auto def = Def("-+".indexOf(line[0]).to!bool, regex(line[1 .. $]));
+
+					if (add)
+						defs ~= def;
 					else
-					if (line.startsWith("-"))
-						defs ~= Def(false, regex(line[1 .. $]));
+						defs = defs.filter!(d => d != def).array;
 				}
 				// TODO: reparse log file
 			}
