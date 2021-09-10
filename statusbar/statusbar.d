@@ -711,6 +711,7 @@ final class WorkBlock : Block
 			{
 				defs = null;
 				foreach (line; defsFn.readText.splitLines)
+				try
 				{
 					if (!line.startsWith("["))
 						continue;
@@ -725,6 +726,7 @@ final class WorkBlock : Block
 					else
 						defs = defs.filter!(d => d != def).array;
 				}
+				catch (Exception e) {} // TODO ins
 				// TODO: reparse log file
 			}
 		);
