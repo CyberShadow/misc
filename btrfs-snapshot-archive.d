@@ -66,6 +66,7 @@ int btrfs_snapshot_archive(
 	Option!(string, "Leave a file in the source root dir for each successfully copied snapshot, based on the snapshot name and MARK", "MARK") successMark = null,
 	Option!(string, "Name of file in subvolume root which indicates which subvolumes to skip", "MARK") noBackupFile = ".nobackup",
 	Switch!("Only sync marks, don't copy new snapshots") markOnly = false,
+	Switch!("Create a \"latest\" symbolic link, pointing at the lexicographically highest snapshot") createLatestSymlink = false,
 	Option!(RsyncCondition, "When to use rsync instead of btrfs-send/receive (never/error/always). 'error' tries btrfs-send/receive first, and falls back to rsync on error.", "WHEN") rsync = RsyncCondition.never,
 )
 {
@@ -530,6 +531,23 @@ int btrfs_snapshot_archive(
 			{
 				needSnapshotHeader(); stderr.writefln(">>> Error! %s", e.msg);
 				error = true;
+			}
+		}
+
+		if (createLatestSymlink)
+		{
+			auto snapshots = allSnapshots.retro.filter!(s => s.length > 0);
+			if (!snapshots.empty)
+			{
+				auto latestSnapshot = snapshots.front;
+				auto name = subvolume ~ ".latest";
+				auto target = subvolume ~ "-" ~ latestSnapshot;
+				stderr.writefln("Creating symlink: %s -> %s", name, target);
+				if (!dryRun)
+				{
+					dstRoot.buildPath(name).remove().collectException();
+					symlink(target, dstRoot.buildPath(name));
+				}
 			}
 		}
 	}
