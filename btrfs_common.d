@@ -86,6 +86,12 @@ class SSHFS : VFS
 		run(["ssh"] ~ args ~ [escapeShellCommand(["rm", "-rf", "--", path])]);
 	}
 
+	override void symlink(string from, string to)
+	{
+		auto args = parsePath(to);
+		run(["ssh"] ~ args ~ [escapeShellCommand(["ln", "-s", "--", from, to])]);
+	}
+
 	static this()
 	{
 		registry["ssh"] = new SSHFS();
