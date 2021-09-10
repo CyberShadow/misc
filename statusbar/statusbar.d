@@ -812,6 +812,9 @@ final class WorkBlock : Block
 		new Thread({
 			spawnProcess(["~/bin/setwall".expandTilde]).wait();
 		}).start();
+		new Thread({
+			spawnProcess(["~/bin/i3-mkconfig".expandTilde, "i3-msg", "reload"], stdin, stderr, stderr).wait();
+		}).start();
 		icon.separator = block.full_text.length == 0;
 		send();
 	}
