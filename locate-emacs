@@ -6,7 +6,7 @@
 
 function run() {
 	local tmpfile=/tmp/locate-emacs.$PID
-	unbuffer locate "$@" \
+	unbuffer plocate "$@" \
 		| grep --line-buffered -vFf \
 			   ~/work/misc/locate-emacs-exclusions.txt \
 		| tee "$tmpfile" \
