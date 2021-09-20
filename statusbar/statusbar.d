@@ -644,7 +644,11 @@ void trackFile(string fileName, void delegate(string) onChange)
 		fileName.touch();
 	}
 	onChange(fileName);
-	iNotify.add(realPath(fileName), INotify.Mask.create | INotify.Mask.modify,
+	try
+		fileName = realPath(fileName);
+	catch (ErrnoException)
+		return;
+	iNotify.add(fileName, INotify.Mask.create | INotify.Mask.modify,
 		(in char[] name, INotify.Mask mask, uint cookie) {
 			stderr.writeln("Reloading " ~ fileName);
 			onChange(fileName);
