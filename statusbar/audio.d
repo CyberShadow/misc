@@ -50,60 +50,9 @@ class Audio
 	}
 }
 
-enum AudioAPI
+Audio getAudio()
 {
-	none,
-	alsa,
-	pulseAudio
-}
-
-AudioAPI getAudioAPI()
-{
-	try
-	{
-		switch (readLink("/etc/asound.conf"))
-		{
-			case "asound-native.conf":
-				return AudioAPI.alsa;
-			case "asound-pulse.conf":
-				return AudioAPI.pulseAudio;
-			default:
-		}
-	}
-	catch (Exception e) {}
-	return AudioAPI.none;
-}
-
-void listenForAPIChange(void delegate() callback)
-{
-	void register()
-	{
-		iNotify.add("/etc/asound.conf", INotify.Mask.removeSelf | INotify.Mask.dontFollow,
-			(in char[] name, INotify.Mask mask, uint cookie)
-			{
-				stderr.writeln(mask);
-				if (mask == INotify.Mask.removeSelf)
-					callback();
-				if (mask == INotify.Mask.ignored)
-					register();
-			}
-		);
-	}
-
-	register();
-}
-
-Audio getAudio(AudioAPI api)
-{
-	final switch (api)
-	{
-		case AudioAPI.none:
-			return new NoAudio();
-		case AudioAPI.alsa:
-			return new ALSA();
-		case AudioAPI.pulseAudio:
-			return new Pulse();
-	}
+	return new Pulse();
 }
 
 private:
@@ -175,52 +124,5 @@ class Pulse : Audio
 	override void runControlPanel()
 	{
 		spawnProcess(["x", "pavucontrol"]).wait();
-	}
-}
-
-class ALSA : Audio
-{
-	ProcessPipes p;
-	bool subscribed;
-
-	override string getSymbol() { return "A"; }
-	override string getSymbolColor() { return "#aaffcc"; }
-
-	override void subscribe(void delegate() callback)
-	{
-		subscribed = true;
-		p = pipeProcess(["script", "/dev/null", "-c", "alsamixer"], Redirect.stdin | Redirect.stdout, ["TERM":"xterm"]);
-		auto sock = new FileConnection(p.stdout.fileno.dup);
-
-		sock.handleReadData =
-			(Data data)
-			{
-				callback();
-			};
-
-		sock.handleDisconnect =
-			(string reason, DisconnectType type)
-			{
-				stderr.writeln("alsamixer disconnect: " ~ reason);
-				callback();
-				wait(p.pid);
-				p = ProcessPipes.init;
-				if (subscribed)
-					setTimeout({ if (subscribed) subscribe(callback); }, 1.seconds);
-			};
-
-		callback();
-	}
-
-	override void unsubscribe()
-	{
-		subscribed = false;
-		if (p.pid)
-			p.pid.kill();
-	}
-
-	override void runControlPanel()
-	{
-		spawnProcess(["t", "alsamixer"]).wait();
 	}
 }
