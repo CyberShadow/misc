@@ -64,14 +64,14 @@ void greplace(
 
 				if (s)
 				{
-					if (s.countUntil(to)>=0)
+					if (s.replace(from, to).replace(to, from) != s)
 						throw new Exception("File " ~ file.name ~ " already contains " ~ toStr);
-					if (wide && s.countUntil(tow)>=0)
+					if (wide && s.replace(fromw, tow).replace(tow, fromw) != s)
 						throw new Exception("File " ~ file.name ~ " already contains " ~ toStr ~ " (in UTF-16)");
 				}
 			}
 
-			if (file.name.indexOf(toStr)>=0)
+			if (file.name.replace(fromStr[], toStr[]).replace(toStr[], fromStr[]) != file.name)
 				throw new Exception("File name " ~ file.name ~ " already contains " ~ toStr);
 		}
 	}
