@@ -4,8 +4,11 @@
 /home/vladimir/.cache/pacaur/
 /home/vladimir/.dub/
 /home/vladimir/.local/share/Trash/
+/home/vladimir/.zsh_history_dirs/
 /home/vladimir/Downloads/!dmd/
+/home/vladimir/dlang/dmd-
 /home/vladimir/opt/dmd/
+/home/vladimir/.cache/pre-commit/
 /home/vladimir/work/D-dot-git/repos/
 /home/vladimir/work/DFeed/web/static/dlang.org/
 /home/vladimir/work/Digger/ae/
@@ -13,8 +16,15 @@
 /home/vladimir/work/Digger/work
 /home/vladimir/work/TrenD/ae/
 /home/vladimir/work/TrenD/work/
+/home/vladimir/work/aur/ldc
 /home/vladimir/work/dbot-server/-/local/
 /home/vladimir/work/dbot-client/work/
+/home/vladimir/work/dscripten-tools/rt/
 /home/vladimir/work/extern/arch/aur-mirror/
 /home/vladimir/work/extern/arch/aur/
+/home/vladimir/work/extern/D/dlang.org/.generated/
+/home/vladimir/work/extern/D/dmd/generated/
+/home/vladimir/work/extern/D/phobos/generated/
+/home/vladimir/work/extern/D/phobos-
 /usr/include/dlang/
+/home/aur/
