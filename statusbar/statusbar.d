@@ -704,16 +704,21 @@ final class WorkBlock : Block
 						continue;
 					line = line.findSplit("] ")[2];
 					auto parts = line.findSplit("\t");
-					auto add = ["del", "add"].indexOf(parts[0]).to!bool;
+					enum Op { del, add, ins }
+					auto op = parts[0].to!Op;
 					line = parts[2];
 					auto def = Def("-+".indexOf(line[0]).to!bool, regex(line[1 .. $]));
 
-					if (add)
-						defs ~= def;
-					else
-						defs = defs.filter!(d => d != def).array;
+					final switch (op)
+					{
+						case Op.del: defs = defs.filter!(d => d != def).array; break;
+						case Op.add: defs ~= def; break;
+						case Op.ins: defs = def ~ defs; break;
+					}
+					stderr.writeln(defs);
 				}
-				catch (Exception e) {} // TODO ins
+				catch (Exception e)
+					stderr.writeln(e.msg);
 				// TODO: reparse log file
 			}
 		);
