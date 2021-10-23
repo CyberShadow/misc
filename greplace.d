@@ -48,7 +48,11 @@ void greplace(
 		tow   = cast(ubyte[])std.conv.to!wstring(toStr);
 	}
 
-	auto files = targets.map!(target => target.empty || target.isDir ? dirEntries(target, SpanMode.breadth, followSymlinks).array : [DirEntry(target)]).join();
+	auto files = targets.map!(target =>
+		target.empty || target.isDir
+		? dirEntries(target, SpanMode.breadth, followSymlinks).array
+		: [DirEntry(target)]).join();
+
 	if (!force)
 	{
 		foreach (ref file; files)
@@ -78,60 +82,65 @@ void greplace(
 
 	foreach (ref file; files)
 	{
-		if (!noContent)
+		// Apply renames of parent directories
+		string fileName;
+		foreach (segment; file.name.pathSplitter)
+			fileName = fileName.replace(from, to).buildPath(segment);
+
+		ubyte[] s;
+		if (noContent)
+			s = null;
+		else
+		if (file.isSymlink())
+			s = cast(ubyte[])readLink(fileName);
+		else
+		if (file.isFile())
+			s = cast(ubyte[])std.file.read(fileName);
+
+		if (s)
 		{
-			ubyte[] s;
-			if (file.isSymlink())
-				s = cast(ubyte[])readLink(file.name);
-			else
-			if (file.isFile())
-				s = cast(ubyte[])std.file.read(file.name);
-
-			if (s)
+			bool modified = false;
+			if (s.countUntil(from)>=0)
 			{
-				bool modified = false;
-				if (s.countUntil(from)>=0)
-				{
-					s = s.replace(from, to);
-					modified = true;
-				}
-				if (wide && s.countUntil(fromw)>=0)
-				{
-					s = s.replace(fromw, tow);
-					modified = true;
-				}
+				s = s.replace(from, to);
+				modified = true;
+			}
+			if (wide && s.countUntil(fromw)>=0)
+			{
+				s = s.replace(fromw, tow);
+				modified = true;
+			}
 
-				if (modified)
-				{
-					writeln(file.name);
+			if (modified)
+			{
+				writeln(file.name);
 
-					if (!dryRun)
+				if (!dryRun)
+				{
+					if (file.isSymlink())
 					{
-						if (file.isSymlink())
-						{
-							remove(file.name);
-							symlink(cast(string)s, file.name);
-						}
-						else
-						if (file.isFile())
-							std.file.write(file.name, s);
-						else
-							assert(false);
+						remove(fileName);
+						symlink(cast(string)s, fileName);
 					}
+					else
+					if (file.isFile())
+						std.file.write(fileName, s);
+					else
+						assert(false);
 				}
 			}
 		}
 
-		if (file.name.indexOf(fromStr)>=0)
+		if (fileName.indexOf(fromStr)>=0)
 		{
-			string newName = file.name.replace(fromStr.value, toStr.value);
-			writeln(file.name, " -> ", newName);
+			string newName = fileName.replace(fromStr.value, toStr.value);
+			writeln(fileName, " -> ", newName);
 
 			if (!dryRun)
 			{
 				if (!exists(dirName(newName)))
 					mkdirRecurse(dirName(newName));
-				std.file.rename(file.name, newName);
+				std.file.rename(fileName, newName);
 
 				// TODO: empty folders
 
