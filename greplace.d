@@ -150,4 +150,23 @@ void greplace(
 	}
 }
 
+// Basic test
+unittest
+{
+	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
+	std.file.write(dir ~ "/test.txt", "foo");
+	main(["greplace", "foo", "bar", dir]);
+	assert(readText(dir ~ "/test.txt") == "bar");
+}
+
+// Test renaming parent directories
+unittest
+{
+	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
+	mkdir(dir ~ "/foo");
+	std.file.write(dir ~ "/foo/x.txt", "foo");
+	main(["greplace", "foo", "bar", dir]);
+	assert(readText(dir ~ "/bar/x.txt") == "bar");
+}
+
 mixin main!(funopt!greplace);
