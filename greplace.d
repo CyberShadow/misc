@@ -48,106 +48,112 @@ void greplace(
 		tow   = cast(ubyte[])std.conv.to!wstring(toStr);
 	}
 
-	auto files = targets.map!(target =>
+	auto targetFiles = targets.map!(target =>
 		target.empty || target.isDir
 		? dirEntries(target, SpanMode.breadth, followSymlinks).array
-		: [DirEntry(target)]).join();
+		: [DirEntry(target)]).array;
 
 	if (!force)
 	{
-		foreach (ref file; files)
+		foreach (targetIndex, target; targets)
+			foreach (ref file; targetFiles[targetIndex])
+			{
+				ubyte[] s;
+				if (file.isSymlink())
+					s = cast(ubyte[])readLink(file.name);
+				else
+				if (file.isFile() && !noContent)
+					s = cast(ubyte[])std.file.read(file.name);
+
+				if (s)
+				{
+					if (s.replace(from, to).replace(to, from) != s)
+						throw new Exception("File " ~ file.name ~ " already contains " ~ toStr);
+					if (wide && s.replace(fromw, tow).replace(tow, fromw) != s)
+						throw new Exception("File " ~ file.name ~ " already contains " ~ toStr ~ " (in UTF-16)");
+				}
+
+				if (file.name.replace(fromStr[], toStr[]).replace(toStr[], fromStr[]) != file.name)
+					throw new Exception("File name " ~ file.name ~ " already contains " ~ toStr);
+			}
+	}
+
+	foreach (targetIndex, target; targets)
+		foreach (ref file; targetFiles[targetIndex])
 		{
+			// Apply renames of parent directories
+			string fileName;
+			foreach (segment; file.name.pathSplitter)
+			{
+				if (fileName.length > target.length)
+					fileName = fileName.replace(from, to);
+				fileName = fileName.buildPath(segment);
+			}
+
 			ubyte[] s;
 			if (file.isSymlink())
-				s = cast(ubyte[])readLink(file.name);
+				s = cast(ubyte[])readLink(fileName);
 			else
 			if (file.isFile() && !noContent)
-				s = cast(ubyte[])std.file.read(file.name);
+				s = cast(ubyte[])std.file.read(fileName);
 
 			if (s)
 			{
-				if (s.replace(from, to).replace(to, from) != s)
-					throw new Exception("File " ~ file.name ~ " already contains " ~ toStr);
-				if (wide && s.replace(fromw, tow).replace(tow, fromw) != s)
-					throw new Exception("File " ~ file.name ~ " already contains " ~ toStr ~ " (in UTF-16)");
+				bool modified = false;
+				if (s.countUntil(from)>=0)
+				{
+					s = s.replace(from, to);
+					modified = true;
+				}
+				if (wide && s.countUntil(fromw)>=0)
+				{
+					s = s.replace(fromw, tow);
+					modified = true;
+				}
+
+				if (modified)
+				{
+					writeln(file.name);
+
+					if (!dryRun)
+					{
+						if (file.isSymlink())
+						{
+							remove(fileName);
+							symlink(cast(string)s, fileName);
+						}
+						else
+						if (file.isFile())
+							std.file.write(fileName, s);
+						else
+							assert(false);
+					}
+				}
 			}
 
-			if (file.name.replace(fromStr[], toStr[]).replace(toStr[], fromStr[]) != file.name)
-				throw new Exception("File name " ~ file.name ~ " already contains " ~ toStr);
-		}
-	}
-
-	foreach (ref file; files)
-	{
-		// Apply renames of parent directories
-		string fileName;
-		foreach (segment; file.name.pathSplitter)
-			fileName = fileName.replace(from, to).buildPath(segment);
-
-		ubyte[] s;
-		if (file.isSymlink())
-			s = cast(ubyte[])readLink(fileName);
-		else
-		if (file.isFile() && !noContent)
-			s = cast(ubyte[])std.file.read(fileName);
-
-		if (s)
-		{
-			bool modified = false;
-			if (s.countUntil(from)>=0)
+			if (fileName.indexOf(fromStr)>=0)
 			{
-				s = s.replace(from, to);
-				modified = true;
-			}
-			if (wide && s.countUntil(fromw)>=0)
-			{
-				s = s.replace(fromw, tow);
-				modified = true;
-			}
-
-			if (modified)
-			{
-				writeln(file.name);
+				string newName = fileName.replace(fromStr.value, toStr.value);
+				writeln(fileName, " -> ", newName);
 
 				if (!dryRun)
 				{
-					if (file.isSymlink())
+					if (!exists(dirName(newName)))
+						mkdirRecurse(dirName(newName));
+					std.file.rename(fileName, newName);
+
+					// TODO: empty folders
+
+					auto segments = array(pathSplitter(fileName))[0..$-1];
+					foreach_reverse (i; 0..segments.length)
 					{
-						remove(fileName);
-						symlink(cast(string)s, fileName);
+						auto dir = buildPath(segments[0..i+1]);
+						if (array(map!`a.name`(dirEntries(dir, SpanMode.shallow))).length==0)
+							rmdir(dir);
 					}
-					else
-					if (file.isFile())
-						std.file.write(fileName, s);
-					else
-						assert(false);
 				}
 			}
 		}
-
-		if (fileName.indexOf(fromStr)>=0)
-		{
-			string newName = fileName.replace(fromStr.value, toStr.value);
-			writeln(fileName, " -> ", newName);
-
-			if (!dryRun)
-			{
-				if (!exists(dirName(newName)))
-					mkdirRecurse(dirName(newName));
-				std.file.rename(fileName, newName);
-
-				// TODO: empty folders
-
-				auto segments = array(pathSplitter(fileName))[0..$-1];
-				foreach_reverse (i; 0..segments.length)
-				{
-					auto dir = buildPath(segments[0..i+1]);
-					if (array(map!`a.name`(dirEntries(dir, SpanMode.shallow))).length==0)
-						rmdir(dir);
-				}
-			}
-		}
-	}
 }
 
 // Basic test
@@ -176,6 +182,16 @@ unittest
 	mkdir(dir ~ "/foo");
 	std.file.write(dir ~ "/foo/foo.txt", "foo");
 	main(["greplace", "foo", "bar", dir]);
+	assert(readText(dir ~ "/bar/bar.txt") == "bar");
+}
+
+// Renaming specified directories
+unittest
+{
+	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
+	mkdir(dir ~ "/foo");
+	std.file.write(dir ~ "/foo/foo.txt", "foo");
+	main(["greplace", "foo", "bar", dir ~ "/foo"]);
 	assert(readText(dir ~ "/bar/bar.txt") == "bar");
 }
 
