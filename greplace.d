@@ -138,7 +138,7 @@ void greplace(
 
 				// TODO: empty folders
 
-				auto segments = array(pathSplitter(file.name))[0..$-1];
+				auto segments = array(pathSplitter(fileName))[0..$-1];
 				foreach_reverse (i; 0..segments.length)
 				{
 					auto dir = buildPath(segments[0..i+1]);
@@ -167,6 +167,16 @@ unittest
 	std.file.write(dir ~ "/foo/x.txt", "foo");
 	main(["greplace", "foo", "bar", dir]);
 	assert(readText(dir ~ "/bar/x.txt") == "bar");
+}
+
+// Renamed empty directories
+unittest
+{
+	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
+	mkdir(dir ~ "/foo");
+	std.file.write(dir ~ "/foo/foo.txt", "foo");
+	main(["greplace", "foo", "bar", dir]);
+	assert(readText(dir ~ "/bar/bar.txt") == "bar");
 }
 
 mixin main!(funopt!greplace);
