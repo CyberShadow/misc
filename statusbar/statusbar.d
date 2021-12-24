@@ -681,6 +681,8 @@ final class WorkBlock : Block
 	{
 		bool work;
 		Regex!char re;
+
+		bool opEquals(ref const Def b) const { return work == b.work && re.ir == b.re.ir; }
 	}
 	Def[] defs;
 
@@ -716,6 +718,7 @@ final class WorkBlock : Block
 						case Op.ins: defs = def ~ defs; break;
 					}
 					stderr.writeln(defs);
+					stderr.writeln();
 				}
 				catch (Exception e)
 					stderr.writeln(e.msg);
