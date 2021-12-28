@@ -23,7 +23,7 @@ void mpdSubscribe(void delegate() callback)
 		{
 			stderr.writeln("mpd disconnected: ", reason);
 			wait(p.pid);
-			setTimeout({ mpdSubscribe(callback); }, 100.msecs);
+			setTimeout({ mpdSubscribe(callback); }, 1.seconds);
 		};
 }
 
