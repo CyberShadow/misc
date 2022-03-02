@@ -49,7 +49,7 @@ void greplace(
 	}
 
 	auto targetFiles = targets.map!(target =>
-		target.empty || target.isDir
+		target.empty || (!target.isSymlink && target.isDir)
 		? dirEntries(target, SpanMode.breadth, followSymlinks).array
 		: [DirEntry(target)]).array;
 
@@ -193,6 +193,27 @@ unittest
 	std.file.write(dir ~ "/foo/foo.txt", "foo");
 	main(["greplace", "foo", "bar", dir ~ "/foo"]);
 	assert(readText(dir ~ "/bar/bar.txt") == "bar");
+}
+
+// Replacing in symlink targets
+version (Posix)
+unittest
+{
+	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
+	mkdir(dir ~ "/foo");
+	symlink("foo", dir ~ "/baz");
+	main(["greplace", "foo", "bar", dir]);
+	assert(readLink(dir ~ "/baz") == "bar");
+}
+
+// Replacing in broken symlink targets
+version (Posix)
+unittest
+{
+	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
+	symlink("foo", dir ~ "/baz");
+	main(["greplace", "foo", "bar", dir ~ "/baz"]);
+	assert(readLink(dir ~ "/baz") == "bar");
 }
 
 mixin main!(funopt!greplace);
