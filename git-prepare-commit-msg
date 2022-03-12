@@ -30,7 +30,7 @@ test -f "$GIT_DIR"/GITGUI_MSG && ! grep -vqE '^[^ ]+:$' "$GIT_DIR"/GITGUI_MSG &&
 
 old_message=$(cat "$1")
 (
-	git status --porcelain | git-status-to-commit-msg
+	git status --porcelain | "$(dirname "$(realpath "$0")")"/git-status-to-commit-msg
 	printf '\n'
 	grep -v '^[^ ]+: ?$' <<< "$old_message"
 ) > "$1"

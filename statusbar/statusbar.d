@@ -411,7 +411,7 @@ final class SystemStatusBlock : TimerBlock
 	{
 		if (dirty)
 		{
-			auto result = execute(["system-status"], /*Config.stderrPassThrough*/);
+			auto result = execute(["~/libexec/system-status".expandTilde], /*Config.stderrPassThrough*/);
 			if (result.status == 0)
 			{
 				block.full_text = wchar(FontAwesome.fa_check).text;
@@ -443,7 +443,7 @@ final class SystemStatusBlock : TimerBlock
 	override void handleClick(BarClick click)
 	{
 		if (click.button == 1)
-			spawnProcess(["t", "sh", "-c", "system-status-detail ; read -n 1"]).wait();
+			spawnProcess(["t", "sh", "-c", "~/libexec/system-status-detail ; read -n 1"]).wait();
 	}
 }
 
@@ -475,7 +475,7 @@ final class BrightnessBlock : Block
 
 	void update()
 	{
-		auto result = execute(["/home/vladimir/bin/brightness-get"]);
+		auto result = execute(["~/libexec/brightness-get".expandTilde]);
 		try
 		{
 			enforce(result.status == 0);
@@ -495,10 +495,10 @@ final class BrightnessBlock : Block
 	override void handleClick(BarClick click)
 	{
 		if (click.button == 4)
-			spawnProcess(["/home/vladimir/bin/brightness-up"]).wait();
+			spawnProcess(["~/bin/brightness-up".expandTilde]).wait();
 		else
 		if (click.button == 5)
-			spawnProcess(["/home/vladimir/bin/brightness-down"]).wait();
+			spawnProcess(["~/bin/brightness-down".expandTilde]).wait();
 	}
 }
 
@@ -805,10 +805,10 @@ final class WorkBlock : Block
 		}
 		mode.to!string.toFile("/tmp/work-mode.txt");
 		new Thread({
-			spawnProcess(["~/bin/setwall".expandTilde]).wait();
+			spawnProcess(["~/libexec/setwall".expandTilde]).wait();
 		}).start();
 		new Thread({
-			spawnProcess(["~/bin/i3-mkconfig".expandTilde, "i3-msg", "reload"], stdin, stderr, stderr).wait();
+			spawnProcess(["~/libexec/i3-mkconfig".expandTilde, "i3-msg", "reload"], stdin, stderr, stderr).wait();
 		}).start();
 		icon.separator = block.full_text.length == 0;
 		send();
