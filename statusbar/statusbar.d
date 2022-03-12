@@ -861,6 +861,8 @@ void main()
 			new BatteryBlock("/org/freedesktop/UPower/devices/battery_BAT0");
 			new BatteryBlock("/org/freedesktop/UPower/devices/battery_BAT1");
 		}
+		version (HOST_mix4)
+			new BatteryBlock("/org/freedesktop/UPower/devices/battery_BAT0");
 		version (HOST_home)
 			new BatteryBlock("/org/freedesktop/UPower/devices/ups_hiddev*");
 
