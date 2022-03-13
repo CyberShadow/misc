@@ -198,7 +198,7 @@ final class LoadBlock : TimerBlock
 	override void handleClick(BarClick click)
 	{
 		if (click.button == 1)
-			spawnProcess(["t", "htop"]).wait();
+			spawnProcess(["~/libexec/t".expandTilde, "htop"]).wait();
 	}
 }
 
@@ -443,7 +443,7 @@ final class SystemStatusBlock : TimerBlock
 	override void handleClick(BarClick click)
 	{
 		if (click.button == 1)
-			spawnProcess(["t", "sh", "-c", "~/libexec/system-status-detail ; read -n 1"]).wait();
+			spawnProcess(["~/libexec/t".expandTilde, "sh", "-c", "~/libexec/system-status-detail ; read -n 1"]).wait();
 	}
 }
 
@@ -615,7 +615,7 @@ final class BatteryBlock : Block
 	override void handleClick(BarClick click)
 	{
 		// if (click.button == 1)
-		// 	spawnProcess(["t", "powertop"]).wait();
+		// 	spawnProcess(["~/libexec/t".expandTilde, "powertop"]).wait();
 	}
 }
 
