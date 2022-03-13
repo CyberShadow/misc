@@ -38,7 +38,7 @@ void main()
 		if (layout != oldLayout)
 		{
 			stderr.writefln("Switching layout from %d to %d for %s", oldLayout, layout, title);
-			spawnProcess(["xkblayout", text(layout)]).wait();
+			spawnProcess(["~/libexec/xkblayout".expandTilde, text(layout)]).wait();
 			oldLayout = layout;
 		}
 	}
