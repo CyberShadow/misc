@@ -166,7 +166,7 @@ class TimeBlock(string timeFormat) : TimerBlock
 	override void handleClick(BarClick click)
 	{
 		if (click.button == 1)
-			spawnProcess(["x", "datetime-popup"]).wait();
+			spawnProcess(["~/libexec/x".expandTilde, "datetime-popup"]).wait();
 	}
 }
 
@@ -274,18 +274,18 @@ final class VolumeBlock : Block
 	{
 		if (click.button == 1)
 			if (click.name == "icon")
-				spawnProcess(["volume-mute-toggle"]).wait();
+				spawnProcess(["~/libexec/volume-mute-toggle".expandTilde]).wait();
 			else
 				audio.runControlPanel();
 		else
 		if (click.button == 3)
-			spawnProcess(["speakers"], stdin, File(nullFileName, "w")).wait();
+			spawnProcess(["~/libexec/speakers".expandTilde], stdin, File(nullFileName, "w")).wait();
 		else
 		if (click.button == 4)
-			spawnProcess(["volume-up"]).wait();
+			spawnProcess(["~/libexec/volume-up".expandTilde]).wait();
 		else
 		if (click.button == 5)
-			spawnProcess(["volume-down"]).wait();
+			spawnProcess(["~/libexec/volume-down".expandTilde]).wait();
 	}
 }
 
@@ -341,13 +341,13 @@ final class MpdBlock : Block
 		if (click.name == "icon")
 		{
 			if (click.button == 1)
-				spawnProcess(["mpc-toggle"], stdin, File("/dev/null", "wb")).wait();
+				spawnProcess(["~/libexec/mpc-toggle".expandTilde], stdin, File("/dev/null", "wb")).wait();
 			else
-				spawnProcess(["x", "cantata"]).wait();
+				spawnProcess(["~/libexec/x", "cantata"]).wait();
 		}
 		else
 			if (click.button == 1)
-				spawnProcess(["x", "cantata"]).wait();
+				spawnProcess(["~/libexec/x".expandTilde, "cantata"]).wait();
 	}
 }
 
@@ -495,10 +495,10 @@ final class BrightnessBlock : Block
 	override void handleClick(BarClick click)
 	{
 		if (click.button == 4)
-			spawnProcess(["~/bin/brightness-up".expandTilde]).wait();
+			spawnProcess(["~/libexec/brightness-up".expandTilde]).wait();
 		else
 		if (click.button == 5)
-			spawnProcess(["~/bin/brightness-down".expandTilde]).wait();
+			spawnProcess(["~/libexec/brightness-down".expandTilde]).wait();
 	}
 }
 
@@ -829,7 +829,7 @@ void main()
 		new ProcessBlock(["xtitle", "-s"], (click) {
 				switch (click.button)
 				{
-					case 1: spawnProcess(["x", "rofi", "-show", "window"]).wait(); break;
+					case 1: spawnProcess(["~/libexec/x".expandTilde, "rofi", "-show", "window"]).wait(); break;
 					case 4: spawnProcess(["i3-msg", "workspace", "prev_on_output"], stdin, File(nullFileName, "w")).wait(); break;
 					case 5: spawnProcess(["i3-msg", "workspace", "next_on_output"], stdin, File(nullFileName, "w")).wait(); break;
 					default: break;

@@ -4,6 +4,7 @@ import std.algorithm.searching;
 import std.conv;
 import std.exception;
 import std.file;
+import std.path : expandTilde;
 import std.process;
 import std.stdio;
 import std.string;
@@ -31,7 +32,7 @@ class Audio
 		Volume volume;
 		try
 		{
-			auto result = execute(["volume-get"]);
+			auto result = execute(["~/libexec/volume-get".expandTilde]);
 			if (result.status == 0 && result.output.length)
 			{
 				volume.known = true;
@@ -123,6 +124,6 @@ class Pulse : Audio
 
 	override void runControlPanel()
 	{
-		spawnProcess(["x", "pavucontrol"]).wait();
+		spawnProcess(["~/libexec/x".expandTilde, "pavucontrol"]).wait();
 	}
 }
