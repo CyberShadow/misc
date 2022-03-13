@@ -73,7 +73,8 @@ protected:
 			commandLine ~= "--hints=" ~ hints;
 		if (lastNotificationID)
 			commandLine ~= "--replace=" ~ text(lastNotificationID);
-		auto result = execute(commandLine);
+		auto result = execute(commandLine, null, Config.stderrPassThrough);
+		enforce(result.status == 0, "dunstify failed");
 		lastNotificationID = result.output.strip();
 	}
 
