@@ -167,7 +167,7 @@ class TimeBlock(string timeFormat) : TimerBlock
 	override void handleClick(BarClick click)
 	{
 		if (click.button == 1)
-			spawnProcess(["~/libexec/x".expandTilde, "datetime-popup"]).wait();
+			spawnProcess(["~/libexec/x".expandTilde, "~/libexec/datetime-popup".expandTilde]).wait();
 	}
 }
 
