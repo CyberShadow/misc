@@ -552,7 +552,7 @@ final class BatteryBlock : Block
 		try
 		{
 			enforce(devicePath, "No device");
-			auto result = execute(["upower", "-i", devicePath]);
+			auto result = execute(["upower", "-i", devicePath], null, Config.stderrPassThrough);
 			enforce(result.status == 0, "upower failed");
 
 			string[string] props;
