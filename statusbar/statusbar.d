@@ -718,8 +718,6 @@ final class WorkBlock : Block
 						case Op.add: defs ~= def; break;
 						case Op.ins: defs = def ~ defs; break;
 					}
-					stderr.writeln(defs);
-					stderr.writeln();
 				}
 				catch (Exception e)
 					stderr.writeln(e.msg);
