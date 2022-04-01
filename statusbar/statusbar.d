@@ -634,7 +634,7 @@ void trackFile(string fileName, void delegate(string) onChange)
 		return;
 	iNotify.add(fileName, INotify.Mask.create | INotify.Mask.modify,
 		(in char[] name, INotify.Mask mask, uint cookie) {
-			stderr.writeln("Reloading " ~ fileName);
+			// stderr.writeln("Reloading " ~ fileName);
 			onChange(fileName);
 		}
 	);
