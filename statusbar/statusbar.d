@@ -782,7 +782,7 @@ final class WorkBlock : Block
 	{
 		if (mode == oldMode && project == oldProject)
 			return;
-		oldMode = mode; oldProject = project;
+		scope(success) { oldMode = mode; oldProject = project; }
 
 		final switch (mode)
 		{
@@ -803,12 +803,19 @@ final class WorkBlock : Block
 				break;
 		}
 		mode.to!string.toFile("/tmp/work-mode.txt");
+
 		new Thread({
-			spawnProcess(["~/libexec/setwall".expandTilde]).wait();
+			spawnProcess(["~/libexec/setwall".expandTilde], stdin, stderr, stderr).wait();
 		}).start();
+
+		// `swaymsg reload` restarts statusbar
+		if ("WAYLAND_DISPLAY" in environment && oldMode == Mode.unknown)
+		{ /* skip */ }
+		else
 		new Thread({
 			spawnProcess(["~/libexec/i3-mkconfig".expandTilde, "i3-msg", "reload"], stdin, stderr, stderr).wait();
 		}).start();
+
 		icon.separator = block.full_text.length == 0;
 		send();
 	}
@@ -822,10 +829,10 @@ void main()
 	try
 	{
 		// System log
-		//new ProcessBlock(["journalctl", "--follow"]);
+		// new ProcessBlock(["journalctl", "--follow"]);
 
 		// Current window title
-		new ProcessBlock(["xtitle", "-s"], (click) {
+		new ProcessBlock(["~/libexec/window-title-follow".expandTilde], (click) {
 				switch (click.button)
 				{
 					case 1: spawnProcess(["~/libexec/x".expandTilde, "rofi", "-show", "window"]).wait(); break;
