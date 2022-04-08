@@ -25,6 +25,7 @@ void greplace(
 	Switch!("Do not actually make any changes", 'n') dryRun,
 	Switch!("Search and replace in UTF-16") wide,
 	Switch!("Only search and replace in file names and paths") noContent,
+	Switch!("Only search and replace in file content") noFilenames,
 	Switch!("Recurse in symlinked directories") followSymlinks,
 	Switch!("Swap FROM-STR and TO-STR", 'r') reverse,
 	Parameter!(string, "String to search") fromStr,
@@ -59,10 +60,10 @@ void greplace(
 			foreach (ref file; targetFiles[targetIndex])
 			{
 				ubyte[] s;
-				if (file.isSymlink())
+				if (!noFilenames && file.isSymlink())
 					s = cast(ubyte[])readLink(file.name);
 				else
-				if (file.isFile() && !noContent)
+				if (!noContent && !file.isSymlink() && file.isFile())
 					s = cast(ubyte[])std.file.read(file.name);
 
 				if (s)
@@ -73,7 +74,7 @@ void greplace(
 						throw new Exception("File " ~ file.name ~ " already contains " ~ toStr ~ " (in UTF-16)");
 				}
 
-				if (file.name.replace(fromStr[], toStr[]).replace(toStr[], fromStr[]) != file.name)
+				if (!noFilenames && file.name.replace(fromStr[], toStr[]).replace(toStr[], fromStr[]) != file.name)
 					throw new Exception("File name " ~ file.name ~ " already contains " ~ toStr);
 			}
 	}
@@ -85,16 +86,16 @@ void greplace(
 			string fileName;
 			foreach (segment; file.name.pathSplitter)
 			{
-				if (fileName.length > target.length)
+				if (!noFilenames && fileName.length > target.length)
 					fileName = fileName.replace(from, to);
 				fileName = fileName.buildPath(segment);
 			}
 
 			ubyte[] s;
-			if (file.isSymlink())
+			if (!noFilenames && file.isSymlink())
 				s = cast(ubyte[])readLink(fileName);
 			else
-			if (file.isFile() && !noContent)
+			if (!noContent && !file.isSymlink() && file.isFile())
 				s = cast(ubyte[])std.file.read(fileName);
 
 			if (s)
@@ -131,7 +132,7 @@ void greplace(
 				}
 			}
 
-			if (fileName.indexOf(fromStr)>=0)
+			if (!noFilenames && fileName.indexOf(fromStr)>=0)
 			{
 				string newName = fileName.replace(fromStr.value, toStr.value);
 				writeln(fileName, " -> ", newName);
