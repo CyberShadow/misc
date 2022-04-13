@@ -173,7 +173,16 @@ int dver(
 			}
 
 			if (wine)
-				command = ["wine"] ~ binPath.buildPath(command[0]) ~ command[1..$];
+			{
+				auto exePath = binPath.buildPath(command[0]);
+				if (!exePath.exists && exePath.extension.length == 0 && exePath.setExtension(".exe").exists)
+				{
+					if (verbose) stderr.writeln("Adding .exe suffix to executable path: " ~ exePath);
+					exePath = exePath.setExtension(".exe");
+				}
+
+				command = ["wine"] ~ exePath ~ command[1..$];
+			}
 			else
 			{
 				auto attributes = dmd.getAttributes();
