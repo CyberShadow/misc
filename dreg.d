@@ -92,7 +92,7 @@ void main(string[] args)
 
 	void processVersion(string ver)
 	{
-		auto result = execute(["dver"] ~ dverArgs ~ [ver] ~ args[1..$]);
+		auto result = execute(["~/cmd/dver".expandTilde] ~ dverArgs ~ [ver] ~ args[1..$]);
 
 		result.output = result.output
 			.replace(dmdDir ~ `/dmd.` ~ ver, "/path/to/dmd")
@@ -114,7 +114,7 @@ void main(string[] args)
 
 	SysTime verDate(string ver)
 	{
-		auto result = execute(["dver"] ~ dverArgs ~ [ver, "which", "dmd"]);
+		auto result = execute(["~/cmd/dver".expandTilde] ~ dverArgs ~ [ver, "which", "dmd"]);
 		enforce(result.status == 0, "Failed to find the dmd executable path to " ~ ver);
 		auto exe = result.output.strip();
 		return exe.timeLastModified();
@@ -196,7 +196,7 @@ void main(string[] args)
 		ini.join("\n").toFile(iniFn);
 
 		auto p = pipe();
-		auto pid = spawnProcess(["bisect-online", iniFn], stdin, p.writeEnd, p.writeEnd);
+		auto pid = spawnProcess(["~/libexec/bisect-online".expandTilde, iniFn], stdin, p.writeEnd, p.writeEnd);
 		string[] lines;
 		while (!p.readEnd.eof)
 		{
