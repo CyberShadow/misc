@@ -35,11 +35,12 @@ void main(string[] args)
 {
 	string minVer = "1.0";
 	string maxVer;
-	bool doBisect, doBisectOutput, singleThreadedSwitch;
+	bool doBisect, doBisectStatus, doBisectOutput, singleThreadedSwitch;
 	string[] dverArgs = [];
 	string[] without = null;
 	getopt(args,
 		"b", &doBisect,
+		"status", &doBisectStatus,
 		"output", &doBisectOutput,
 		"without", &without,
 		"s", &singleThreadedSwitch,
@@ -183,6 +184,12 @@ void main(string[] args)
 			ini ~= format!"tester = %s 2>&1 | %s"(args[1..$].I!toBisectIniCmd, escapeShellCommand(["grep", "-xF", goodLine]));
 		}
 		else
+		if (doBisectStatus)
+		{
+			assert(r1.status != r2.status);
+			ini ~= format!"tester = %s ; status=$? ; if [ $status -eq %s ] ; then exit 0 ; elif [ $status -eq %s ] ; then exit 1 ; else exit 125 ; fi"(args[1..$].I!toBisectIniCmd, r1.status, r2.status);
+		}
+		else
 		{
 			assert((r1.status == 0) != (r2.status == 0));
 			reverse = r1.status != 0;
@@ -236,6 +243,9 @@ void main(string[] args)
 				bool eqv;
 				if (doBisectOutput)
 					eqv = results[versions[index-1]] == results[versions[index]];
+				else
+				if (doBisectStatus)
+					eqv = results[versions[index-1]].status == results[versions[index]].status;
 				else
 					eqv = (results[versions[index-1]].status==0) == (results[versions[index]].status==0);
 				if (!eqv && verDate(versions[index-1]) > SysTime(canBisectAfter))
