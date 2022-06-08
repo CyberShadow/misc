@@ -571,6 +571,10 @@ final class BatteryBlock : Block
 				case "charging":
 					iconChar = FontAwesome.fa_bolt;
 					break;
+				case "pending-charge":
+					iconChar = FontAwesome.fa_bolt;
+					color = "#dddddd";
+					break;
 				case "fully-charged":
 					iconChar = FontAwesome.fa_plug;
 					break;
