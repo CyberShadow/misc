@@ -7,7 +7,6 @@ import std.algorithm;
 import std.array;
 import std.datetime;
 import std.file;
-import std.getopt;
 import std.path;
 import std.regex;
 import std.stdio;
@@ -15,20 +14,21 @@ import std.string;
 
 import ae.sys.file;
 import ae.utils.aa;
+import ae.utils.funopt;
+import ae.utils.main;
 import ae.utils.regex;
 import ae.utils.time;
 
-void main(string[] args)
+void program(
+	Switch!("Sort directories too, not just files", 'd') dirs = false,
+	string[] paths = null,
+)
 {
-	bool sortDirs;
-	getopt(args,
-		"d|dirs", &sortDirs,
-	);
-
+	bool sortDirs = dirs.value;
 	DirEntry[] candidates;
 	version (Windows)
 	{
-		string[] masks = args[1..$];
+		string[] masks = paths;
 		if (!masks.length)
 			masks = ["*"];
 		foreach (mask; masks)
@@ -36,7 +36,7 @@ void main(string[] args)
 	}
 	else
 	{
-		candidates = args[1..$].map!(arg => DirEntry(arg)).array;
+		candidates = paths.map!(arg => DirEntry(arg)).array;
 		if (!candidates.length)
 			candidates = dirEntries("", SpanMode.shallow).array;
 	}
@@ -72,3 +72,5 @@ void main(string[] args)
 		rename(target, fn);
 	}
 }
+
+mixin main!(funopt!program);
