@@ -854,7 +854,8 @@ void main()
 			new MpdBlock();
 
 			// Time tracking
-			new WorkBlock();
+			if ("~/.config/private/work/titles.txt".expandTilde.exists)
+				new WorkBlock();
 
 			// Volume
 			new VolumeBlock();
