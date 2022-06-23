@@ -21,6 +21,7 @@ import ae.utils.time;
 
 void program(
 	Switch!("Sort directories too, not just files", 'd') dirs = false,
+	Option!(string, "Create dated directories here (instead of the current directory)", "DIR", 't') target = null,
 	string[] paths = null,
 )
 {
@@ -67,7 +68,7 @@ void program(
 
 	foreach (item; items)
 	{
-		string fn = buildPath(item.timeLastModified.formatTime!"Y-m-d", item.baseName);
+		string fn = buildPath(target, item.timeLastModified.formatTime!"Y-m-d", item.baseName);
 		ensurePathExists(fn);
 		rename(item, fn);
 	}
