@@ -21,6 +21,7 @@ import ae.utils.time;
 
 void program(
 	Switch!("Sort directories too, not just files", 'd') dirs = false,
+	Switch!("Skip interactive confirmation", 'y') noConfirm = false,
 	Option!(string, "Create dated directories here (instead of the current directory)", "DIR", 't') target = null,
 	string[] paths = null,
 )
@@ -56,15 +57,18 @@ void program(
 		dateCount[de.timeLastModified.formatTime!"Ymd"]++;
 	}
 
-	string[] extCountStr;
-	foreach (ext, count; extCount)
-		extCountStr ~= format("%d %s", count, ext);
-	writefln("Sort %d files (%-(%s, %)) to %d per-date directories? (Enter to continue, ^C to abort)",
-		items.length,
-		extCount.byPair.map!(p => "%d %s".format(p.value, p.key.length ? p.key : "extensionless")),
-		dateCount.length,
-	);
-	readln();
+	if (!noConfirm)
+	{
+		string[] extCountStr;
+		foreach (ext, count; extCount)
+			extCountStr ~= format("%d %s", count, ext);
+		writefln("Sort %d files (%-(%s, %)) to %d per-date directories? (Enter to continue, ^C to abort)",
+			items.length,
+			extCount.byPair.map!(p => "%d %s".format(p.value, p.key.length ? p.key : "extensionless")),
+			dateCount.length,
+		);
+		readln();
+	}
 
 	foreach (item; items)
 	{
