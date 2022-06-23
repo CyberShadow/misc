@@ -41,7 +41,7 @@ void program(
 			candidates = dirEntries("", SpanMode.shallow).array;
 	}
 
-	string[] targets;
+	string[] items;
 	int[string] extCount, dateCount;
 
 	foreach (DirEntry de; candidates)
@@ -50,7 +50,7 @@ void program(
 			continue;
 		if (de.isDir && de.baseName.match(re!`^20\d\d-\d\d-\d\d`))
 			continue;
-		targets ~= de;
+		items ~= de;
 		extCount[toLower(de.name.extension)]++;
 		dateCount[de.timeLastModified.formatTime!"Ymd"]++;
 	}
@@ -59,17 +59,17 @@ void program(
 	foreach (ext, count; extCount)
 		extCountStr ~= format("%d %s", count, ext);
 	writefln("Sort %d files (%-(%s, %)) to %d per-date directories? (Enter to continue, ^C to abort)",
-		targets.length,
+		items.length,
 		extCount.byPair.map!(p => "%d %s".format(p.value, p.key.length ? p.key : "extensionless")),
 		dateCount.length,
 	);
 	readln();
 
-	foreach (target; targets)
+	foreach (item; items)
 	{
-		string fn = buildPath(target.timeLastModified.formatTime!"Y-m-d", target.baseName);
+		string fn = buildPath(item.timeLastModified.formatTime!"Y-m-d", item.baseName);
 		ensurePathExists(fn);
-		rename(target, fn);
+		rename(item, fn);
 	}
 }
 
