@@ -851,7 +851,8 @@ void main()
 		else
 		{
 			// Current playing track
-			new MpdBlock();
+			if (!"~/.config/cs-sound-server".expandTilde.exists) // Same as condition in mpd.service
+				new MpdBlock();
 
 			// Time tracking
 			if ("~/.config/private/work/titles.txt".expandTilde.exists)
