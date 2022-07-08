@@ -644,7 +644,7 @@ void trackFile(string fileName, void delegate(string) onChange)
 	);
 }
 
-bool reverseLineSplitter(char[] contents, bool delegate(char[] line) lineSink)
+bool reverseLineSplitter(char[] contents, scope bool delegate(char[] line) lineSink)
 {
 	sizediff_t newline1 = -1, newline2 = -1;
 
@@ -753,7 +753,7 @@ final class WorkBlock : Block
 				auto data = tryMapFile(logFn);
 				auto contents = cast(char[])data.contents;
 
-				if (reverseLineSplitter(contents,
+				if (defs.length && reverseLineSplitter(contents,
 					(line)
 					{
 						line = line.findSplit("] ")[2];
