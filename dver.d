@@ -147,13 +147,16 @@ int dver(
 	}
 	enforce(found, "Can't find this D version.");
 
+	// Tell-tale to detect the bin directory we want:
+	auto progBin = program.among("dmd", "rdmd", "dub") ? program : "dmd";
+
 	foreach (binDir; binDirs)
 	{
 		auto binPath = dir ~ `/` ~ binDir;
-		auto dmd = binPath ~ "/dmd" ~ binExt;
-		if (dmd.exists)
+		auto progPath = binPath ~ `/` ~ progBin ~ binExt;
+		if (progPath.exists)
 		{
-			if (verbose) stderr.writefln("dver: Found dmd: %s", dmd);
+			if (verbose) stderr.writefln("dver: Found %s: %s", progBin, progPath);
 			auto confPath = binPath.buildPath("dmd.conf");
 			version (linux)
 				if (confPath.exists && confPath.readText.endsWith("\r\nDFLAGS=-I/home/wgb/yourname/dmd/src/phobos\r\n"))
@@ -164,11 +167,11 @@ int dver(
 				}
 			version (Posix)
 			{
-				auto dmdAttrs = dmd.getAttributes;
+				auto dmdAttrs = progPath.getAttributes;
 				if (!(dmdAttrs & S_IRUSR))
 				{
-					stderr.writeln("dver: Making dmd readable");
-					dmd.setAttributes(dmdAttrs | S_IRUSR);
+					stderr.writefln("dver: Making %s readable", progBin);
+					progPath.setAttributes(dmdAttrs | S_IRUSR);
 				}
 			}
 
@@ -185,9 +188,9 @@ int dver(
 			}
 			else
 			{
-				auto attributes = dmd.getAttributes();
+				auto attributes = progPath.getAttributes();
 				if (!(attributes & octal!111))
-					dmd.setAttributes((attributes & octal!444) >> 2);
+					progPath.setAttributes((attributes & octal!444) >> 2);
 				environment["PATH"] = binPath ~ pathSeparator ~ environment["PATH"];
 				if (verbose) stderr.writefln("dver: PATH=%s", environment["PATH"]);
 			}
@@ -207,6 +210,8 @@ int dver(
 				errnoEnforce(false, "execvp failed");
 			}
 		}
+		else
+			if (verbose) stderr.writefln("dver: Not found, skipping directory: %s", progPath);
 	}
 	throw new Exception("Can't find bin directory under " ~ dir);
 }
