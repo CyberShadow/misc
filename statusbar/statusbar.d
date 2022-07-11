@@ -861,7 +861,9 @@ void main()
 			new VolumeBlock();
 
 			// Brightness
-			new BrightnessBlock();
+			try
+				new BrightnessBlock();
+			catch (Exception e) {}
 		}
 
 		// Battery
