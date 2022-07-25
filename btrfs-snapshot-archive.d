@@ -351,6 +351,7 @@ int btrfs_snapshot_archive(
 					if (verbose) stderr.writefln(">>> %s | %s", sendArgs.escapeShellCommand, recvArgs.escapeShellCommand);
 					if (!dryRun)
 					{
+						if (verbose) stderr.writeln(">>> Acquiring lock...");
 						auto flag = Lock(flagPath);
 						// sync();
 						scope(exit) flagPath.remove();

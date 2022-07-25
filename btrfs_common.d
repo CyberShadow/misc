@@ -115,18 +115,33 @@ class SSHFS : VFS
 struct Lock
 {
 	File f;
+	ProcessPipes pipes;
 
 	this(string path)
 	{
 		if (path.startsWith("ssh://"))
 		{
-			enforce(!path.exists, "Lockfile exists: " ~ path);
-			write(path, "");
+			auto sshArgs = SSHFS.parsePath(path);
+			auto remoteArgs = ["perl", "-e", import("btrfs_ssh_lock.pl"), path];
+			auto args = ["ssh"] ~ sshArgs ~ escapeShellCommand(remoteArgs);
+			pipes = pipeProcess(args, Redirect.stdin | Redirect.stdout);
+			enforce(pipes.stdout.readln() == "locked\n", "Unexpected output from file locker");
 		}
 		else
 		{
 			f.open(path, "wb");
 			enforce(f.tryLock(), "Exclusive locking failed");
+		}
+	}
+
+	@disable this(this);
+
+	~this()
+	{
+		if (pipes !is ProcessPipes.init)
+		{
+			pipes.stdin.close();
+			enforce(pipes.pid.wait() == 0, "File locker program failed");
 		}
 	}
 }
