@@ -15,17 +15,20 @@ import std.stdio;
 import std.string;
 import std.typecons;
 
+import ae.sys.file : touch;
 import ae.sys.persistence.core;
 
 void main()
 {
+	auto fn = "~/.config/applayout.txt".expandTilde;
+	if (!fn.exists) touch(fn);
 	auto rules = FileCache!((string fn) => fn
 		.readText
 		.splitLines
 		.filter!(line => line.length && !line.startsWith("#") && line.canFind("\t"))
 		.map!((line) { auto parts = line.findSplit("\t"); return tuple(parts[2], parts[0].to!int); })
 		.assocArray
-	)("~/.config/applayout.txt".expandTilde);
+	)(fn);
 
 	auto p = pipe();
 	auto pid = spawnProcess(["xtitle", "-s"], stdin, p.writeEnd);
