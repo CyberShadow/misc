@@ -41,6 +41,8 @@ MpdStatus getMpdStatus()
 	if (result.status == 0)
 	{
 		auto lines = result.output.strip().splitLines();
+		if (lines.length >= 3 && lines[2].startsWith("Updating DB"))
+			lines = lines[0 .. 2] ~ lines[3 .. $];
 		if (lines.length == 3)
 		{
 			status.nowPlaying = lines[0];
