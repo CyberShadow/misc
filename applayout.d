@@ -15,13 +15,13 @@ import std.stdio;
 import std.string;
 import std.typecons;
 
-import ae.sys.file : touch;
+import ae.sys.file : isReadableFile, linkTarget, ensureFileExists;
 import ae.sys.persistence.core;
 
 void main()
 {
 	auto fn = "~/.config/applayout.txt".expandTilde;
-	if (!fn.exists) touch(fn);
+	if (!fn.isReadableFile) fn.linkTarget.ensureFileExists();
 	auto rules = FileCache!((string fn) => fn
 		.readText
 		.splitLines
