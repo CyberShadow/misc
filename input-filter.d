@@ -19,14 +19,18 @@ class Client : UInputFilterClient
 	{
 		if (p.device == DeviceType.headset && p.ev.type == EV_KEY)
 		{
+			stderr.writeln("Got headset EV_KEY: ", p.ev);
 			switch (p.ev.code)
 			{
 				case KEY_PLAYCD:
 					// Sent automatically when hanging up a call.
 					// Annoying, because it's sent indiscriminately if
 					// something was playing when the call started.
-					// Discard.
-					return;
+					// Convert to KEY_PAUSECD, so that the matching
+					// KEY_PAUSECD sent at the start of the call
+					// causes us to toggle back to the pre-call state.
+					p.ev.code = KEY_PAUSECD;
+					goto case KEY_PAUSECD;
 
 				case KEY_PAUSECD:
 				case KEY_NEXTSONG:
