@@ -54,6 +54,8 @@ void main(string[] args)
 	{
 		static string normalizeVersion(string v)
 		{
+			if (v.length == 4 && v[1] == '.')
+				v = v[0..2] ~ '0' ~ v[2..$];
 			if (v.length == 5 || v[5] != '.')
 				v = v[0..5] ~ ".0" ~ v[5..$];
 			if (!v.canFind("-b"))
@@ -64,7 +66,7 @@ void main(string[] args)
 	}
 
 	auto versions = dmdDir
-		.dirEntries("dmd.2.???*", SpanMode.shallow)
+		.dirEntries("dmd.*", SpanMode.shallow)
 		.filter!(de => de.isDir)
 		.filter!(de => !de.name.endsWith(".windows"))
 		.map!(de => de.baseName[4..$].chomp(".linux"))
