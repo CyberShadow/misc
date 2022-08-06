@@ -15,6 +15,7 @@ import std.string;
 
 import ae.sys.archive;
 import ae.sys.file;
+import ae.utils.meta : I;
 
 version (Windows)
 	enum BASE = `C:\Downloads\!dmd\`;
@@ -158,11 +159,13 @@ int dver(
 		{
 			if (verbose) stderr.writefln("dver: Found %s: %s", progBin, progPath);
 			auto confPath = binPath.buildPath("dmd.conf");
+			auto suffix1 = "\r\n; added by dver\r\nDFLAGS=-I%@P%/../src/phobos -L-L%@P%/../lib\r\n";
 			version (linux)
-				if (confPath.exists && confPath.readText.endsWith("\r\nDFLAGS=-I/home/wgb/yourname/dmd/src/phobos\r\n"))
+				if (confPath.exists && confPath.readText.I!(s => s.endsWith("\r\nDFLAGS=-I/home/wgb/yourname/dmd/src/phobos\r\n") || s.endsWith(suffix1)))
 				{
 					stderr.writeln("dver: Patching ", confPath);
-					binPath.buildPath("dmd.conf").File("a").write("\r\n; added by dver\r\nDFLAGS=-I%@P%/../src/phobos -L-L%@P%/../lib\r\n");
+					auto suffix = suffix1.replace("%@P%", binPath); // %@P% support in dmd.conf was added cca D 0.115
+					confPath.File("a").write(suffix);
 					// Note: really old versions also need -m32 on gcc's command line - can't do that from dmd.conf or dmd's command line, need gcc wrapper
 				}
 			version (Posix)
