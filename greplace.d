@@ -305,6 +305,13 @@ H caseInsensitiveReplace(H)(H haystack, string from, string to)
 	}
 }
 
+version (Windows)
+{
+	bool isSymlink(string /*path*/) { return false; }
+	string readLink(string /*path*/) { assert(false); }
+	void symlink(string /*from*/, string /*to*/) { assert(false); }
+}
+
 // Basic test
 unittest
 {
