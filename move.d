@@ -4,10 +4,10 @@
 import ae.utils.funopt;
 import ae.utils.main;
 
-void rename(string source, string target)
+void move(string source, string target)
 {
 	static import std.file;
 	std.file.rename(source, target);
 }
 
-mixin main!(funopt!rename);
+mixin main!(funopt!move);
