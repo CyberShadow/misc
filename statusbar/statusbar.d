@@ -430,13 +430,14 @@ final class SystemStatusBlock : TimerBlock
 			}
 			else
 			{
-				block.full_text = format("\&nbsp;\&nbsp;%s\&nbsp;%s ",
-					dchar(FontAwesome.fa_times),
-					result.output.strip.replace("\n", " | "));
+				block.full_text = wchar(FontAwesome.fa_times).text;
 				// block.background = "#ff0000";
 				block.color = null;
 				block.urgent = true;
 			}
+			if (result.output.length)
+				block.full_text = "\&nbsp;\&nbsp;" ~ block.full_text ~ format("\&nbsp;\&nbsp;%s ",
+					result.output.strip.replace("\n", " | "));
 			dirty = false;
 		}
 	}
