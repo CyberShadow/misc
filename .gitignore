@@ -5,6 +5,7 @@
 !/locate-emacs
 !/gpu-windows
 !/gpu-linux
+!/c2d
 /-/
 *.o
 *.exe
