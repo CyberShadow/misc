@@ -77,6 +77,7 @@ void main(string[] args)
 		.release;
 
 	versions = versions
+		.filter!(ver => !doBisect || ver.startsWith("2.")) // When bisecting, assume we want only the 2.x branch
 		.filter!(ver => !doBisect || (ver.length == 5 || ver.endsWith(".0")) || ver[0..5] == versions[$-1][0..5]) // Stable branches interfere with bisection
 		.array
 		.sort!compareVersion
