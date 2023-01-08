@@ -36,6 +36,7 @@ void main()
 	auto pid = spawnProcess(["xtitle", "-s"], stdin, p.writeEnd);
 	auto f = p.readEnd;
 	string oldTitle;
+	bool wasPlaying;
 	while (!f.eof)
 	{
 		void handleTitle(string title, bool mute)
@@ -56,6 +57,16 @@ void main()
 						catch (Exception e)
 							stderr.writefln(">> %s", e.msg);
 					}
+				if (!mute)
+				{
+					wasPlaying = spawnProcess(["mpc", "pause-if-playing"]).wait() == 0;
+				}
+				else
+				{
+					if (wasPlaying)
+						spawnProcess(["mpc", "play"]).wait();
+					wasPlaying = false;
+				}
 			}
 		}
 
