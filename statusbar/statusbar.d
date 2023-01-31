@@ -30,6 +30,7 @@ import ae.utils.graphics.color;
 import ae.utils.meta;
 import ae.utils.meta.args;
 import ae.utils.path;
+import ae.utils.promise.concurrency;
 import ae.utils.time.format;
 
 import audio;
@@ -412,32 +413,39 @@ final class SystemStatusBlock : TimerBlock
 	{
 		if (dirty)
 		{
-			auto result = execute(["~/libexec/system-status".expandTilde], /*Config.stderrPassThrough*/);
-			if (result.status == 0)
-			{
-				block.full_text = wchar(FontAwesome.fa_check).text;
-				// block.background = null;
-				block.color = "#00ff00";
-				block.urgent = false;
-			}
-			else
-			if (result.status == 42)
-			{
-				block.full_text = wchar(FontAwesome.fa_exclamation_triangle).text;
-				// block.background = null;
-				block.color = "#ffff00";
-				block.urgent = false;
-			}
-			else
-			{
-				block.full_text = wchar(FontAwesome.fa_times).text;
-				// block.background = "#ff0000";
-				block.color = null;
-				block.urgent = true;
-			}
-			if (result.output.length)
-				block.full_text = "\&nbsp;\&nbsp;" ~ block.full_text ~ format("\&nbsp;\&nbsp;%s ",
-					result.output.strip.replace("\n", " | "));
+			execute(
+				["~/libexec/system-status".expandTilde],
+				/*Config.stderrPassThrough*/
+			)
+				.threadAsync
+				.dmd21804workaround
+				.then((result) {
+					if (result.status == 0)
+					{
+						block.full_text = wchar(FontAwesome.fa_check).text;
+						// block.background = null;
+						block.color = "#00ff00";
+						block.urgent = false;
+					}
+					else
+					if (result.status == 42)
+					{
+						block.full_text = wchar(FontAwesome.fa_exclamation_triangle).text;
+						// block.background = null;
+						block.color = "#ffff00";
+						block.urgent = false;
+					}
+					else
+					{
+						block.full_text = wchar(FontAwesome.fa_times).text;
+						// block.background = "#ff0000";
+						block.color = null;
+						block.urgent = true;
+					}
+					if (result.output.length)
+						block.full_text = "\&nbsp;\&nbsp;" ~ block.full_text ~ format("\&nbsp;\&nbsp;%s ",
+							result.output.strip.replace("\n", " | "));
+				});
 			dirty = false;
 		}
 	}
