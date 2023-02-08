@@ -257,15 +257,10 @@ int dver(
 
 			if (wine)
 			{
-				auto exePath = binPath.buildPath(command[0]);
-				if (!exePath.exists && exePath.extension.length == 0 && exePath.setExtension(".exe").exists)
-				{
-					if (verbose) stderr.writeln("Adding .exe suffix to executable path: " ~ exePath);
-					exePath = exePath.setExtension(".exe");
-				}
-				environment["WINEPATH"] = query(["winepath", "-w", binPath]);
-
-				command = ["wine"] ~ exePath ~ command[1..$];
+				command = [
+					"env", "WINEPATH=" ~ query(["winepath", "-w", binPath]).chomp,
+					"wine",
+				] ~ command;
 			}
 			else
 			{
