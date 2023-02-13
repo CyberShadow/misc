@@ -106,7 +106,8 @@ void greplace(
 	auto targetFiles = targets.map!(target =>
 		target.empty || (!target.isSymlink && target.isDir)
 		? dirEntries(target, SpanMode.breadth, followSymlinks).array
-		: [DirEntry(target)]).array;
+		: [DirEntry(target)]
+	).array;
 
 	if (!force)
 	{
@@ -130,6 +131,11 @@ void greplace(
 					throw new Exception("File name " ~ file.name ~ " already contains " ~ to);
 			}
 	}
+
+	// Ensure stat is done on these DirEntry instances before any renames are done
+	foreach (targetIndex, target; targets)
+		foreach (ref file; targetFiles[targetIndex])
+			file.isSymlink(), file.isFile();
 
 	foreach (targetIndex, target; targets)
 		foreach (ref file; targetFiles[targetIndex])
@@ -349,6 +355,17 @@ unittest
 	std.file.write(dir ~ "/foo/foo.txt", "foo");
 	main(["greplace", "foo", "bar", dir ~ "/foo"]);
 	assert(readText(dir ~ "/bar/bar.txt") == "bar");
+}
+
+// Renaming with -f (skips early stat)
+unittest
+{
+	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
+	mkdir(dir ~ "/foo");
+	mkdir(dir ~ "/foo/baz");
+	std.file.write(dir ~ "/foo/baz/foo.txt", "foo");
+	main(["greplace", "-f", "foo", "bar", dir]);
+	assert(readText(dir ~ "/bar/baz/bar.txt") == "bar");
 }
 
 // Replacing in symlink targets
