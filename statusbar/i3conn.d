@@ -29,7 +29,7 @@ class I3Connection
 				scope(exit) count++;
 				if (count == 0)
 				{
-					enforce(str == "[");
+					enforce(str == "[", "Bad i3 line: " ~ str);
 					return;
 				}
 				else
