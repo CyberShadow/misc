@@ -309,33 +309,37 @@ final class MpdBlock : Block
 
 	void update()
 	{
-		auto status = getMpdStatus();
-		this.status = status.status;
-		wchar iconChar;
-		switch (status.status)
-		{
-			case "playing":
-				if (status.volume <= 0)
-					iconChar = FontAwesome.fa_volume_off;
-				else
-					iconChar = FontAwesome.fa_play;
-				break;
-			case "paused":
-				iconChar = FontAwesome.fa_pause;
-				break;
-			case null:
-				iconChar = FontAwesome.fa_stop;
-				break;
-			default:
-				iconChar = FontAwesome.fa_music;
-				break;
-		}
+		getMpdStatus()
+			.threadAsync
+			.dmd21804workaround
+			.then((status) {
+				this.status = status.status;
+				wchar iconChar;
+				switch (status.status)
+				{
+					case "playing":
+						if (status.volume <= 0)
+							iconChar = FontAwesome.fa_volume_off;
+						else
+							iconChar = FontAwesome.fa_play;
+						break;
+					case "paused":
+						iconChar = FontAwesome.fa_pause;
+						break;
+					case null:
+						iconChar = FontAwesome.fa_stop;
+						break;
+					default:
+						iconChar = FontAwesome.fa_music;
+						break;
+				}
 
-		icon.full_text = text(iconChar);
-		icon.color = status.volume == 0 ? "#ffff00" : null;
-		block.full_text = status.nowPlaying ? status.nowPlaying : "";
-		icon.separator = status.nowPlaying.length == 0;
-		send();
+				icon.full_text = text(iconChar);
+				icon.color = status.volume == 0 ? "#ffff00" : null;
+				block.full_text = status.nowPlaying ? status.nowPlaying : "";
+				icon.separator = status.nowPlaying.length == 0;
+				send();
+			});
 	}
 
 	override void handleClick(BarClick click)
