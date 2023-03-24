@@ -235,41 +235,45 @@ final class VolumeBlock : Block
 
 	void update()
 	{
-		auto volume = audio.getVolume();
-		if (oldVolume == volume)
-			return;
-		oldVolume = volume;
+		audio.getVolume()
+			.threadAsync
+			.dmd21804workaround
+			.then((volume) {
+				if (oldVolume == volume)
+					return;
+				oldVolume = volume;
 
-		wchar iconChar = FontAwesome.fa_volume_off;
-		string volumeStr = "???%";
-		if (volume.known)
-		{
-			auto n = volume.percent;
-			iconChar =
-				volume.muted ? FontAwesome.fa_volume_off :
-				n == 0 ? FontAwesome.fa_volume_off :
-				n < 50 ? FontAwesome.fa_volume_down :
-				         FontAwesome.fa_volume_up;
-			volumeStr = "%3d%%".format(volume.percent);
-		}
+				wchar iconChar = FontAwesome.fa_volume_off;
+				string volumeStr = "???%";
+				if (volume.known)
+				{
+					auto n = volume.percent;
+					iconChar =
+						volume.muted ? FontAwesome.fa_volume_off :
+						n == 0 ? FontAwesome.fa_volume_off :
+						n < 50 ? FontAwesome.fa_volume_down :
+								 FontAwesome.fa_volume_up;
+					volumeStr = "%3d%%".format(volume.percent);
+				}
 
-		apiIcon.full_text = audio.getSymbol();
-		apiIcon.color = audio.getSymbolColor();
-		icon.full_text = text(iconChar);
-		icon.color = volume.muted ? "#ff0000" : null;
-		block.full_text = volumeStr;
-		block.color = volume.percent > 100 ? "#ff0000" : null;
+				apiIcon.full_text = audio.getSymbol();
+				apiIcon.color = audio.getSymbolColor();
+				icon.full_text = text(iconChar);
+				icon.color = volume.muted ? "#ff0000" : null;
+				block.full_text = volumeStr;
+				block.color = volume.percent > 100 ? "#ff0000" : null;
 
-		send();
+				send();
 
-		showNotification("Volume: " ~
-			(!volume.known
-				? "???"
-				: "[%3d%%]%s".format(
-					volume.percent,
-					volume.muted ? " [Mute]" : ""
-				)),
-			volume.percent > 100 ? "string:fgcolor:#ff0000" : null);
+				showNotification("Volume: " ~
+					(!volume.known
+						? "???"
+						: "[%3d%%]%s".format(
+							volume.percent,
+							volume.muted ? " [Mute]" : ""
+						)),
+					volume.percent > 100 ? "string:fgcolor:#ff0000" : null);
+		});
 	}
 
 	override void handleClick(BarClick click)
