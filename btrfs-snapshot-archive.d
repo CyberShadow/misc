@@ -538,11 +538,12 @@ int btrfs_snapshot_archive(
 		if (createLatestSymlink)
 		{
 			auto snapshots = allSnapshots.retro.filter!(s => s.length > 0);
-			if (!snapshots.empty)
+			foreach (snapshot; snapshots)
 			{
-				auto latestSnapshot = snapshots.front;
 				auto name = subvolume ~ ".latest";
-				auto target = subvolume ~ "-" ~ latestSnapshot;
+				auto target = subvolume ~ "-" ~ snapshot;
+				if (!target.exists || (target ~ ".partial").exists)
+					continue;
 				stderr.writefln("Creating symlink: %s -> %s", name, target);
 				if (!dryRun)
 				{
