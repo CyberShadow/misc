@@ -62,6 +62,7 @@ int btrfs_snapshot_archive(
 	Option!(string[], "Do not copy snapshots matching this glob") notMask = null,
 	Option!(string, "Only copy snapshots older than this duration", "DUR") olderThan = null,
 	Option!(string, "Only copy snapshots newer than this duration", "DUR") newerThan = null,
+	Option!(ulong, "Only copy at most this many snapshots", "N") limit = ulong.max,
 	Switch!("When copying a new subvolume and snapshot set, start with the newest snapshot") newerFirst = false,
 	Option!(string, "Leave a file in the source root dir for each successfully copied snapshot, based on the snapshot name and MARK", "MARK") successMark = null,
 	Option!(string, "Name of file in subvolume root which indicates which subvolumes to skip", "MARK") noBackupFile = ".nobackup",
@@ -127,6 +128,12 @@ int btrfs_snapshot_archive(
 
 		while (srcSnapshots.length)
 		{
+			if (!limit)
+			{
+				stderr.writeln(">> Limit reached.");
+				break;
+			}
+
 			auto snapshotIndexInDstDir = allSnapshots.map!((snapshot) { auto snapshotSubvolume = snapshot.length ? subvolume ~ "-" ~ snapshot : subvolume; return snapshotSubvolume in dstDir && (snapshotSubvolume ~ ".partial") !in dstDir; }).array;
 
 			Tuple!(size_t, "distance", string, "snapshot") findParent(string snapshot)
@@ -527,6 +534,7 @@ int btrfs_snapshot_archive(
 				}
 
 				createMark();
+				limit--;
 			}
 			catch (Exception e)
 			{
