@@ -6,6 +6,7 @@
 import std.algorithm;
 import std.array;
 import std.datetime;
+import std.exception;
 import std.file;
 import std.path;
 import std.regex;
@@ -68,6 +69,12 @@ void program(
 			dateCount.length,
 		);
 		readln();
+	}
+
+	foreach (item; items)
+	{
+		string fn = buildPath(target, item.timeLastModified.formatTime!"Y-m-d", item.baseName);
+		enforce(!fn.exists, "Refusing to overwrite '%s' with '%s'.".format(fn, item));
 	}
 
 	foreach (item; items)
