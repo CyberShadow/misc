@@ -74,8 +74,8 @@ int btrfs_snapshot_archive(
 	if (markOnly)
 		enforce(successMark, "--mark-only only makes sense with --success-mark");
 
-	import core.stdc.stdio : setvbuf, _IOLBF;
-	setvbuf(stderr.getFP(), null, _IOLBF, 1024);
+	import core.stdc.stdio : _IOLBF;
+	stderr.setvbuf(1024, _IOLBF);
 
 	HashSet!string[string] srcSubvolumes, allSubvolumes;
 

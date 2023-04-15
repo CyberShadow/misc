@@ -45,8 +45,8 @@ int btrfs_snapshot_cleanup(
 	Option!(int, "Warn when there are over N remaining snapshots", "N") warnLimit = 0,
 )
 {
-	import core.stdc.stdio : setvbuf, _IOLBF;
-	setvbuf(stderr.getFP(), null, _IOLBF, 1024);
+	import core.stdc.stdio : _IOLBF;
+	stderr.setvbuf(1024, _IOLBF);
 
 	string[][string] allSnapshots;
 
