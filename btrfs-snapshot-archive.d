@@ -77,6 +77,10 @@ int btrfs_snapshot_archive(
 	import core.stdc.stdio : _IOLBF;
 	stderr.setvbuf(1024, _IOLBF);
 
+	// Set of snapshots for each subvolume.
+	// Subvolume here means a btrfs subvolume and all/any of its snapshots.
+	// E.g. srcSubvolumes["@arch"] may consist of the set [null, "20200101000000"],
+	// where `null` indicates the live btrfs subvolume (not a snapshot).
 	HashSet!string[string] srcSubvolumes, allSubvolumes;
 
 	stderr.writefln("> Enumerating %s", srcRoot);
@@ -119,6 +123,7 @@ int btrfs_snapshot_archive(
 		auto      srcSnapshots = srcSubvolumes[subvolume].keys.sort().release;
 		immutable allSnapshots = allSubvolumes[subvolume].keys.sort().release.idup;
 
+		// snapshotIndexInSrcDir[i] is true if allSnapshots[i] is in srcDir
 		auto snapshotIndexInSrcDir = allSnapshots.map!((snapshot) { auto snapshotSubvolume = snapshot.length ? subvolume ~ "-" ~ snapshot : subvolume; return snapshotSubvolume in srcDir && (snapshotSubvolume ~ ".partial") !in srcDir; }).array;
 
 		stderr.writefln("> Subvolume %s", subvolume);
@@ -134,6 +139,7 @@ int btrfs_snapshot_archive(
 				break;
 			}
 
+			// snapshotIndexInDstDir[i] is true if allSnapshots[i] is in dstDir
 			auto snapshotIndexInDstDir = allSnapshots.map!((snapshot) { auto snapshotSubvolume = snapshot.length ? subvolume ~ "-" ~ snapshot : subvolume; return snapshotSubvolume in dstDir && (snapshotSubvolume ~ ".partial") !in dstDir; }).array;
 
 			Tuple!(size_t, "distance", string, "snapshot") findParent(string snapshot)
