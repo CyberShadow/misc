@@ -117,12 +117,18 @@ int dver(
 			}
 			if (verbose) stderr.writefln("dver: Downloading %s...", fn);
 			auto zip = BASE ~ fn;
-			if (!zip.exists)
-			{
-				auto ret = spawnProcess(["aria2c", "--max-connection-per-server=16", "--split=16", "--min-split-size=1M", "--dir", BASE, url], null, Config.none, "/").wait();
-				enforce(ret==0, "Download failed");
-				enforce(zip.exists, "Expected to find file after download: " ~ zip);
-			}
+			zip.cached!((string target) {
+				auto ret = spawnProcess([
+					"aria2c",
+					"--max-connection-per-server=16",
+					"--split=16",
+					"--min-split-size=1M",
+					"--dir", target.dirName,
+					"-o", target.baseName,
+					url
+				], null, Config.none, "/").wait();
+				enforce(ret == 0, "Download failed");
+			});
 
 			if (verbose) stderr.writefln("dver: Unzipping %s...", fn);
 			atomic!unzip(zip, dir);
