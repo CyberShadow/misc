@@ -9,6 +9,7 @@ module dreg;
 
 import core.time;
 
+import std.algorithm.comparison;
 import std.algorithm.iteration;
 import std.algorithm.searching;
 import std.algorithm.sorting;
@@ -18,13 +19,17 @@ import std.datetime.systime;
 import std.exception;
 import std.file;
 import std.getopt;
+import std.net.curl;
 import std.parallelism;
 import std.path;
 import std.process;
+import std.range;
+import std.regex;
 import std.stdio;
 import std.string;
 
 import ae.utils.meta;
+import ae.utils.regex;
 import ae.utils.text;
 import ae.utils.time.format;
 
@@ -35,7 +40,7 @@ void main(string[] args)
 {
 	string minVer = "1.0";
 	string maxVer;
-	bool doBisect, doBisectStatus, doBisectOutput, singleThreadedSwitch;
+	bool doBisect, doBisectStatus, doBisectOutput, singleThreadedSwitch, doDownload;
 	string[] dverArgs = [];
 	string[] without = null;
 	getopt(args,
@@ -43,6 +48,7 @@ void main(string[] args)
 		"status", &doBisectStatus,
 		"output", &doBisectOutput,
 		"without", &without,
+		"d|download", &doDownload,
 		"s", &singleThreadedSwitch,
 		"32", { dverArgs ~= "--32"; },
 		"min", &minVer,
@@ -65,16 +71,55 @@ void main(string[] args)
 		return normalizeVersion(a) < normalizeVersion(b);
 	}
 
-	auto versions = dmdDir
-		.dirEntries("dmd.*", SpanMode.shallow)
-		.filter!(de => de.isDir)
-		.filter!(de => !de.name.endsWith(".windows"))
-		.map!(de => de.baseName[4..$].chomp(".linux"))
-		.filter!(ver =>          ver >= minVer       )
-		.filter!(ver => maxVer ? ver <= maxVer : true)
-		.array
-		.sort!compareVersion
-		.release;
+	string[] versions;
+	if (doDownload)
+	{
+		versions =
+			get("http://ftp.digitalmars.com/")
+			.assumeUnique
+			.splitLines
+			.filter!(line => line.startsWith(`<li><a href="dmd.`))
+			.map!(line => line.split('"')[1])
+			.map!((fileName) {
+				if (only("~beta.", "~rc.", "-beta.", "-rc.", "-b", "-rc1.", "-rc2.").any!(s => fileName.canFind(s)))
+					return null;
+				if (fileName.among(`dmd..beta.3.zip`, `dmd.120.2.zip`, `dmd.zip`))
+					return null; // odd-balls
+				if (auto m = fileName.matchFirst(re!`^dmd\.([0-9]*)\.zip$`))
+					return "0." ~ m[1];
+				if (auto m = fileName.matchFirst(re!`^dmd\.([0-9]\.[0-9][0-9][0-9]\.[0-9])\.`))
+					return m[1];
+				if (auto m = fileName.matchFirst(re!`^dmd\.([0-9]\.[0-9][0-9][0-9]?)\.[^0-9]`))
+					return m[1];
+				stderr.writeln("Failed to extract DMD version: ", fileName);
+				return null;
+			})
+			.filter!((ver) {
+				if (ver is null)
+					return false; // Did not extract a version from the filename
+				if (ver.among("2.063.2", "2.064.2", "2.065.0"))
+					return false; // Odd-ball "versions" during transition to point-releases
+				return true;
+			})
+			.array
+			.sort
+			.uniq
+			.array;
+		dverArgs ~= "--download";
+	}
+	else
+	{
+		versions = dmdDir
+			.dirEntries("dmd.*", SpanMode.shallow)
+			.filter!(de => de.isDir)
+			.filter!(de => !de.name.endsWith(".windows"))
+			.map!(de => de.baseName[4..$].chomp(".linux"))
+			.filter!(ver =>          ver >= minVer       )
+			.filter!(ver => maxVer ? ver <= maxVer : true)
+			.array
+			.sort!compareVersion
+			.release;
+	}
 
 	versions = versions
 		.filter!(ver => !doBisect || ver.startsWith("2.")) // When bisecting, assume we want only the 2.x branch
