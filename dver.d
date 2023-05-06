@@ -89,6 +89,7 @@ int dver(
 				break;
 			}
 		}
+		enforce(found, "Directory exists but did not find DMD binary: " ~ dir);
 	}
 
 	if (!found)
