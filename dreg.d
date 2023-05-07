@@ -97,7 +97,7 @@ void main(string[] args)
 			.filter!((ver) {
 				if (ver is null)
 					return false; // Did not extract a version from the filename
-				if (ver.among("2.063.2", "2.064.2", "2.065.0"))
+				if (ver.among("2.063.2", "2.064.2", "2.065"))
 					return false; // Odd-ball "versions" during transition to point-releases
 				return true;
 			})
@@ -145,6 +145,7 @@ void main(string[] args)
 
 		result.output = result.output
 			.replace(dmdDir ~ `/dmd.` ~ ver, "/path/to/dmd")
+			.replaceAll(re!(`^(/path/to/dmd[^():]*?)\([0-9]+\): `, "m"), `$1(#): `)
 			;
 
 		synchronized
