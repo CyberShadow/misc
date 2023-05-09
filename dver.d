@@ -17,11 +17,6 @@ import ae.sys.archive;
 import ae.sys.file;
 import ae.utils.meta : I;
 
-version (Windows)
-	enum BASE = `C:\Downloads\!dmd\`;
-else
-	enum BASE = `/home/vladimir/data/software/dmd/`;
-
 version (Posix) import core.sys.posix.sys.stat;
 
 int dver(
@@ -36,6 +31,11 @@ int dver(
 )
 {
 	auto command = [program.value] ~ args.value;
+
+	auto downloadDir = environment.get("DMD_DOWNLOAD_DIR", null)
+		.enforce("Please set the environment variable DMD_DOWNLOAD_DIR to " ~
+			"the location where DMD versions should be downloaded and unpacked."
+		);
 
 	string baseVersion = dVersion;
 	if (beta)
@@ -63,7 +63,7 @@ int dver(
 	}
 
 	string platformSuffix = baseVersion < "2.071.0" ? "" : "." ~ platform;
-	auto dir = BASE ~ "dmd." ~ dVersion ~ platformSuffix;
+	auto dir = downloadDir.buildPath("dmd." ~ dVersion ~ platformSuffix);
 
 	string model = model32 ? "32" : "64";
 	string[] binDirs = [
@@ -117,7 +117,7 @@ int dver(
 				);
 			}
 			if (verbose) stderr.writefln("dver: Downloading %s...", fn);
-			auto zip = BASE ~ fn;
+			auto zip = downloadDir.buildPath(fn);
 			zip.cached!((string target) {
 				auto ret = spawnProcess([
 					"aria2c",
@@ -138,7 +138,7 @@ int dver(
 		else
 		{
 			if (verbose) stderr.writeln("dver: Directory not found, scanning similar versions...");
-			auto dirs = dirEntries(BASE, `dmd.` ~ dVersion ~ ".*" ~ platformSuffix, SpanMode.shallow)
+			auto dirs = dirEntries(downloadDir, `dmd.` ~ dVersion ~ ".*" ~ platformSuffix, SpanMode.shallow)
 				.filter!(de => de.isDir)
 				.map!(de => de.baseName.chomp(platformSuffix))
 				.array
@@ -148,7 +148,7 @@ int dver(
 			{
 				auto lastDir = dirs[$-1];
 				stderr.writefln("dver: (auto-correcting D version %s to %s)", dVersion, lastDir[4..$]);
-				dir = BASE ~ lastDir ~ platformSuffix;
+				dir = downloadDir.buildPath(lastDir ~ platformSuffix);
 				found = true;
 			}
 		}

@@ -34,7 +34,6 @@ import ae.utils.regex;
 import ae.utils.text;
 import ae.utils.time.format;
 
-enum dmdDir = "/home/vladimir/data/software/dmd";
 enum canBisectAfter = Date(2011, 07, 01);
 
 void program(
@@ -54,6 +53,11 @@ void program(
 	if (use32Bit)
 		dverArgs ~= "--32";
 	auto args = ["dreg", program] ~ programArgs;
+
+	auto downloadDir = environment.get("DMD_DOWNLOAD_DIR", null)
+		.enforce("Please set the environment variable DMD_DOWNLOAD_DIR to " ~
+			"the location where DMD versions should be downloaded and unpacked."
+		);
 
 	static bool compareVersion(string a, string b)
 	{
@@ -108,7 +112,7 @@ void program(
 	}
 	else
 	{
-		versions = dmdDir
+		versions = downloadDir
 			.dirEntries("dmd.*", SpanMode.shallow)
 			.filter!(de => de.isDir)
 			.filter!(de => !de.name.endsWith(".windows"))
@@ -143,7 +147,7 @@ void program(
 		auto result = execute(["~/cmd/dver".expandTilde] ~ dverArgs ~ [ver] ~ args[1..$]);
 
 		result.output = result.output
-			.replace(dmdDir ~ `/dmd.` ~ ver, "/path/to/dmd")
+			.replace(downloadDir.buildPath(`dmd.` ~ ver), "/path/to/dmd")
 			.replaceAll(re!(`^(/path/to/dmd[^():]*?)\([0-9]+\): `, "m"), `$1(#): `)
 			;
 
