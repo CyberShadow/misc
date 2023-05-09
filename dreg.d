@@ -49,7 +49,9 @@ void program(
 	Option!(string, "Minimum version", "VERSION", 0, "min") minVer = "1.0",
 	Option!(string, "Maximum version", "VERSION", 0, "max") maxVer = null,
 ) {
-	string[] dverArgs = [];
+	auto dverPath = thisExePath.dirName.buildPath("dver");
+	version (Windows) dverPath ~= ".exe";
+	string[] dverArgs = [dverPath];
 	if (use32Bit)
 		dverArgs ~= "--32";
 	auto args = ["dreg", program] ~ programArgs;
@@ -145,7 +147,7 @@ void program(
 
 	void processVersion(string ver)
 	{
-		auto result = execute(["~/cmd/dver".expandTilde] ~ dverArgs ~ [ver] ~ args[1..$]);
+		auto result = execute(dverArgs ~ [ver] ~ args[1..$]);
 
 		result.output = result.output
 			.replace(downloadDir.buildPath(`dmd.` ~ ver), "/path/to/dmd")
@@ -168,7 +170,7 @@ void program(
 
 	SysTime verDate(string ver)
 	{
-		auto result = execute(["~/cmd/dver".expandTilde] ~ dverArgs ~ [ver, "which", "dmd"]);
+		auto result = execute(dverArgs ~ [ver, "which", "dmd"]);
 		enforce(result.status == 0, "Failed to find the dmd executable path to " ~ ver);
 		auto exe = result.output.strip();
 		return exe.timeLastModified();
