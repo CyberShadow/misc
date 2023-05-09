@@ -18,7 +18,6 @@ import std.datetime.date;
 import std.datetime.systime;
 import std.exception;
 import std.file;
-import std.getopt;
 import std.net.curl;
 import std.parallelism;
 import std.path;
@@ -28,6 +27,8 @@ import std.regex;
 import std.stdio;
 import std.string;
 
+import ae.utils.funopt;
+import ae.utils.main;
 import ae.utils.meta;
 import ae.utils.regex;
 import ae.utils.text;
@@ -36,25 +37,23 @@ import ae.utils.time.format;
 enum dmdDir = "/home/vladimir/data/software/dmd";
 enum canBisectAfter = Date(2011, 07, 01);
 
-void main(string[] args)
-{
-	string minVer = "1.0";
-	string maxVer;
-	bool doBisect, doBisectStatus, doBisectOutput, singleThreadedSwitch, doDownload;
+void program(
+	Parameter!(string, "Program to run") program,
+	Parameter!(string[], "Arguments to program to run") programArgs,
+	Switch!("Bisect the cause of changes in success/failure", 'b', "bisect") doBisect,
+	Switch!("Bisect all changes in exit status", 0, "status") doBisectStatus,
+	Switch!("Bisect all changes in output", 0, "output") doBisectOutput,
+	Option!(string[], "When building D with Digger, build without these components", "COMPONENT") without,
+	Switch!("Download all missing D versions", 'd', "download") doDownload,
+	Switch!("Force single-threaded execution", 's', "single-threaded") singleThreadedSwitch,
+	Switch!("Target 32-bit", 0, "32") use32Bit,
+	Option!(string, "Minimum version", "VERSION", 0, "min") minVer = "1.0",
+	Option!(string, "Maximum version", "VERSION", 0, "max") maxVer = null,
+) {
 	string[] dverArgs = [];
-	string[] without = null;
-	getopt(args,
-		"b", &doBisect,
-		"status", &doBisectStatus,
-		"output", &doBisectOutput,
-		"without", &without,
-		"d|download", &doDownload,
-		"s", &singleThreadedSwitch,
-		"32", { dverArgs ~= "--32"; },
-		"min", &minVer,
-		"max", &maxVer,
-		config.stopOnFirstNonOption,
-	);
+	if (use32Bit)
+		dverArgs ~= "--32";
+	auto args = ["dreg", program] ~ programArgs;
 
 	static bool compareVersion(string a, string b)
 	{
@@ -367,3 +366,12 @@ void main(string[] args)
 		}
 	}
 }
+
+enum FunOptConfig config = {
+	import std.getopt : config;
+	FunOptConfig c;
+	c.getoptConfig ~= config.stopOnFirstNonOption;
+	return c;
+}();
+
+mixin main!(funopt!(program, config));
