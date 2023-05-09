@@ -58,6 +58,7 @@ void program(
 		.enforce("Please set the environment variable DMD_DOWNLOAD_DIR to " ~
 			"the location where DMD versions should be downloaded and unpacked."
 		);
+	auto digger = environment.get("DIGGER", "digger");
 
 	static bool compareVersion(string a, string b)
 	{
@@ -255,7 +256,7 @@ void program(
 		ini.join("\n").toFile(iniFn);
 
 		auto p = pipe();
-		auto pid = spawnProcess(["~/libexec/bisect-online".expandTilde, iniFn], stdin, p.writeEnd, p.writeEnd);
+		auto pid = spawnProcess([digger, "bisect", iniFn], stdin, p.writeEnd, p.writeEnd);
 		string[] lines;
 		while (!p.readEnd.eof)
 		{
