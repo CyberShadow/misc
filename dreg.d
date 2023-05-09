@@ -42,6 +42,7 @@ void program(
 	Switch!("Bisect the cause of changes in success/failure", 'b', "bisect") doBisect,
 	Switch!("Bisect all changes in exit status", 0, "status") doBisectStatus,
 	Switch!("Bisect all changes in output", 0, "output") doBisectOutput,
+	Switch!("Instead of downloading releases, build D with Digger", 'D', "digger") useDigger,
 	Option!(string[], "When building D with Digger, build without these components", "COMPONENT") without,
 	Switch!("Download all missing D versions", 'd', "download") doDownload,
 	Switch!("Force single-threaded execution", 's', "single-threaded") singleThreadedSwitch,
@@ -136,7 +137,7 @@ void program(
 		.array;
 
 	bool multiThreaded = !singleThreadedSwitch;
-	if (args.canFind("-run") || args[1] == "rdmd" || args[1].endsWith("sh"))
+	if (args.canFind("-run") || args[1] == "rdmd" || args[1].endsWith("sh") || useDigger)
 		multiThreaded = false;
 
 	if (without is null && args[1] != "rdmd")
@@ -145,9 +146,17 @@ void program(
 	alias ExecResult = typeof(execute(args));
 	ExecResult[string] results;
 
+	string[] dCommand(string ver)
+	{
+		if (useDigger)
+			return [digger, "--quiet", "run", ver, "--"];
+		else
+			return dverArgs ~ [ver];
+	}
+
 	void processVersion(string ver)
 	{
-		auto result = execute(dverArgs ~ [ver] ~ args[1..$]);
+		auto result = execute(dCommand(ver) ~ args[1..$]);
 
 		result.output = result.output
 			.replace(downloadDir.buildPath(`dmd.` ~ ver), "/path/to/dmd")
