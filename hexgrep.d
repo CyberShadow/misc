@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3236"
++/
+
 import std.stdio;
 
 import ae.sys.datamm;

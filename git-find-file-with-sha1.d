@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3236"
++/
+
 /**
    Finds a file at a given path with the given SHA1, anywhere in the
    current repository's history starting with the current commit.

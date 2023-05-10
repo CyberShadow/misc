@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3236"
++/
+
 /// Patch an Android boot.img file.
 
 module patch_bootimg;

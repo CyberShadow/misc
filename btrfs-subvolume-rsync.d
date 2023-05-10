@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3236"
++/
+
 /// Recursively clone (send/receive) all btrfs subvolumes under a path.
 module btrfs_subvolume_rsync;
 

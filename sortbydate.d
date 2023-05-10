@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3236"
++/
+
 /**
    Arrange files in the current directory into subdirectories
    according to their modification date.

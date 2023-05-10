@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3236"
++/
+
 /// Copy a file, while performing full deduplication on its contents
 /// (incl. past blocks).
 

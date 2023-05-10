@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3236"
++/
+
 /// Produce a block-by-block diff (consumable by block-patch)
 /// between two block devices or binary files.
 /// The files should have the same size.

@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3236"
++/
+
 /**
    Convert D coverage listings to a Ruby-like .resultset.json file.
 */

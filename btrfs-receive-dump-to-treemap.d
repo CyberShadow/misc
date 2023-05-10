@@ -1,3 +1,9 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3236"
+ stringImportPaths "."
++/
+
 module btrfs_receive_dump_to_treemap;
 
 import core.sys.posix.sys.stat : chmod;

@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3236"
++/
+
 /**
    Compare two directory trees. When a file exists at the same
    sub-path in both trees, deduplicate identical blocks within the

@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3236"
++/
+
 /// Try to read a file, block by block.
 /// If the read request fails, overwrite the failed block with data
 /// from the same offset from another file.

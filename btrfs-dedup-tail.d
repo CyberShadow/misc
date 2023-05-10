@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3236"
++/
+
 /**
    "tail" a destination file, and as new data is written to it, compare
    the new data with the data from the same offset in the given source

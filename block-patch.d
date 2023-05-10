@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3236"
++/
+
 /// Read a binary diff (produced by block-diff)
 /// and apply it to a file or block device.
 

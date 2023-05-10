@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3236"
++/
+
 /**
    A bit like dd, but uses the btrfs "clone" ioctl for efficient
    copies.

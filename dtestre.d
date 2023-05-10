@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3236"
++/
+
 /**
    Parse some D regular expressions from the command line.
    For each line read from stdin, display the match result against those expressions.

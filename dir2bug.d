@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3236"
++/
+
 /// Convert some text files into a text format suitable for pasting in
 /// an issue tracker.
 
