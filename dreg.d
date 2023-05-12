@@ -83,6 +83,7 @@ void program(
 		return normalizeVersion(a) < normalizeVersion(b);
 	}
 
+	write("Enumerating...\r"); stdout.flush();
 	string[] versions;
 	if (doDownload)
 	{
@@ -172,7 +173,7 @@ void program(
 		synchronized
 		{
 			results[ver] = result;
-			writef!"%d/%d\r"(results.length, versions.length); stdout.flush();
+			writef!"%d/%d          \r"(results.length, versions.length); stdout.flush();
 		}
 	}
 
