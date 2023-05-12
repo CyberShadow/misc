@@ -166,6 +166,7 @@ void program(
 		result.output = result.output
 			.replace(downloadDir.buildPath(`dmd.` ~ ver), "/path/to/dmd")
 			.replaceAll(re!(`^(/path/to/dmd[^():]*?)\([0-9]+\): `, "m"), `$1(#): `)
+			.replaceAll(re!(`^(\?\?:\? .* \[0x)[0-9a-f]*\]$`, "m"), `$1...]`)
 			;
 
 		synchronized
