@@ -287,17 +287,28 @@ void program(
 
 		lines = lines.find!(line => line.endsWith(format!" is the first %s commit"(reverse ? "good" : "bad")));
 		enforce(lines.length, "Can't find bisection result");
-		lines = lines.filter!((ref line) => line.skipOver("    ") && line.length).array;
-		enforce(lines.length >= 3, "Can't find URL in bisect output");
+		auto commitMessage = lines.filter!((ref line) => line.skipOver("    ") && line.length).array;
 
 		if (branch == "master")
 		{
-			if (lines[2].startsWith("Merge remote-tracking branch 'upstream/stable'")
-			 || lines[2].startsWith("Merge branch 'merge_stable_convert' into merge_stable"))
+			if (commitMessage.any!(line =>
+					line.startsWith("Merge remote-tracking branch 'upstream/stable'") ||
+					line.startsWith("Merge branch 'merge_stable_convert' into merge_stable")))
 				return bisect(v1, v2, "stable");
 		}
 
-		return col!6 ~ lines[1] ~ col!0 ~ " - " ~ col!3 ~ lines[2] ~ col!0;
+		if (commitMessage.length >= 3 && commitMessage[1].startsWith("https://github.com/"))
+			return col!6 ~ commitMessage[1] ~ col!0 ~ " - " ~ col!3 ~ commitMessage[2] ~ col!0;
+		else
+		{
+			// D-dot-git failed to extract a link to the pull request; just link to the repo commit
+			lines = lines.map!(line => line.replaceAll(re!"\033\\[.*?m", "")).array; // Strip ANSI codes
+			auto repo = lines.filter!((ref line) => line.skipOver("+++ b/")).front;
+			auto commit = lines.filter!((ref line) => line.skipOver("+Subproject commit ")).front;
+			return col!6 ~ "https://github.com/dlang/" ~ repo ~ "/commit/" ~ commit ~ col!0 ~ " - " ~ col!3 ~ commitMessage[0].findSplit(": ")[2] ~ col!0;
+		}
+		// else
+		// 	throw new Exception("Can't find URL in bisect output");
 	}
 
 	string[] bisectResults;
