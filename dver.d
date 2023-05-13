@@ -78,6 +78,10 @@ int dver(
 		`dmd/` ~ platform ~ `/bin`,
 		`dmd/bin`,
 	];
+	string[] srcDirs = [
+		`dmd/src`,
+		`dmd2/src`,
+	];
 	string binExt = platform == "windows" ? ".exe" : "";
 
 	bool found;
@@ -160,6 +164,11 @@ int dver(
 	}
 	enforce(found, "Can't find this D version.");
 
+	while (!srcDirs.empty && !exists(dir.buildPath(srcDirs.front)))
+		srcDirs.popFront();
+	enforce(!srcDirs.empty, "Can't find src dir in: " ~ dir);
+	string srcDir = srcDirs.front;
+
 	// Tell-tale to detect the bin directory we want:
 	auto progBin = program.among("dmd", "rdmd", "dub") ? program : "dmd";
 
@@ -171,12 +180,14 @@ int dver(
 		{
 			if (verbose) stderr.writefln("dver: Found %s: %s", progBin, progPath);
 			auto confPath = binPath.buildPath("dmd.conf");
+			auto relSrcPath = relativePath(dir.buildPath(srcDir), binPath);
 			auto suffix1 = "\r\n; added by dver\r\nDFLAGS=-I%@P%/../src/phobos -L-L%@P%/../lib\r\n";
 			version (linux)
 				if (confPath.exists && confPath.readText.I!(s => s.endsWith("\r\nDFLAGS=-I/home/wgb/yourname/dmd/src/phobos\r\n") || s.endsWith(suffix1)))
 				{
 					stderr.writeln("dver: Patching ", confPath);
-					auto suffix = suffix1.replace("%@P%", binPath); // %@P% support in dmd.conf was added cca D 0.115
+					auto suffix = "\r\n; added by dver\r\nDFLAGS=-I%@P%/" ~ relSrcPath ~ "/phobos -L-L%@P%/../lib\r\n";
+					suffix = suffix.replace("%@P%", binPath); // %@P% support in dmd.conf was added cca D 0.115
 					confPath.File("a").write(suffix);
 					// Note: really old versions also need -m32 on gcc's command line - can't do that from dmd.conf or dmd's command line, need gcc wrapper
 				}
@@ -213,8 +224,11 @@ int dver(
 				if ("/etc/dmd.conf".exists && confPath.exists)
 					command = [
 						"bwrap",
-						"--dev-bind", "/", "/",
+					] ~ dirEntries("/", SpanMode.shallow).filter!(de => de.isDir).map!(de => ["--dev-bind", de.name, de.name]).join ~ [
 						"--bind", binPath ~ "/dmd.conf", "/etc/dmd.conf",
+						// 1.022 patch (doesn't look in its own bin directory for dmd.conf; paths are relative to the found dmd.conf):
+						"--dir", "/src",
+						"--bind", dir.buildPath(srcDir), "/src",
 					] ~ command;
 			if (verbose) stderr.writefln("dver: Running %s", command);
 			version (Windows)
