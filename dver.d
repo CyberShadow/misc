@@ -221,7 +221,7 @@ int dver(
 				if (verbose) stderr.writefln("dver: PATH=%s", environment["PATH"]);
 			}
 			version (Posix)
-				if ("/etc/dmd.conf".exists && confPath.exists)
+				if ("/etc/dmd.conf".exists && confPath.exists && !wine)
 					command = [
 						"bwrap",
 					] ~ dirEntries("/", SpanMode.shallow).filter!(de => de.isDir).map!(de => ["--dev-bind", de.name, de.name]).join ~ [
