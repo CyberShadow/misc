@@ -405,6 +405,7 @@ enum FunOptConfig config = {
 	import std.getopt : config;
 	FunOptConfig c;
 	c.getoptConfig ~= config.stopOnFirstNonOption;
+	c.getoptConfig ~= config.caseSensitive;
 	return c;
 }();
 
