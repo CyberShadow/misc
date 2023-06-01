@@ -31,18 +31,6 @@ import ae.utils.time.parsedur;
 
 import btrfs_common;
 
-/*
-  - For each subvolume:
-    - Find common parent
-      - If no common parent, send whole
-    - Send (minding parent) + receive (minding parent, to temporary subvolume name)
-    - If successful, move temporary subvolume
-    - Delete the PARENT subvolume from source
-
-  - TODO:
-    - don't use -p, use -c,
- */
-
 enum RsyncCondition
 {
 	never,
