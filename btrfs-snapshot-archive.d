@@ -556,7 +556,7 @@ int btrfs_snapshot_archive(
 			{
 				auto name = subvolume ~ ".latest";
 				auto target = subvolume ~ "-" ~ snapshot;
-				if (!target.exists || (target ~ ".partial").exists)
+				if (!dstRoot.buildPath(target).exists || dstRoot.buildPath(target ~ ".partial").exists)
 					continue;
 				stderr.writefln("Creating symlink: %s -> %s", name, target);
 				if (!dryRun)
@@ -564,6 +564,7 @@ int btrfs_snapshot_archive(
 					dstRoot.buildPath(name).remove().collectException();
 					symlink(target, dstRoot.buildPath(name));
 				}
+				break;
 			}
 		}
 	}
