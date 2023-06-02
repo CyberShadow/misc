@@ -293,7 +293,9 @@ void program(
 		{
 			if (commitMessage.any!(line =>
 					line.startsWith("Merge remote-tracking branch 'upstream/stable'") ||
-					line.startsWith("Merge branch 'merge_stable_convert' into merge_stable")))
+					line.startsWith("Merge branch 'merge_stable_convert' into merge_stable") ||
+					line.startsWith("merge stable")
+				))
 				return bisect(v1, v2, "stable");
 		}
 
