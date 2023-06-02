@@ -323,12 +323,14 @@ version (Windows)
 	void symlink(string /*from*/, string /*to*/) { assert(false); }
 }
 
+alias mainFunc = funopt!greplace;
+
 // Basic test
 unittest
 {
 	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
 	std.file.write(dir ~ "/test.txt", "foo");
-	main(["greplace", "foo", "bar", dir]);
+	mainFunc(["greplace", "foo", "bar", dir]);
 	assert(readText(dir ~ "/test.txt") == "bar");
 }
 
@@ -338,7 +340,7 @@ unittest
 	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
 	mkdir(dir ~ "/foo");
 	std.file.write(dir ~ "/foo/x.txt", "foo");
-	main(["greplace", "foo", "bar", dir]);
+	mainFunc(["greplace", "foo", "bar", dir]);
 	assert(readText(dir ~ "/bar/x.txt") == "bar");
 }
 
@@ -348,7 +350,7 @@ unittest
 	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
 	mkdir(dir ~ "/foo");
 	std.file.write(dir ~ "/foo/foo.txt", "foo");
-	main(["greplace", "foo", "bar", dir]);
+	mainFunc(["greplace", "foo", "bar", dir]);
 	assert(readText(dir ~ "/bar/bar.txt") == "bar");
 }
 
@@ -358,7 +360,7 @@ unittest
 	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
 	mkdir(dir ~ "/foo");
 	std.file.write(dir ~ "/foo/foo.txt", "foo");
-	main(["greplace", "foo", "bar", dir ~ "/foo"]);
+	mainFunc(["greplace", "foo", "bar", dir ~ "/foo"]);
 	assert(readText(dir ~ "/bar/bar.txt") == "bar");
 }
 
@@ -369,7 +371,7 @@ unittest
 	mkdir(dir ~ "/foo");
 	mkdir(dir ~ "/foo/baz");
 	std.file.write(dir ~ "/foo/baz/foo.txt", "foo");
-	main(["greplace", "-f", "foo", "bar", dir]);
+	mainFunc(["greplace", "-f", "foo", "bar", dir]);
 	assert(readText(dir ~ "/bar/baz/bar.txt") == "bar");
 }
 
@@ -380,7 +382,7 @@ unittest
 	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
 	mkdir(dir ~ "/foo");
 	symlink("foo", dir ~ "/baz");
-	main(["greplace", "foo", "bar", dir]);
+	mainFunc(["greplace", "foo", "bar", dir]);
 	assert(readLink(dir ~ "/baz") == "bar");
 }
 
@@ -390,7 +392,7 @@ unittest
 {
 	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
 	symlink("foo", dir ~ "/baz");
-	main(["greplace", "foo", "bar", dir ~ "/baz"]);
+	mainFunc(["greplace", "foo", "bar", dir ~ "/baz"]);
 	assert(readLink(dir ~ "/baz") == "bar");
 }
 
@@ -399,7 +401,7 @@ unittest
 {
 	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
 	std.file.write(dir ~ "/test.txt", "foo Foo FOO fOO");
-	main(["greplace", "-i", "foo", "quux", dir]);
+	mainFunc(["greplace", "-i", "foo", "quux", dir]);
 	assert(readText(dir ~ "/test.txt") == "quux Quux QUUX qUUX");
 }
 
@@ -408,7 +410,7 @@ unittest
 {
 	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
 	std.file.write(dir ~ "/test.txt", "myIdentifier MyIdentifier MYIDENTIFIER myidentifier");
-	main(["greplace", "-i", "myIdentifier", "myNewIdentifier", dir]);
+	mainFunc(["greplace", "-i", "myIdentifier", "myNewIdentifier", dir]);
 	assert(readText(dir ~ "/test.txt") == "myNewIdentifier MyNewIdentifier MYNEWIDENTIFIER mynewidentifier");
 }
 
@@ -417,11 +419,11 @@ unittest
 {
 	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
 	std.file.write(dir ~ "/test.txt", "яблоко Яблоко ЯБЛОКО яБЛОКО");
-	main(["greplace", "-i", "яблоко", "груша", dir]);
+	mainFunc(["greplace", "-i", "яблоко", "груша", dir]);
 	assert(readText(dir ~ "/test.txt") == "груша Груша ГРУША гРУША");
 }
 
-mixin main!(funopt!greplace);
+mixin main!mainFunc;
 
 version (unittest_only)
 shared static this()
