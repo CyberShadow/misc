@@ -422,3 +422,16 @@ unittest
 }
 
 mixin main!(funopt!greplace);
+
+version (unittest_only)
+shared static this()
+{
+	import core.runtime : Runtime, UnitTestResult;
+	Runtime.extendedModuleUnitTester = {
+		foreach (m; ModuleInfo)
+			if (m)
+				if (auto fp = m.unitTest)
+					fp();
+		return UnitTestResult();
+	};
+}
