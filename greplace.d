@@ -146,7 +146,8 @@ void greplace(
 
 		// This listDir is non-recursive and only fetches the directory entry's properties.
 		currentPath.listDir!((entry) {
-			assert(entry.fullName == currentPath);
+			assert(entry.fullName == currentPath || (entry.fullName == "." && currentPath == ""),
+				entry.fullName ~ " != " ~ currentPath);
 
 			Bytes s;
 			if (!noFilenames && entry.isSymlink())
