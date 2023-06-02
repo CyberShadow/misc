@@ -180,18 +180,16 @@ void greplace(
 				}
 			}
 
-			string newName, newPath;
 			if (!noFilenames)
 			{
-				newName = originalName.bytes.I!replace(from, to, false).fromBytes!string;
-				newPath = root.buildPath(newName);
+				string newName = originalName.bytes.I!replace(from, to, false).fromBytes!string;
+				string newPath = root.buildPath(newName);
 
 				if (newName != originalName)
 					writeln(originalPath, " -> ", newPath);
 
 				if (newName != currentName && !dryRun)
 				{
-					debug writeln(currentPath, " -> ", newPath, " [REAL]");
 					if (!exists(newPath.dirName))
 						mkdirRecurse(newPath.dirName);
 					std.file.rename(currentPath, newPath);
@@ -205,19 +203,17 @@ void greplace(
 						if (dir.dirEntries(SpanMode.shallow).empty)
 							rmdir(dir);
 					}
+
+					currentName = newName;
+					currentPath = newPath;
 				}
-			}
-			else
-			{
-				newName = currentName;
-				newPath = currentPath;
 			}
 
 			if (entry.entryIsDir())
 			{
 				// Avoid modifying the directory we're iterating by eagerly enumerating its entries.
 				string[] entries;
-				newPath.listDir!((entry) {
+				currentPath.listDir!((entry) {
 					entries ~= entry.baseName;
 				}, No.includeRoot);
 
@@ -225,7 +221,7 @@ void greplace(
 					scan(
 						root,
 						originalName.buildPath(entryName),
-						newName.buildPath(entryName),
+						currentName.buildPath(entryName),
 					);
 			}
 		}, Yes.includeRoot);
@@ -377,6 +373,16 @@ unittest
 	std.file.write(dir ~ "/foo/foo/foo.txt", "foo");
 	mainFunc(["greplace", "foo", "foobar", dir]);
 	assert(readText(dir ~ "/foobar/foobar/foobar.txt") == "foobar");
+}
+
+// Dry-run
+unittest
+{
+	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
+	mkdirRecurse(dir ~ "/foo/foo");
+	std.file.write(dir ~ "/foo/foo/foo.txt", "foo");
+	mainFunc(["greplace", "-n", "foo", "foobar", dir]);
+	assert(readText(dir ~ "/foo/foo/foo.txt") == "foo");
 }
 
 // Renamed empty directories
