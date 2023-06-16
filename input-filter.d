@@ -7,6 +7,7 @@ import std.stdio : stderr;
 import std.string;
 
 import ae.net.asockets;
+import ae.net.shutdown;
 
 import uinput_filter.client;
 import uinput_filter.common;
@@ -65,6 +66,9 @@ class Client : UInputFilterClient
 
 void main()
 {
-	new Client();
+	auto c = new Client();
+	c.handleDisconnect = (reason, type) { stderr.writeln("Disconnected: " ~ reason); };
+	addShutdownHandler((scope const(char)[]) { c.disconnect(); });
+
 	socketManager.loop();
 }
