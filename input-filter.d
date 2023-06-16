@@ -15,7 +15,7 @@ import mylib.linux.input_event_codes;
 
 class Client : UInputFilterClient
 {
-	override void processPacket(ref Packet p)
+	override void processInput(ref Packet.Input p)
 	{
 		if (p.device == DeviceType.headset && p.ev.type == EV_KEY)
 		{
