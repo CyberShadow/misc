@@ -224,7 +224,14 @@ int dver(
 				if ("/etc/dmd.conf".exists && confPath.exists && !wine)
 					command = [
 						"bwrap",
-					] ~ dirEntries("/", SpanMode.shallow).filter!(de => de.isDir).map!(de => ["--dev-bind", de.name, de.name]).join ~ [
+					] ~ (
+						dirEntries("/", SpanMode.shallow)
+						.filter!(de => de.isDir)
+						.map!(de => de.isSymlink
+							? ["--symlink", de.readLink, de.name]
+							: ["--dev-bind", de.name, de.name]
+						).join
+					) ~ [
 						"--bind", binPath ~ "/dmd.conf", "/etc/dmd.conf",
 						// 1.022 patch (doesn't look in its own bin directory for dmd.conf; paths are relative to the found dmd.conf):
 						"--dir", "/src",
