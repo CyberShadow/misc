@@ -24,7 +24,7 @@ string[] workerCommand;
 size_t maxPipelining;
 ulong maxRequests;
 Duration maxIdleTime;
-Duration workerTimeout = 1.weeks;
+Duration workerTimeout;
 
 final class NullConnector : Connector
 {
@@ -171,7 +171,12 @@ private:
 	void onResponse(HttpResponse r, string disconnectReason)
 	{
 		assert(queue.length, "Unexpected response");
-		enforce(r, "No response from worker: " ~ disconnectReason);
+		if (!r)
+		{
+			stderr.writefln("No response from worker: %s", disconnectReason);
+			r = new HttpResponse();
+			r.setStatus(HttpStatusCode.BadGateway);
+		}
 		auto conn = queue.queuePop();
 		if (conn.connected)
 			conn.sendResponse(r);
@@ -321,10 +326,10 @@ void clb(
 		"Stop workers that have not received a request for this duration.",
 		"SECONDS",
 	) maxIdle = 60,
-	// Option!(uint,
-	// 	"Give up on workers/requests that have not responded to a request for this duration.",
-	// 	"SECONDS",
-	// ) timeout = 1.weeks.total!"seconds",
+	Option!(ulong,
+		"Stop workers/requests that have not responded to a request for this duration.",
+		"SECONDS",
+	) timeout = 1.weeks.total!"seconds",
 )
 {
 	enforce(listen.length, "Listen address not specified");
@@ -336,6 +341,7 @@ void clb(
 	.maxPipelining = pipelining;
 	.maxRequests = maxRequests;
 	.maxIdleTime = maxIdle.seconds;
+	.workerTimeout = timeout.seconds;
 
 	if (concurrency == 0)
 		concurrency = totalCPUs;
@@ -369,6 +375,7 @@ EOF"];
 	.maxPipelining = 1;
 	.maxRequests = ulong.max;
 	.maxIdleTime = 60.seconds;
+	.workerTimeout = 1.weeks;
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -408,6 +415,7 @@ EOF"];
 	.maxPipelining = 1;
 	.maxRequests = ulong.max;
 	.maxIdleTime = 60.seconds;
+	.workerTimeout = 1.weeks;
 
 	createWorkers(3);
 	auto listenAddr = "clb-test";
@@ -459,6 +467,7 @@ EOF"];
 	.maxPipelining = 1;
 	.maxRequests = ulong.max;
 	.maxIdleTime = 60.seconds;
+	.workerTimeout = 1.weeks;
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -516,6 +525,7 @@ EOF"];
 	.maxPipelining = 3;
 	.maxRequests = ulong.max;
 	.maxIdleTime = 60.seconds;
+	.workerTimeout = 1.weeks;
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -567,6 +577,7 @@ EOF"];
 	.maxPipelining = 1;
 	.maxRequests = 1;
 	.maxIdleTime = 60.seconds;
+	.workerTimeout = 1.weeks;
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -617,6 +628,7 @@ EOF"];
 	.maxPipelining = 1;
 	.maxRequests = ulong.max;
 	.maxIdleTime = 500.msecs;
+	.workerTimeout = 1.weeks;
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -653,4 +665,58 @@ EOF"];
 	import std.algorithm.iteration : uniq;
 	import std.range.primitives : walkLength;
 	assert(pids.sort.uniq.walkLength == 3);
+}
+
+// Test --timeout
+unittest
+{
+	.workerCommand = ["/bin/bash", "-c", q"EOF
+# Buggy worker that stops replying after the first reply
+while IFS= read -r line
+do
+	if [[ "$line" == $'\r' ]]
+	then
+		printf 'HTTP/1.1 200 OK\r\nX-PID: %d\r\nContent-Length: 2\r\n\r\nOK' "$$"
+		sleep 1  # Still exit after some time to allow the unittest to terminate
+	fi
+done
+EOF"];
+	.maxPipelining = 1;
+	.maxRequests = ulong.max;
+	.maxIdleTime = 60.seconds;
+	.workerTimeout = 500.msecs;
+
+	createWorkers(3);
+	auto listenAddr = "clb-test";
+	auto s = startServer(listenAddr);
+	scope(exit) remove(listenAddr);
+
+	string[] pids;
+
+	void sendRequest()
+	{
+		auto c = new HttpClient(5.seconds, new UnixConnector(listenAddr));
+		c.handleResponse = (HttpResponse r, string disconnectReason)
+		{
+			assert(r, disconnectReason);
+			pids ~= r.headers.get("X-PID", null);
+			if (pids.length == 3)
+			{
+				s.close();
+				foreach (b; workers) b.shutdown();
+			}
+			else
+				sendRequest();
+		};
+		c.request(new HttpRequest("http://server/"));
+	}
+	sendRequest();
+
+	socketManager.loop();
+
+	import std.algorithm.sorting : sort;
+	import std.algorithm.iteration : uniq;
+	import std.range.primitives : walkLength;
+	assert(pids.sort.uniq.walkLength == 3);
+	assert(pids.canFind(null));  // One request was lost
 }
