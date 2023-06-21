@@ -15,6 +15,7 @@ import ae.net.asockets;
 import ae.net.http.client;
 import ae.net.http.server;
 import ae.net.shutdown;
+import ae.sys.timing;
 import ae.utils.array;
 import ae.utils.funopt;
 import ae.utils.main;
@@ -22,6 +23,7 @@ import ae.utils.main;
 string[] workerCommand;
 size_t maxPipelining;
 ulong maxRequests;
+Duration maxIdleTime;
 Duration workerTimeout = 1.weeks;
 
 final class NullConnector : Connector
@@ -79,6 +81,8 @@ private:
 	HttpServerConnection[] queue;
 	HttpClient http;
 	ulong sentRequests;
+	// idleTask is running if (state == State.running && queue.length == 0)
+	TimerTask idleTask;
 
 	void start()
 	{
@@ -101,6 +105,8 @@ private:
 
 		(() => pipes.pid.wait).threadAsync.then(&onExit);
 
+		mainTimer.add(idleTask, now + maxIdleTime);
+
 		state = State.running;
 	}
 
@@ -109,9 +115,11 @@ private:
 		assert(state == State.running);
 		state = State.stopping;
 		http.disconnect();
+		if (idleTask.isWaiting())
+			idleTask.cancel();
 	}
 
-	void onDisconnect(string reason, DisconnectType type)
+	void onDisconnect(string reason, DisconnectType /*type*/)
 	{
 		assert(state == State.running || state == State.stopping);
 		if (state != State.stopping)
@@ -149,8 +157,15 @@ private:
 		http = null;
 		state = State.none;
 		sentRequests = 0;
+		if (idleTask.isWaiting())
+			idleTask.cancel();
 
 		prod();
+	}
+
+	void onIdle(Timer /*timer*/, TimerTask /*task*/)
+	{
+		stop();
 	}
 
 	void onResponse(HttpResponse r, string disconnectReason)
@@ -160,6 +175,8 @@ private:
 		auto conn = queue.queuePop();
 		if (conn.connected)
 			conn.sendResponse(r);
+		if (queue.length == 0 && state == State.running)
+			mainTimer.add(idleTask, now + maxIdleTime);
 
 		prod();
 	}
@@ -181,6 +198,11 @@ private:
 	}
 
 public:
+	this()
+	{
+		idleTask = new TimerTask(&onIdle);
+	}
+
 	bool acceptRequest(ref Request r)
 	{
 		if (sentRequests >= maxRequests)
@@ -199,6 +221,8 @@ public:
 				return false;
 		}
 
+		if (!queue.length)
+			idleTask.cancel();
 		queue ~= r.conn;
 		r.req.headers["Connection"] = "keep-alive";
 		http.request(r.req, false);
@@ -293,10 +317,10 @@ void clb(
 		"How many requests a worker may handle before it is cycled.",
 		"N",
 	) maxRequests = ulong.max,
-	// Option!(ulong,
-	// 	"Stop workers that have not received a request for this duration.",
-	// 	"SECONDS",
-	// ) maxIdle = 60,
+	Option!(ulong,
+		"Stop workers that have not received a request for this duration.",
+		"SECONDS",
+	) maxIdle = 60,
 	// Option!(uint,
 	// 	"Give up on workers/requests that have not responded to a request for this duration.",
 	// 	"SECONDS",
@@ -311,6 +335,7 @@ void clb(
 	.workerCommand = command ~ args;
 	.maxPipelining = pipelining;
 	.maxRequests = maxRequests;
+	.maxIdleTime = maxIdle.seconds;
 
 	if (concurrency == 0)
 		concurrency = totalCPUs;
@@ -343,6 +368,7 @@ done
 EOF"];
 	.maxPipelining = 1;
 	.maxRequests = ulong.max;
+	.maxIdleTime = 60.seconds;
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -381,6 +407,7 @@ done
 EOF"];
 	.maxPipelining = 1;
 	.maxRequests = ulong.max;
+	.maxIdleTime = 60.seconds;
 
 	createWorkers(3);
 	auto listenAddr = "clb-test";
@@ -431,6 +458,7 @@ done
 EOF"];
 	.maxPipelining = 1;
 	.maxRequests = ulong.max;
+	.maxIdleTime = 60.seconds;
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -487,6 +515,7 @@ done
 EOF"];
 	.maxPipelining = 3;
 	.maxRequests = ulong.max;
+	.maxIdleTime = 60.seconds;
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -537,6 +566,7 @@ done
 EOF"];
 	.maxPipelining = 1;
 	.maxRequests = 1;
+	.maxIdleTime = 60.seconds;
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -563,6 +593,59 @@ EOF"];
 		};
 		c.request(new HttpRequest("http:/server/"));
 	}
+
+	socketManager.loop();
+
+	import std.algorithm.sorting : sort;
+	import std.algorithm.iteration : uniq;
+	import std.range.primitives : walkLength;
+	assert(pids.sort.uniq.walkLength == 3);
+}
+
+// Test --max-idle
+unittest
+{
+	.workerCommand = ["/bin/bash", "-c", q"EOF
+while IFS= read -r line
+do
+	if [[ "$line" == $'\r' ]]
+	then
+		printf 'HTTP/1.1 200 OK\r\nX-PID: %d\r\nContent-Length: 2\r\n\r\nOK' "$$"
+	fi
+done
+EOF"];
+	.maxPipelining = 1;
+	.maxRequests = ulong.max;
+	.maxIdleTime = 500.msecs;
+
+	createWorkers(1);
+	auto listenAddr = "clb-test";
+	auto s = startServer(listenAddr);
+	scope(exit) remove(listenAddr);
+
+	string[] pids;
+
+	void sendRequest()
+	{
+		auto c = new HttpClient(5.seconds, new UnixConnector(listenAddr));
+		c.handleResponse = (HttpResponse r, string disconnectReason)
+		{
+			assert(r, disconnectReason);
+			r.getContent().enter((contents) {
+				assert(contents == "OK");
+			});
+			pids ~= r.headers["X-PID"];
+			if (pids.length == 3)
+			{
+				s.close();
+				foreach (b; workers) b.shutdown();
+			}
+			else
+				setTimeout(&sendRequest, 1.seconds);
+		};
+		c.request(new HttpRequest("http:/server/"));
+	}
+	sendRequest();
 
 	socketManager.loop();
 
