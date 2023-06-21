@@ -3,9 +3,12 @@ module clb;
 
 import core.time;
 
+import std.algorithm.iteration;
 import std.algorithm.mutation : SwapStrategy;
 import std.algorithm.searching;
 import std.algorithm.sorting : sort;
+import std.array : array, join;
+import std.ascii;
 import std.conv : to;
 import std.exception : collectException, enforce;
 import std.file : remove;
@@ -13,16 +16,21 @@ import std.parallelism : totalCPUs;
 import std.process;
 import std.socket : AddressInfo, AddressFamily, SocketType, UnixAddress;
 import std.stdio : stderr;
-import std.string : isNumeric;
+import std.string : isNumeric, representation;
+import std.typecons : Nullable;
 
 import ae.net.asockets;
 import ae.net.http.client;
 import ae.net.http.server;
 import ae.net.shutdown;
+import ae.sys.dataset;
 import ae.sys.timing;
 import ae.utils.array;
 import ae.utils.funopt;
+import ae.utils.json;
 import ae.utils.main;
+import ae.utils.text : splitByCamelCase;
+import ae.utils.xml.entities : encodeEntities;
 
 struct KillRule
 {
@@ -91,6 +99,7 @@ private:
 	State state;
 
 	Request[] queue;
+	IConnection c;
 	HttpClient http;
 	ulong sentRequests;
 	// idleTask is running if (state == State.running && queue.length == 0)
@@ -113,7 +122,7 @@ private:
 			Redirect.stdin | Redirect.stdout,
 		);
 		this.pid = pipes.pid;
-		auto c = new Duplex(
+		c = new Duplex(
 			new FileConnection(pipes.stdout.fileno.dup),
 			new FileConnection(pipes.stdin.fileno.dup),
 		);
@@ -152,11 +161,13 @@ private:
 		foreach (ref r; queue)
 			sendResponse(r, null);
 		queue = null;
+		c = null;
 		http = null;
 		sentRequests = 0;
 		if (idleTask.isWaiting())
 			idleTask.cancel();
 
+		assert(!killSchedule.length);
 		foreach (rule; killRules)
 			killSchedule ~= KillSchedule(now + rule.time, rule.signal);
 		prodKill();
@@ -325,6 +336,35 @@ public:
 				stop();
 		}
 	}
+
+	struct Status
+	{
+		State workerProcessState;
+		Nullable!int pid;
+		Nullable!ConnectionState workerConnectionState;
+		ulong sentRequests;
+		size_t inFlightRequests;
+		Nullable!ConnectionState downstreamConnectionState;
+		Nullable!Duration timeUntilIdle;
+		Nullable!int nextKillSignal;
+		Nullable!Duration timeUntilKill;
+	}
+
+	Status getStatus()
+	{
+		Nullable!T maybe(T)(bool cond, lazy T expr) { return cond ? Nullable!T(expr) : Nullable!T.init; }
+		return Status(
+			this.state,
+			maybe(pid !is null, pid.processID()),
+			maybe(c !is null, c.state),
+			this.sentRequests,
+			this.queue.length,
+			maybe(queue.length > 0, queue[0].conn.conn.state),
+			maybe(idleTask.isWaiting(), now - idleTask.when),
+			maybe(killSchedule.length > 0, killSchedule[0].signal),
+			maybe(killSchedule.length > 0, now - killSchedule[0].when),
+		);
+	}
 }
 Worker[] workers;
 
@@ -352,13 +392,97 @@ void enqueueRequest(Request r)
 	requestQueue ~= r;
 }
 
-HttpServer startServer(string socketPath)
+enum statusHtmlRes = "/.well-known/clb/status.html";
+enum statusJsonRes = "/.well-known/clb/status.json";
+
+struct Status
+{
+	size_t queuedRequests;
+	Worker.Status[] workerStatus;
+}
+
+Status getStatus()
+{
+	return Status(
+		requestQueue.length,
+		workers.map!(w => w.getStatus()).array,
+	);
+}
+
+string identifierToHuman(string s) { s = s.splitByCamelCase.join(" "); if (s.length) s = toUpper(s[0]) ~ s[1..$]; return s; }
+
+string toHTML(T)(T v)
+{
+	string s;
+	static if (is(T : Nullable!U, U))
+	{
+		if (v.isNull())
+			s ~= "-";
+		else
+			s ~= v.get().toHTML();
+	}
+	else
+	static if (is(T : U[], U) && is(U == struct))
+	{
+		s ~= `<table border="1">`;
+		s ~= "<tr>";
+		foreach (i, f; U.init.tupleof)
+			s ~= "<th>" ~ __traits(identifier, U.tupleof[i]).identifierToHuman.encodeEntities ~ "</th>";
+		s ~= "</tr>";
+		foreach (ref row; v)
+		{
+			s ~= "<tr>";
+			foreach (i, ref f; row.tupleof)
+				s ~= "<td>" ~ f.toHTML() ~ "</td>";
+			s ~= "</tr>";
+		}
+		s ~= "</table>";
+	}
+	else
+	static if (is(T == struct))
+	{
+		s ~= "<dl>";
+		foreach (i, ref f; v.tupleof)
+		{
+			s ~= "<dt>" ~ __traits(identifier, v.tupleof[i]).identifierToHuman.encodeEntities ~ "</td>";
+			s ~= "<dd>" ~ f.toHTML() ~ "</td>";
+		}
+		s ~= "</dl>";
+	}
+	else
+	static if (is(T : ulong))
+		s ~= v.to!string;
+	else
+		static assert(false, "Can't convert " ~ T.stringof ~ " to HTML");
+	return s;
+}
+
+HttpServer startServer(string socketPath, bool enableStatus)
 {
 	auto httpServer = new HttpServer;
 
 	httpServer.handleRequest =
 		(HttpRequest req, HttpServerConnection conn)
 		{
+			if (enableStatus && req.resource == statusHtmlRes)
+			{
+				auto r = new HttpResponse();
+				r.setStatus(HttpStatusCode.OK);
+				auto html = "<!doctype html>\n" ~ getStatus().toHTML();
+				r.data = DataVec(Data(html.representation));
+				r.headers["Content-Type"] = "text/html";
+				return conn.sendResponse(r);
+			}
+			if (enableStatus && req.resource == statusJsonRes)
+			{
+				auto r = new HttpResponse();
+				r.setStatus(HttpStatusCode.OK);
+				auto json = getStatus().toJson();
+				r.data = DataVec(Data(json.representation));
+				r.headers["Content-Type"] = "application/json";
+				return conn.sendResponse(r);
+			}
+
 			enqueueRequest(Request(req, conn));
 		};
 
@@ -371,6 +495,13 @@ HttpServer startServer(string socketPath)
 	httpServer.listen([ai]);
 
 	return httpServer;
+}
+
+version (Posix)
+shared static this()
+{
+	import core.sys.posix.signal : signal, SIGPIPE, SIG_IGN;
+	signal(SIGPIPE, SIG_IGN);
 }
 
 @(`Simple HTTP load balancer with auto-scaling.`)
@@ -421,8 +552,14 @@ void clb(
 		"The signal is sent only to the top-level process (COMMAND).",
 		"SECONDS:SIGNAL",
 	) kill = null,
+	Switch!(
+		"Enable a status page at " ~ statusHtmlRes ~ " and .json.",
+	) enableStatus = false,
 )
 {
+	if (concurrency == 0)
+		concurrency = totalCPUs;
+
 	enforce(listen.length, "Listen address not specified");
 	enforce(concurrency > 0, "Must have at least one worker");
 	enforce(pipelining > 0, "Must allow at least one in-flight request");
@@ -441,12 +578,9 @@ void clb(
 	}
 	killRules.sort!((a, b) => a.time < b.time, SwapStrategy.stable)();
 
-	if (concurrency == 0)
-		concurrency = totalCPUs;	.killRules = [];
-
 	createWorkers(concurrency);
 
-	auto server = startServer(listen);
+	auto server = startServer(listen, enableStatus);
 
 	addShutdownHandler((reason) {
 		server.close();
@@ -540,7 +674,7 @@ EOF"];
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
-	auto s = startServer(listenAddr);
+	auto s = startServer(listenAddr, true);
 	scope(exit) remove(listenAddr);
 
 	bool ok;
@@ -582,7 +716,7 @@ EOF"];
 
 	createWorkers(3);
 	auto listenAddr = "clb-test";
-	auto s = startServer(listenAddr);
+	auto s = startServer(listenAddr, true);
 	scope(exit) remove(listenAddr);
 
 	string[] pids;
@@ -636,7 +770,7 @@ EOF"];
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
-	auto s = startServer(listenAddr);
+	auto s = startServer(listenAddr, true);
 	scope(exit) remove(listenAddr);
 
 	string[] pids;
@@ -696,7 +830,7 @@ EOF"];
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
-	auto s = startServer(listenAddr);
+	auto s = startServer(listenAddr, true);
 	scope(exit) remove(listenAddr);
 
 	string[] pids;
@@ -750,7 +884,7 @@ EOF"];
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
-	auto s = startServer(listenAddr);
+	auto s = startServer(listenAddr, true);
 	scope(exit) remove(listenAddr);
 
 	string[] pids;
@@ -803,7 +937,7 @@ EOF"];
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
-	auto s = startServer(listenAddr);
+	auto s = startServer(listenAddr, true);
 	scope(exit) remove(listenAddr);
 
 	string[] pids;
@@ -861,7 +995,7 @@ EOF"];
 
 	createWorkers(3);
 	auto listenAddr = "clb-test";
-	auto s = startServer(listenAddr);
+	auto s = startServer(listenAddr, true);
 	scope(exit) remove(listenAddr);
 
 	string[] pids;
@@ -917,7 +1051,7 @@ EOF"];
 
 	createWorkers(3);
 	auto listenAddr = "clb-test";
-	auto s = startServer(listenAddr);
+	auto s = startServer(listenAddr, true);
 	scope(exit) remove(listenAddr);
 
 	string[] pids;
@@ -977,7 +1111,7 @@ EOF"];
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
-	auto s = startServer(listenAddr);
+	auto s = startServer(listenAddr, true);
 	scope(exit) remove(listenAddr);
 
 	string[] pids;
@@ -1039,7 +1173,7 @@ EOF"];
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
-	auto s = startServer(listenAddr);
+	auto s = startServer(listenAddr, true);
 	scope(exit) remove(listenAddr);
 
 	string[] pids;
