@@ -3,13 +3,17 @@ module clb;
 
 import core.time;
 
+import std.algorithm.mutation : SwapStrategy;
 import std.algorithm.searching;
+import std.algorithm.sorting : sort;
+import std.conv : to;
 import std.exception : collectException, enforce;
 import std.file : remove;
 import std.parallelism : totalCPUs;
 import std.process;
 import std.socket : AddressInfo, AddressFamily, SocketType, UnixAddress;
 import std.stdio : stderr;
+import std.string : isNumeric;
 
 import ae.net.asockets;
 import ae.net.http.client;
@@ -20,12 +24,19 @@ import ae.utils.array;
 import ae.utils.funopt;
 import ae.utils.main;
 
+struct KillRule
+{
+	Duration time;
+	int signal;
+}
+
 string[] workerCommand;
 size_t maxPipelining;
 ulong maxRequests;
 Duration maxIdleTime;
 Duration workerTimeout;
 bool retry;
+KillRule[] killRules;
 
 final class NullConnector : Connector
 {
@@ -85,6 +96,15 @@ private:
 	// idleTask is running if (state == State.running && queue.length == 0)
 	TimerTask idleTask;
 
+	struct KillSchedule
+	{
+		MonoTime when;
+		int signal;
+	}
+	KillSchedule[] killSchedule;
+	TimerTask killTask;
+	Pid pid;
+
 	void start()
 	{
 		assert(state == State.none);
@@ -92,7 +112,7 @@ private:
 			workerCommand,
 			Redirect.stdin | Redirect.stdout,
 		);
-		// this.pid = pipes.pid;
+		this.pid = pipes.pid;
 		auto c = new Duplex(
 			new FileConnection(pipes.stdout.fileno.dup),
 			new FileConnection(pipes.stdin.fileno.dup),
@@ -136,6 +156,10 @@ private:
 		sentRequests = 0;
 		if (idleTask.isWaiting())
 			idleTask.cancel();
+
+		foreach (rule; killRules)
+			killSchedule ~= KillSchedule(now + rule.time, rule.signal);
+		prodKill();
 	}
 
 	void onExit(int exitCode)
@@ -163,7 +187,33 @@ private:
 		assert(sentRequests == 0);
 		assert(!idleTask.isWaiting());
 
+		if (killSchedule.length)
+		{
+			killSchedule = null;
+			killTask.cancel();
+		}
+		assert(!killTask.isWaiting());
+		pid = null;
+
 		prod();
+	}
+
+	void prodKill()
+	{
+		assert(!killTask.isWaiting());
+		assert(pid);
+		if (killSchedule.length)
+			mainTimer.add(killTask, killSchedule[0].when);
+	}
+
+	void onKillSchedule(Timer /*timer*/, TimerTask /*timerTask*/)
+	{
+		assert(killSchedule.length);
+		assert(pid);
+		auto signal = killSchedule.shift().signal;
+		stderr.writefln("Killing worker PID %d with %d", pid.processID(), signal);
+		pid.kill(signal);
+		prodKill();
 	}
 
 	void sendResponse(ref Request r, HttpResponse res)
@@ -231,6 +281,7 @@ public:
 	this()
 	{
 		idleTask = new TimerTask(&onIdle);
+		killTask = new TimerTask(&onKillSchedule);
 	}
 
 	bool acceptRequest(ref Request r)
@@ -364,6 +415,12 @@ void clb(
 		"Retry requests until they succeed, instead of returning HTTP 502. " ~
 		"Suitable for stateless workers.",
 	) retry = false,
+	Option!(string[],
+		"Add a kill rule. " ~
+		"If the worker does not exit within SECONDS after EOF is sent, send SIGNAL to the process. " ~
+		"The signal is sent only to the top-level process (COMMAND).",
+		"SECONDS:SIGNAL",
+	) kill = null,
 )
 {
 	enforce(listen.length, "Listen address not specified");
@@ -377,9 +434,16 @@ void clb(
 	.maxIdleTime = maxIdle.seconds;
 	.workerTimeout = timeout.seconds;
 	.retry = retry;
+	foreach (rule; kill)
+	{
+		auto parts = rule.findSplit(":").enforce("Bad kill rule");
+		killRules ~= KillRule(parts[0].to!ulong.seconds, parts[2].parseSignalName);
+	}
+	killRules.sort!((a, b) => a.time < b.time, SwapStrategy.stable)();
 
 	if (concurrency == 0)
-		concurrency = totalCPUs;
+		concurrency = totalCPUs;	.killRules = [];
+
 	createWorkers(concurrency);
 
 	auto server = startServer(listen);
@@ -391,6 +455,66 @@ void clb(
 	});
 
 	socketManager.loop();
+}
+
+int parseSignalName(string s)
+{
+	version (Posix)
+	{
+		if (isNumeric(s))
+			return s.to!int;
+		switch (s)
+		{
+			import core.sys.posix.signal;
+			case "SIGHUP": case "HUP": return SIGHUP;
+			case "SIGINT": case "INT": return SIGINT;
+			case "SIGQUIT": case "QUIT": return SIGQUIT;
+			case "SIGILL": case "ILL": return SIGILL;
+			case "SIGTRAP": case "TRAP": return SIGTRAP;
+			case "SIGABRT": case "ABRT": return SIGABRT;
+			// case "SIGIOT": case "IOT": return SIGIOT;
+			case "SIGBUS": case "BUS": return SIGBUS;
+			// case "SIGEMT": case "EMT": return SIGEMT;
+			case "SIGFPE": case "FPE": return SIGFPE;
+			case "SIGKILL": case "KILL": return SIGKILL;
+			case "SIGUSR1": case "USR1": return SIGUSR1;
+			case "SIGSEGV": case "SEGV": return SIGSEGV;
+			case "SIGUSR2": case "USR2": return SIGUSR2;
+			case "SIGPIPE": case "PIPE": return SIGPIPE;
+			case "SIGALRM": case "ALRM": return SIGALRM;
+			case "SIGTERM": case "TERM": return SIGTERM;
+			// case "SIGSTKFLT": case "STKFLT": return SIGSTKFLT;
+			case "SIGCHLD": case "CHLD": return SIGCHLD;
+			// case "SIGCLD": case "CLD": return SIGCLD;
+			case "SIGCONT": case "CONT": return SIGCONT;
+			case "SIGSTOP": case "STOP": return SIGSTOP;
+			case "SIGTSTP": case "TSTP": return SIGTSTP;
+			case "SIGTTIN": case "TTIN": return SIGTTIN;
+			case "SIGTTOU": case "TTOU": return SIGTTOU;
+			case "SIGURG": case "URG": return SIGURG;
+			case "SIGXCPU": case "XCPU": return SIGXCPU;
+			case "SIGXFSZ": case "XFSZ": return SIGXFSZ;
+			case "SIGVTALRM": case "VTALRM": return SIGVTALRM;
+			case "SIGPROF": case "PROF": return SIGPROF;
+			// case "SIGWINCH": case "WINCH": return SIGWINCH;
+			// case "SIGIO": case "IO": return SIGIO;
+			case "SIGPOLL": case "POLL": return SIGPOLL;
+			// case "SIGPWR": case "PWR": return SIGPWR;
+			// case "SIGINFO": case "INFO": return SIGINFO;
+			// case "SIGLOST": case "LOST": return SIGLOST;
+			case "SIGSYS": case "SYS": return SIGSYS;
+			// case "SIGUNUSED": case "UNUSED": return SIGUNUSED;
+			default: throw new Exception("Unknown signal: " ~ s);
+		}
+	}
+	else
+	version (Windows)
+	{
+		enforce(s.skipOver("TerminateProcess:"), "Windows kill rules have the syntax SECONDS:TerminateProcess:EXITCODE");
+		return s.to!uint;
+	}
+	else
+		static assert(false);
 }
 
 mixin main!(funopt!(clb, FunOptConfig([std.getopt.config.stopOnFirstNonOption])));
@@ -412,6 +536,7 @@ EOF"];
 	.maxIdleTime = 60.seconds;
 	.workerTimeout = 1.weeks;
 	.retry = false;
+	.killRules = [];
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -453,6 +578,7 @@ EOF"];
 	.maxIdleTime = 60.seconds;
 	.workerTimeout = 1.weeks;
 	.retry = false;
+	.killRules = [];
 
 	createWorkers(3);
 	auto listenAddr = "clb-test";
@@ -506,6 +632,7 @@ EOF"];
 	.maxIdleTime = 60.seconds;
 	.workerTimeout = 1.weeks;
 	.retry = false;
+	.killRules = [];
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -565,6 +692,7 @@ EOF"];
 	.maxIdleTime = 60.seconds;
 	.workerTimeout = 1.weeks;
 	.retry = false;
+	.killRules = [];
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -618,6 +746,7 @@ EOF"];
 	.maxIdleTime = 60.seconds;
 	.workerTimeout = 1.weeks;
 	.retry = false;
+	.killRules = [];
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -670,6 +799,7 @@ EOF"];
 	.maxIdleTime = 500.msecs;
 	.workerTimeout = 1.weeks;
 	.retry = false;
+	.killRules = [];
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -727,6 +857,7 @@ EOF"];
 	.maxIdleTime = 60.seconds;
 	.workerTimeout = 500.msecs;
 	.retry = false;
+	.killRules = [];
 
 	createWorkers(3);
 	auto listenAddr = "clb-test";
@@ -782,6 +913,7 @@ EOF"];
 	.maxIdleTime = 60.seconds;
 	.workerTimeout = 500.msecs;
 	.retry = true;
+	.killRules = [];
 
 	createWorkers(3);
 	auto listenAddr = "clb-test";
@@ -808,6 +940,128 @@ EOF"];
 		c.request(new HttpRequest("http://server/"));
 	}
 	sendRequest();
+
+	socketManager.loop();
+
+	import std.algorithm.sorting : sort;
+	import std.algorithm.iteration : uniq;
+	import std.range.primitives : walkLength;
+	assert(pids.sort.uniq.walkLength == 3);
+	assert(!pids.canFind(null));  // No requests were lost because of --retry
+}
+
+// Test --kill
+version (Posix)
+unittest
+{
+	import core.sys.posix.signal : SIGTERM;
+	.workerCommand = ["/bin/bash", "-c", q"EOF
+# Buggy worker that stops replying after the first reply
+while IFS= read -r line
+do
+	if [[ "$line" == $'\r' ]]
+	then
+		printf 'HTTP/1.1 200 OK\r\nX-PID: %d\r\nContent-Length: 2\r\n\r\nOK' "$$"
+		sleep infinity
+	fi
+done
+EOF"];
+	.maxPipelining = 1;
+	.maxRequests = ulong.max;
+	.maxIdleTime = 60.seconds;
+	.workerTimeout = 500.msecs;
+	.retry = true;
+	.killRules = [
+		KillRule(500.msecs, SIGTERM),
+	];
+
+	createWorkers(1);
+	auto listenAddr = "clb-test";
+	auto s = startServer(listenAddr);
+	scope(exit) remove(listenAddr);
+
+	string[] pids;
+
+	foreach (n; 0 .. 3)
+	{
+		auto c = new HttpClient(5.seconds, new UnixConnector(listenAddr));
+		c.handleResponse = (HttpResponse r, string disconnectReason)
+		{
+			assert(r, disconnectReason);
+			r.getContent().enter((contents) {
+				assert(contents == "OK");
+			});
+			pids ~= r.headers["X-PID"];
+			if (pids.length == 3)
+			{
+				s.close();
+				foreach (b; workers) b.shutdown();
+			}
+		};
+		c.request(new HttpRequest("http://server/"));
+	}
+
+	socketManager.loop();
+
+	import std.algorithm.sorting : sort;
+	import std.algorithm.iteration : uniq;
+	import std.range.primitives : walkLength;
+	assert(pids.sort.uniq.walkLength == 3);
+	assert(!pids.canFind(null));  // No requests were lost because of --retry
+}
+
+// Test 2x --kill
+version (Posix)
+unittest
+{
+	import core.sys.posix.signal : SIGTERM, SIGKILL;
+	.workerCommand = ["/bin/bash", "-c", q"EOF
+# Buggy worker that stops replying after the first reply, and ignores SIGTERM
+trap '' TERM INT
+while IFS= read -r line
+do
+	if [[ "$line" == $'\r' ]]
+	then
+		printf 'HTTP/1.1 200 OK\r\nX-PID: %d\r\nContent-Length: 2\r\n\r\nOK' "$$"
+		sleep infinity
+	fi
+done
+EOF"];
+	.maxPipelining = 1;
+	.maxRequests = ulong.max;
+	.maxIdleTime = 60.seconds;
+	.workerTimeout = 500.msecs;
+	.retry = true;
+	.killRules = [
+		KillRule(250.msecs, SIGTERM),
+		KillRule(500.msecs, SIGKILL),
+	];
+
+	createWorkers(1);
+	auto listenAddr = "clb-test";
+	auto s = startServer(listenAddr);
+	scope(exit) remove(listenAddr);
+
+	string[] pids;
+
+	foreach (n; 0 .. 3)
+	{
+		auto c = new HttpClient(5.seconds, new UnixConnector(listenAddr));
+		c.handleResponse = (HttpResponse r, string disconnectReason)
+		{
+			assert(r, disconnectReason);
+			r.getContent().enter((contents) {
+				assert(contents == "OK");
+			});
+			pids ~= r.headers["X-PID"];
+			if (pids.length == 3)
+			{
+				s.close();
+				foreach (b; workers) b.shutdown();
+			}
+		};
+		c.request(new HttpRequest("http://server/"));
+	}
 
 	socketManager.loop();
 
