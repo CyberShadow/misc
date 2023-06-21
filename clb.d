@@ -21,6 +21,7 @@ import ae.utils.main;
 
 string[] workerCommand;
 size_t maxPipelining;
+ulong maxRequests;
 Duration workerTimeout = 1.weeks;
 
 final class NullConnector : Connector
@@ -77,6 +78,7 @@ private:
 
 	HttpServerConnection[] queue;
 	HttpClient http;
+	ulong sentRequests;
 
 	void start()
 	{
@@ -146,6 +148,9 @@ private:
 		queue = null;
 		http = null;
 		state = State.none;
+		sentRequests = 0;
+
+		prod();
 	}
 
 	void onResponse(HttpResponse r, string disconnectReason)
@@ -161,16 +166,26 @@ private:
 
 	void prod()
 	{
-		if (.requestQueue.length && queue.length < maxPipelining)
+		if (.requestQueue.length &&
+			queue.length < maxPipelining &&
+			sentRequests < maxRequests)
 		{
 			auto ok = acceptRequest(.requestQueue.queuePop());
 			assert(ok);
 		}
+
+		if (sentRequests == maxRequests &&
+			queue.length == 0 &&
+			state == State.running)
+			stop();
 	}
 
 public:
 	bool acceptRequest(ref Request r)
 	{
+		if (sentRequests >= maxRequests)
+			return false;
+
 		final switch (state)
 		{
 			case State.none:
@@ -187,6 +202,7 @@ public:
 		queue ~= r.conn;
 		r.req.headers["Connection"] = "keep-alive";
 		http.request(r.req, false);
+		sentRequests++;
 		return true;
 	}
 
@@ -273,10 +289,10 @@ void clb(
 		"How many requests to send to workers without waiting for a response first.",
 		"N",
 	) pipelining = 1,
-	// Option!(ulong,
-	// 	"How many requests a worker may handle before it is cycled.",
-	// 	"N",
-	// ) maxRequests = 0,
+	Option!(ulong,
+		"How many requests a worker may handle before it is cycled.",
+		"N",
+	) maxRequests = ulong.max,
 	// Option!(ulong,
 	// 	"Stop workers that have not received a request for this duration.",
 	// 	"SECONDS",
@@ -290,9 +306,11 @@ void clb(
 	enforce(listen.length, "Listen address not specified");
 	enforce(concurrency > 0, "Must have at least one worker");
 	enforce(pipelining > 0, "Must allow at least one in-flight request");
+	enforce(maxRequests > 0, "Must allow at least one request per worker");
 
 	.workerCommand = command ~ args;
 	.maxPipelining = pipelining;
+	.maxRequests = maxRequests;
 
 	if (concurrency == 0)
 		concurrency = totalCPUs;
@@ -324,6 +342,7 @@ do
 done
 EOF"];
 	.maxPipelining = 1;
+	.maxRequests = ulong.max;
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -361,6 +380,7 @@ do
 done
 EOF"];
 	.maxPipelining = 1;
+	.maxRequests = ulong.max;
 
 	createWorkers(3);
 	auto listenAddr = "clb-test";
@@ -410,6 +430,7 @@ do
 done
 EOF"];
 	.maxPipelining = 1;
+	.maxRequests = ulong.max;
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -465,6 +486,7 @@ do
 done
 EOF"];
 	.maxPipelining = 3;
+	.maxRequests = ulong.max;
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -498,4 +520,54 @@ EOF"];
 	import std.algorithm.iteration : uniq;
 	import std.range.primitives : walkLength;
 	assert(pids.sort.uniq.walkLength == 1);
+}
+
+// Test --max-requests
+unittest
+{
+	.workerCommand = ["/bin/bash", "-c", q"EOF
+while IFS= read -r line
+do
+	if [[ "$line" == $'\r' ]]
+	then
+		sleep 0.5
+		printf 'HTTP/1.1 200 OK\r\nX-PID: %d\r\nContent-Length: 2\r\n\r\nOK' "$$"
+	fi
+done
+EOF"];
+	.maxPipelining = 1;
+	.maxRequests = 1;
+
+	createWorkers(1);
+	auto listenAddr = "clb-test";
+	auto s = startServer(listenAddr);
+	scope(exit) remove(listenAddr);
+
+	string[] pids;
+
+	foreach (n; 0 .. 3)
+	{
+		auto c = new HttpClient(5.seconds, new UnixConnector(listenAddr));
+		c.handleResponse = (HttpResponse r, string disconnectReason)
+		{
+			assert(r, disconnectReason);
+			r.getContent().enter((contents) {
+				assert(contents == "OK");
+			});
+			pids ~= r.headers["X-PID"];
+			if (pids.length == 3)
+			{
+				s.close();
+				foreach (b; workers) b.shutdown();
+			}
+		};
+		c.request(new HttpRequest("http:/server/"));
+	}
+
+	socketManager.loop();
+
+	import std.algorithm.sorting : sort;
+	import std.algorithm.iteration : uniq;
+	import std.range.primitives : walkLength;
+	assert(pids.sort.uniq.walkLength == 3);
 }
