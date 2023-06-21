@@ -128,6 +128,14 @@ private:
 			stderr.writefln("Worker sent EOF unexpectedly (%s)", reason);
 			state = State.stopping; // Just wait for it to exit I guess
 		}
+
+		foreach (ref r; queue)
+			sendResponse(r, null);
+		queue = null;
+		http = null;
+		sentRequests = 0;
+		if (idleTask.isWaiting())
+			idleTask.cancel();
 	}
 
 	void onExit(int exitCode)
@@ -148,17 +156,14 @@ private:
 				break; // proceed to clean-up
 		}
 
-		foreach (ref r; queue)
-			sendResponse(r, null);
-		queue = null;
-		http = null;
+		assert(queue is null);
+		assert(http is null);
+		assert(state == State.stopping);
 		state = State.none;
-		sentRequests = 0;
-		if (idleTask.isWaiting())
-			idleTask.cancel();
+		assert(sentRequests == 0);
+		assert(!idleTask.isWaiting());
 
 		prod();
-
 	}
 
 	void sendResponse(ref Request r, HttpResponse res)
