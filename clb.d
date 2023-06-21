@@ -25,6 +25,7 @@ size_t maxPipelining;
 ulong maxRequests;
 Duration maxIdleTime;
 Duration workerTimeout;
+bool retry;
 
 final class NullConnector : Connector
 {
@@ -78,7 +79,7 @@ private:
 	}
 	State state;
 
-	HttpServerConnection[] queue;
+	Request[] queue;
 	HttpClient http;
 	ulong sentRequests;
 	// idleTask is running if (state == State.running && queue.length == 0)
@@ -147,12 +148,8 @@ private:
 				break; // proceed to clean-up
 		}
 
-		foreach (c; queue)
-		{
-			auto r = new HttpResponse();
-			r.setStatus(HttpStatusCode.BadGateway);
-			c.sendResponse(r);
-		}
+		foreach (ref r; queue)
+			sendResponse(r, null);
 		queue = null;
 		http = null;
 		state = State.none;
@@ -161,6 +158,33 @@ private:
 			idleTask.cancel();
 
 		prod();
+
+	}
+
+	void sendResponse(ref Request r, HttpResponse res)
+	{
+		if (r.conn.connected)
+		{
+			if (res)
+				r.conn.sendResponse(res);
+			else // res is null (an error occurred)
+			{
+				if (retry)
+				{
+					(Request r) { // Copy the by-ref variable
+						socketManager.onNextTick({
+							enqueueRequest(r);
+						});
+					}(r);
+				}
+				else
+				{
+					res = new HttpResponse();
+					res.setStatus(HttpStatusCode.BadGateway);
+					r.conn.sendResponse(res);
+				}
+			}
+		}
 	}
 
 	void onIdle(Timer /*timer*/, TimerTask /*task*/)
@@ -168,18 +192,14 @@ private:
 		stop();
 	}
 
-	void onResponse(HttpResponse r, string disconnectReason)
+	void onResponse(HttpResponse res, string disconnectReason)
 	{
 		assert(queue.length, "Unexpected response");
-		if (!r)
-		{
+		if (!res)
 			stderr.writefln("No response from worker: %s", disconnectReason);
-			r = new HttpResponse();
-			r.setStatus(HttpStatusCode.BadGateway);
-		}
-		auto conn = queue.queuePop();
-		if (conn.connected)
-			conn.sendResponse(r);
+		auto r = queue.queuePop();
+		sendResponse(r, res);
+
 		if (queue.length == 0 && state == State.running)
 			mainTimer.add(idleTask, now + maxIdleTime);
 
@@ -228,9 +248,12 @@ public:
 
 		if (!queue.length)
 			idleTask.cancel();
-		queue ~= r.conn;
-		r.req.headers["Connection"] = "keep-alive";
-		http.request(r.req, false);
+		auto req = r.req;
+		if (!retry)
+			r.req = null; // We don't need to keep a copy any more.
+		queue ~= r;
+		req.headers["Connection"] = "keep-alive";
+		http.request(req, false);
 		sentRequests++;
 		return true;
 	}
@@ -330,6 +353,10 @@ void clb(
 		"Stop workers/requests that have not responded to a request for this duration.",
 		"SECONDS",
 	) timeout = 1.weeks.total!"seconds",
+	Switch!(
+		"Retry requests until they succeed, instead of returning HTTP 502. " ~
+		"Suitable for stateless workers.",
+	) retry = false,
 )
 {
 	enforce(listen.length, "Listen address not specified");
@@ -342,6 +369,7 @@ void clb(
 	.maxRequests = maxRequests;
 	.maxIdleTime = maxIdle.seconds;
 	.workerTimeout = timeout.seconds;
+	.retry = retry;
 
 	if (concurrency == 0)
 		concurrency = totalCPUs;
@@ -376,6 +404,7 @@ EOF"];
 	.maxRequests = ulong.max;
 	.maxIdleTime = 60.seconds;
 	.workerTimeout = 1.weeks;
+	.retry = false;
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -416,6 +445,7 @@ EOF"];
 	.maxRequests = ulong.max;
 	.maxIdleTime = 60.seconds;
 	.workerTimeout = 1.weeks;
+	.retry = false;
 
 	createWorkers(3);
 	auto listenAddr = "clb-test";
@@ -468,6 +498,7 @@ EOF"];
 	.maxRequests = ulong.max;
 	.maxIdleTime = 60.seconds;
 	.workerTimeout = 1.weeks;
+	.retry = false;
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -526,6 +557,7 @@ EOF"];
 	.maxRequests = ulong.max;
 	.maxIdleTime = 60.seconds;
 	.workerTimeout = 1.weeks;
+	.retry = false;
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -578,6 +610,7 @@ EOF"];
 	.maxRequests = 1;
 	.maxIdleTime = 60.seconds;
 	.workerTimeout = 1.weeks;
+	.retry = false;
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -629,6 +662,7 @@ EOF"];
 	.maxRequests = ulong.max;
 	.maxIdleTime = 500.msecs;
 	.workerTimeout = 1.weeks;
+	.retry = false;
 
 	createWorkers(1);
 	auto listenAddr = "clb-test";
@@ -685,6 +719,7 @@ EOF"];
 	.maxRequests = ulong.max;
 	.maxIdleTime = 60.seconds;
 	.workerTimeout = 500.msecs;
+	.retry = false;
 
 	createWorkers(3);
 	auto listenAddr = "clb-test";
@@ -719,4 +754,59 @@ EOF"];
 	import std.range.primitives : walkLength;
 	assert(pids.sort.uniq.walkLength == 3);
 	assert(pids.canFind(null));  // One request was lost
+}
+
+// Test --retry
+unittest
+{
+	.workerCommand = ["/bin/bash", "-c", q"EOF
+# Buggy worker that stops replying after the first reply
+while IFS= read -r line
+do
+	if [[ "$line" == $'\r' ]]
+	then
+		printf 'HTTP/1.1 200 OK\r\nX-PID: %d\r\nContent-Length: 2\r\n\r\nOK' "$$"
+		sleep 1  # Still exit after some time to allow the unittest to terminate
+	fi
+done
+EOF"];
+	.maxPipelining = 1;
+	.maxRequests = ulong.max;
+	.maxIdleTime = 60.seconds;
+	.workerTimeout = 500.msecs;
+	.retry = true;
+
+	createWorkers(3);
+	auto listenAddr = "clb-test";
+	auto s = startServer(listenAddr);
+	scope(exit) remove(listenAddr);
+
+	string[] pids;
+
+	void sendRequest()
+	{
+		auto c = new HttpClient(5.seconds, new UnixConnector(listenAddr));
+		c.handleResponse = (HttpResponse r, string disconnectReason)
+		{
+			assert(r, disconnectReason);
+			pids ~= r.headers.get("X-PID", null);
+			if (pids.length == 3)
+			{
+				s.close();
+				foreach (b; workers) b.shutdown();
+			}
+			else
+				sendRequest();
+		};
+		c.request(new HttpRequest("http://server/"));
+	}
+	sendRequest();
+
+	socketManager.loop();
+
+	import std.algorithm.sorting : sort;
+	import std.algorithm.iteration : uniq;
+	import std.range.primitives : walkLength;
+	assert(pids.sort.uniq.walkLength == 3);
+	assert(!pids.canFind(null));  // No requests were lost because of --retry
 }
