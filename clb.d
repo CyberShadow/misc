@@ -386,7 +386,7 @@ EOF"];
 		s.close();
 		foreach (b; workers) b.shutdown();
 	};
-	c.request(new HttpRequest("http:/server/"));
+	c.request(new HttpRequest("http://server/"));
 
 	socketManager.loop();
 	assert(ok);
@@ -432,7 +432,7 @@ EOF"];
 				foreach (b; workers) b.shutdown();
 			}
 		};
-		c.request(new HttpRequest("http:/server/"));
+		c.request(new HttpRequest("http://server/"));
 	}
 
 	socketManager.loop();
@@ -483,7 +483,7 @@ EOF"];
 				foreach (b; workers) b.shutdown();
 			}
 		};
-		c.request(new HttpRequest("http:/server/"));
+		c.request(new HttpRequest("http://server/"));
 	}
 
 	socketManager.loop();
@@ -540,7 +540,7 @@ EOF"];
 				foreach (b; workers) b.shutdown();
 			}
 		};
-		c.request(new HttpRequest("http:/server/"));
+		c.request(new HttpRequest("http://server/"));
 	}
 
 	socketManager.loop();
@@ -591,7 +591,7 @@ EOF"];
 				foreach (b; workers) b.shutdown();
 			}
 		};
-		c.request(new HttpRequest("http:/server/"));
+		c.request(new HttpRequest("http://server/"));
 	}
 
 	socketManager.loop();
@@ -643,7 +643,7 @@ EOF"];
 			else
 				setTimeout(&sendRequest, 1.seconds);
 		};
-		c.request(new HttpRequest("http:/server/"));
+		c.request(new HttpRequest("http://server/"));
 	}
 	sendRequest();
 
