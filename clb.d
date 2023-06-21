@@ -317,11 +317,12 @@ HttpServer startServer(string socketPath)
 	return httpServer;
 }
 
+@(`Simple HTTP load balancer with auto-scaling.`)
 void clb(
 	Parameter!(string,
 		"Program to start one worker instance.\n" ~
-		"Workers receive one request at a time over standard input, " ~
-		"and send the response over standard output.\n" ~
+		"Workers receive requests over standard input, " ~
+		"and send responses in the same order over standard output. " ~
 		"EOF on stdin indicates a request to shut down.",
 		"COMMAND",
 	) command,
@@ -334,7 +335,8 @@ void clb(
 		"ADDRESS"
 	) listen = null,
 	Option!(uint,
-		"How many workers may run at the same time.",
+		"How many workers may run at the same time.\n" ~
+		"This includes workers which are starting or stopping.",
 		"N", 'j',
 	) concurrency = 0,
 	Option!(size_t,
