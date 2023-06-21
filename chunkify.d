@@ -4,6 +4,9 @@
  dependency "chunker" version="==0.0.1"
 +/
 
+/// Split a file into content-defined chunks.
+module chunkify;
+
 import std.algorithm.iteration;
 import std.format;
 import std.stdio;
