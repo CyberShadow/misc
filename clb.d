@@ -154,7 +154,7 @@ private:
 		assert(state == State.running || state == State.stopping);
 		if (state != State.stopping)
 		{
-			stderr.writefln("Worker sent EOF unexpectedly (%s)", reason);
+			stderr.writefln("clb: Worker sent EOF unexpectedly (%s)", reason);
 			state = State.stopping; // Just wait for it to exit I guess
 		}
 
@@ -176,14 +176,14 @@ private:
 	void onExit(int exitCode)
 	{
 		if (exitCode != 0)
-			stderr.writefln("Worker exited abnormally (exit code %d)", exitCode);
+			stderr.writefln("clb: Worker exited abnormally (exit code %d)", exitCode);
 
 		final switch (state)
 		{
 			case State.none:
 				assert(false);
 			case State.running:
-				stderr.writeln("Worker exited unexpectedly");
+				stderr.writeln("clb: Worker exited unexpectedly");
 				state = State.stopping;
 				http.disconnect();
 				break; // proceed to clean-up
@@ -222,7 +222,7 @@ private:
 		assert(killSchedule.length);
 		assert(pid);
 		auto signal = killSchedule.shift().signal;
-		stderr.writefln("Killing worker PID %d with %d", pid.processID(), signal);
+		stderr.writefln("clb: Killing worker PID %d with %d", pid.processID(), signal);
 		pid.kill(signal);
 		prodKill();
 	}
@@ -262,7 +262,7 @@ private:
 	{
 		assert(queue.length, "Unexpected response");
 		if (!res)
-			stderr.writefln("No response from worker: %s", disconnectReason);
+			stderr.writefln("clb: No response from worker: %s", disconnectReason);
 		auto r = queue.queuePop();
 		sendResponse(r, res);
 
