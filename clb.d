@@ -289,7 +289,8 @@ private:
 	{
 		if (.requestQueue.length &&
 			queue.length < maxPipelining &&
-			sentRequests < maxRequests)
+			sentRequests < maxRequests &&
+			state != State.stopping)
 		{
 			auto ok = acceptRequest(.requestQueue.queuePop());
 			assert(ok);
@@ -607,14 +608,17 @@ void clb(
 			worker.shutdown();
 		workers = null;
 		foreach (ref r; requestQueue)
+		{
 			if (r.conn.connected)
 			{
 				auto res = new HttpResponse();
 				res.setStatus(HttpStatusCode.ServiceUnavailable);
 				res.headers["Connection"] = "close";
 				r.conn.sendResponse(res);
-				r.conn.conn.disconnect();
 			}
+			if (r.conn.conn.state.disconnectable)
+				r.conn.conn.disconnect();
+		}
 		requestQueue = null;
 	});
 
