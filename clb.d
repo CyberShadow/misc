@@ -437,6 +437,9 @@ string toHTML(T)(T v)
 			s ~= v.get().toHTML();
 	}
 	else
+	static if (__traits(hasMember, T, "toString"))
+		s ~= v.toString();
+	else
 	static if (is(T : U[], U) && is(U == struct))
 	{
 		s ~= `<table border="1">`;
