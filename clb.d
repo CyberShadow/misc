@@ -17,7 +17,7 @@ import std.process;
 import std.socket : AddressInfo, AddressFamily, SocketType, UnixAddress;
 import std.stdio : stderr;
 import std.string : isNumeric, representation;
-import std.typecons : Nullable;
+import std.typecons : Nullable, apply;
 
 import ae.net.asockets;
 import ae.net.http.client;
@@ -30,6 +30,7 @@ import ae.utils.funopt;
 import ae.utils.json;
 import ae.utils.main;
 import ae.utils.text : splitByCamelCase;
+import ae.utils.typecons : flatten;
 import ae.utils.xml.entities : encodeEntities;
 
 struct KillRule
@@ -86,6 +87,16 @@ Promise!(T, E) threadAsync(T, E = Exception)(T delegate() value)
 	return p;
 }
 
+final class WorkerHttpClient : HttpClient
+{
+	this(Duration timeout, IConnection c)
+	{
+		super(timeout, new NullConnector(c));
+	}
+
+	Nullable!MonoTime whenTimeout() { return timer.when; }
+}
+
 final class Worker
 {
 private:
@@ -100,7 +111,7 @@ private:
 
 	Request[] queue;
 	IConnection c;
-	HttpClient http;
+	WorkerHttpClient http;
 	ulong sentRequests;
 	// idleTask is running if (state == State.running && queue.length == 0)
 	TimerTask idleTask;
@@ -127,7 +138,7 @@ private:
 			new FileConnection(pipes.stdin.fileno.dup),
 		);
 		assert(c.state == ConnectionState.connected);
-		http = new HttpClient(workerTimeout, new NullConnector(c));
+		http = new WorkerHttpClient(workerTimeout, c);
 		http.keepAlive = true;
 		http.pipelining = true;
 		http.handleResponse = &onResponse;
@@ -347,6 +358,7 @@ public:
 		ulong sentRequests;
 		size_t inFlightRequests;
 		Nullable!ConnectionState downstreamConnectionState;
+		Nullable!Duration timeUntilTimeout;
 		Nullable!Duration timeUntilIdle;
 		Nullable!int nextKillSignal;
 		Nullable!Duration timeUntilKill;
@@ -362,6 +374,7 @@ public:
 			this.sentRequests,
 			this.queue.length,
 			maybe(queue.length > 0, queue[0].conn.conn.state),
+			maybe(http !is null, http.whenTimeout).flatten().apply!(t => t - now),
 			maybe(idleTask.isWaiting(), idleTask.when - now),
 			maybe(killSchedule.length > 0, killSchedule[0].signal),
 			maybe(killSchedule.length > 0, killSchedule[0].when - now),
