@@ -362,9 +362,9 @@ public:
 			this.sentRequests,
 			this.queue.length,
 			maybe(queue.length > 0, queue[0].conn.conn.state),
-			maybe(idleTask.isWaiting(), now - idleTask.when),
+			maybe(idleTask.isWaiting(), idleTask.when - now),
 			maybe(killSchedule.length > 0, killSchedule[0].signal),
-			maybe(killSchedule.length > 0, now - killSchedule[0].when),
+			maybe(killSchedule.length > 0, killSchedule[0].when - now),
 		);
 	}
 }
