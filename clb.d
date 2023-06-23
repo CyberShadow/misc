@@ -246,7 +246,9 @@ private:
 				else
 				{
 					res = new HttpResponse();
-					res.setStatus(HttpStatusCode.BadGateway);
+					res.setStatus(state == State.stopping
+						? HttpStatusCode.ServiceUnavailable
+						: HttpStatusCode.BadGateway);
 					r.conn.sendResponse(res);
 				}
 			}
@@ -583,9 +585,21 @@ void clb(
 	auto server = startServer(listen, enableStatus);
 
 	addShutdownHandler((reason) {
+		.retry = false;
 		server.close();
 		foreach (worker; workers)
 			worker.shutdown();
+		workers = null;
+		foreach (ref r; requestQueue)
+			if (r.conn.connected)
+			{
+				auto res = new HttpResponse();
+				res.setStatus(HttpStatusCode.ServiceUnavailable);
+				res.headers["Connection"] = "close";
+				r.conn.sendResponse(res);
+				r.conn.conn.disconnect();
+			}
+		requestQueue = null;
 	});
 
 	socketManager.loop();
