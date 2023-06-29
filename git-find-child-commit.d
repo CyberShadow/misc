@@ -12,6 +12,16 @@ module git_find_child_commit;
 
 private:
 
+import std.algorithm.iteration;
+import std.algorithm.searching;
+import std.array;
+import std.digest.sha;
+import std.parallelism;
+import std.process;
+import std.stdio;
+import std.string;
+import std.typecons;
+
 import ae.sys.git;
 import ae.utils.array;
 import ae.utils.digest;
@@ -20,14 +30,6 @@ import ae.utils.main;
 import ae.utils.meta;
 import ae.utils.text;
 
-import std.algorithm.iteration;
-import std.algorithm.searching;
-import std.array;
-import std.digest.sha;
-import std.process;
-import std.stdio;
-import std.string;
-
 int git_find_child_commit(
 	string parentCommitID,
 )
@@ -35,32 +37,43 @@ int git_find_child_commit(
 	auto parsedParentCommitID = Git.CommitID(parentCommitID);
 
 	auto repo = Git(".");
-	auto reader = repo.createObjectReader();
 
 	auto p = repo.pipe(["cat-file", "--batch-check", "--batch-all-objects"]);
 	bool found;
 
-	foreach (oline; p.stdout.byLine)
-	{
-		try
-		{
-			auto line = oline;
+	auto commits = p.stdout
+		.byLine
+		.map!((line) {
 			auto oid = Git.OID(line.skipUntil(' '));
 			auto type = line.skipUntil(' ', true);
-			if (type != "commit")
-				continue;
+			return tuple(oid, type);
+		})
+		.filter!(p => p[1] == "commit")
+		.map!(p => p[0])
+	;
+	auto monitor = new Object;
 
-			stderr.write(oid.toString(), "\r"); stderr.flush();
+	foreach (oid; commits.parallel(64))
+	{
+		static Git.ObjectReader reader;
+		if (reader is Git.ObjectReader.init)
+			reader = repo.createObjectReader();
+
+		static uint counter;
+		try
+		{
+			if (counter++ % 64 == 0)
+				synchronized(monitor) { stderr.write(oid.toString()[0 .. 4], "...\r"); stderr.flush(); }
 			auto commit = reader.read(oid).parseCommit();
 			foreach (parent; commit.parents)
 				if (parent == parsedParentCommitID)
 				{
-					writeln(oid.toString());
+					synchronized(monitor) writeln(oid.toString());
 					found = true;
 				}
 		}
 		catch (Exception e)
-			stderr.writeln("Error with " ~ oline ~ ": " ~ e.msg);
+			synchronized(monitor) stderr.writeln("Error with " ~ oid.toString() ~ ": " ~ e.msg);
 	}
 	p.pid.wait();
 
