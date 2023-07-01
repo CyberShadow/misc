@@ -41,17 +41,20 @@ import ae.utils.time.format;
 
 enum canBisectAfter = Date(2011, 07, 01);
 
+@(`Runs a command against all DMD versions.
+
+Example: dreg -d dmd -o- test.d`)
 void program(
 	Parameter!(string, "Program to run (e.g. `dmd`)") program,
-	Parameter!(string[], "Arguments to program to run (e.g. `-o- test.d`)") programArgs,
-	Switch!("Bisect the cause of changes in success/failure", 'b', "bisect") doBisect,
-	Switch!("Bisect all changes in exit status", 0, "status") doBisectStatus,
-	Switch!("Bisect all changes in output", 0, "output") doBisectOutput,
-	Switch!("Instead of downloading releases, build D with Digger", 'D', "digger") useDigger,
-	Option!(string[], "When building D with Digger, build without these components", "COMPONENT") without,
-	Switch!("Download all missing D versions", 'd', "download") doDownload,
-	Switch!("Force single-threaded execution", 's', "single-threaded") singleThreadedSwitch,
-	Switch!("Target 32-bit", 0, "32") use32Bit,
+	Parameter!(string[], "Arguments to program to run (e.g. `-o- test.d`)") programArgs = null,
+	Switch!("Bisect the cause of changes in success/failure", 'b', "bisect") doBisect = false,
+	Switch!("Bisect all changes in exit status", 0, "status") doBisectStatus = false,
+	Switch!("Bisect all changes in output", 0, "output") doBisectOutput = false,
+	Switch!("Instead of downloading releases, build D with Digger", 'D', "digger") useDigger = false,
+	Option!(string[], "When building D with Digger, build without these components", "COMPONENT") without = null,
+	Switch!("Download all missing D versions", 'd', "download") doDownload = false,
+	Switch!("Force single-threaded execution", 's', "single-threaded") singleThreadedSwitch = false,
+	Switch!("Target 32-bit", 0, "32") use32Bit = false,
 	Option!(string, "Minimum version", "VERSION", 0, "min") minVer = "1.0",
 	Option!(string, "Maximum version", "VERSION", 0, "max") maxVer = null,
 ) {
