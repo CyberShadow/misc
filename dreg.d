@@ -132,6 +132,7 @@ void program(
 			.array
 			.sort!compareVersion
 			.release;
+		enforce(versions.length, "No DMD versions found. Maybe run with -d first?");
 	}
 
 	versions = versions
