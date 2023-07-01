@@ -42,8 +42,8 @@ import ae.utils.time.format;
 enum canBisectAfter = Date(2011, 07, 01);
 
 void program(
-	Parameter!(string, "Program to run") program,
-	Parameter!(string[], "Arguments to program to run") programArgs,
+	Parameter!(string, "Program to run (e.g. `dmd`)") program,
+	Parameter!(string[], "Arguments to program to run (e.g. `-o- test.d`)") programArgs,
 	Switch!("Bisect the cause of changes in success/failure", 'b', "bisect") doBisect,
 	Switch!("Bisect all changes in exit status", 0, "status") doBisectStatus,
 	Switch!("Bisect all changes in output", 0, "output") doBisectOutput,
