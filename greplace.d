@@ -114,10 +114,10 @@ void greplace(
 		foreach (target; targets)
 			target.listDir!((entry) {
 				Bytes s;
-				if (!noFilenames && entry.isSymlink)
+				if (!noFilenames && !followSymlinks && entry.isSymlink)
 					s = cast(Bytes)readLink(entry.fullName);
 				else
-				if (!noContent && entry.entryIsFile)
+				if (!noContent && (followSymlinks ? entry.isFile : entry.entryIsFile))
 					s = cast(Bytes)std.file.read(entry.fullName);
 
 				if (s)
@@ -129,7 +129,7 @@ void greplace(
 				if (!noFilenames && entry.fullName.asBytes.I!replace(from, to, false).I!replace(to, from, false) != entry.fullName)
 					throw new Exception("File name " ~ entry.fullName ~ " already contains " ~ to);
 
-				if (entry.entryIsDir)
+				if (followSymlinks ? entry.isDir : entry.entryIsDir)
 					entry.recurse();
 			}, Yes.includeRoot);
 
@@ -150,10 +150,10 @@ void greplace(
 				entry.fullName ~ " != " ~ currentPath);
 
 			Bytes s;
-			if (!noFilenames && entry.isSymlink())
+			if (!noFilenames && !followSymlinks && entry.isSymlink)
 				s = cast(Bytes)readLink(currentPath);
 			else
-			if (!noContent && entry.entryIsFile())
+			if (!noContent && (followSymlinks ? entry.isFile : entry.entryIsFile))
 				s = cast(Bytes)std.file.read(currentPath);
 
 			if (s)
@@ -167,13 +167,13 @@ void greplace(
 
 					if (!dryRun)
 					{
-						if (entry.isSymlink())
+						if (!followSymlinks && entry.isSymlink)
 						{
 							remove(currentPath);
 							symlink(cast(string)s, currentPath);
 						}
 						else
-						if (entry.entryIsFile())
+						if (followSymlinks ? entry.isFile : entry.entryIsFile)
 							std.file.write(currentPath, s);
 						else
 							assert(false);
@@ -210,7 +210,7 @@ void greplace(
 				}
 			}
 
-			if (entry.entryIsDir())
+			if (followSymlinks ? entry.isDir : entry.entryIsDir)
 			{
 				// Avoid modifying the directory we're iterating by eagerly enumerating its entries.
 				string[] entries;
@@ -436,6 +436,21 @@ unittest
 	symlink("foo", dir ~ "/baz");
 	mainFunc(["greplace", "foo", "bar", dir ~ "/baz"]);
 	assert(readLink(dir ~ "/baz") == "bar");
+}
+
+// Following symlinks
+version (Posix)
+unittest
+{
+	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
+	mkdir(dir ~ "/target1"); std.file.write(dir ~ "/target1/file.txt", "foo");
+	std.file.write(dir ~ "/target2.txt", "foo");
+	mkdir(dir ~ "/src");
+	symlink("../target1", dir ~ "/src/link1");
+	symlink("../target2.txt", dir ~ "/src/link2.txt");
+	mainFunc(["greplace", "--follow-symlinks", "foo", "bar", dir ~ "/src"]);
+	assert(readText(dir ~ "/target1/file.txt") == "bar");
+	assert(readText(dir ~ "/target2.txt") == "bar");
 }
 
 // Case-insensitive
