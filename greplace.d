@@ -34,6 +34,7 @@ import ae.utils.text.ascii;
 
 void greplace(
 	Switch!("Perform replacement even if it is not reversible", 'f') force,
+	Switch!("Copy instead of renaming files", 'c') copy,
 	Switch!("Do not actually make any changes", 'n') dryRun,
 	Switch!("Search and replace in UTF-16") wide,
 	Switch!("Only search and replace in file names and paths") noContent,
@@ -156,6 +157,60 @@ void greplace(
 			if (!noContent && (followSymlinks ? entry.isFile : entry.entryIsFile))
 				s = cast(Bytes)std.file.read(currentPath);
 
+			bool writeNeeded;
+
+			string targetName = currentName;
+			string targetPath = currentPath;
+
+			if (!noFilenames)
+			{
+				targetName = originalName.asBytes.I!replace(from, to, false).as!string;
+				targetPath = root.buildPath(targetName);
+
+				if (targetName != originalName)
+					writeln(originalPath, " -> ", targetPath);
+
+				if (targetName != currentName)
+				{
+					if (!exists(targetPath.dirName))
+					{
+						if (!dryRun)
+							mkdirRecurse(targetPath.dirName);
+					}
+
+					if (copy)
+						writeNeeded = true;
+					else
+					{
+						if (!dryRun)
+						{
+							std.file.rename(currentPath, targetPath);
+
+							// TODO: empty folders
+
+							auto segments = currentName.pathSplitter().array()[0 .. $-1];
+							foreach_reverse (i; 0 .. segments.length)
+							{
+								auto dir = buildPath([root] ~ segments[0 .. i+1]);
+								if (dir.dirEntries(SpanMode.shallow).empty)
+									rmdir(dir);
+							}
+						}
+
+						if (dryRun)
+						{
+							// TODO: Pretend that the files were renamed
+						}
+						else
+						{
+							// Track that we have renamed this file.
+							currentName = targetName;
+							currentPath = targetPath;
+						}
+					}
+				}
+			}
+
 			if (s)
 			{
 				auto orig = s;
@@ -164,50 +219,29 @@ void greplace(
 				if (s !is orig && s != orig)
 				{
 					writeln(currentPath);
-
-					if (!dryRun)
-					{
-						if (!followSymlinks && entry.isSymlink)
-						{
-							remove(currentPath);
-							symlink(cast(string)s, currentPath);
-						}
-						else
-						if (followSymlinks ? entry.isFile : entry.entryIsFile)
-							std.file.write(currentPath, s);
-						else
-							assert(false);
-					}
+					writeNeeded = true;
 				}
 			}
 
-			if (!noFilenames)
+			if (writeNeeded && !dryRun)
 			{
-				string newName = originalName.asBytes.I!replace(from, to, false).as!string;
-				string newPath = root.buildPath(newName);
-
-				if (newName != originalName)
-					writeln(originalPath, " -> ", newPath);
-
-				if (newName != currentName && !dryRun)
+				if (!followSymlinks && entry.isSymlink)
 				{
-					if (!exists(newPath.dirName))
-						mkdirRecurse(newPath.dirName);
-					std.file.rename(currentPath, newPath);
-
-					// TODO: empty folders
-
-					auto segments = currentName.pathSplitter().array()[0 .. $-1];
-					foreach_reverse (i; 0 .. segments.length)
-					{
-						auto dir = buildPath([root] ~ segments[0 .. i+1]);
-						if (dir.dirEntries(SpanMode.shallow).empty)
-							rmdir(dir);
-					}
-
-					currentName = newName;
-					currentPath = newPath;
+					if (currentPath == targetPath)
+						remove(targetPath);
+					symlink(cast(string)s, targetPath);
 				}
+				else
+				if (followSymlinks ? entry.isFile : entry.entryIsFile)
+					std.file.write(targetPath, s);
+				else
+				if (followSymlinks ? entry.isDir : entry.entryIsDir)
+				{
+					assert(copy);
+					mkdir(targetPath);
+				}
+				else
+					assert(false);
 			}
 
 			if (followSymlinks ? entry.isDir : entry.entryIsDir)
@@ -384,6 +418,17 @@ unittest
 	std.file.write(dir ~ "/foo/foo/foo.txt", "foo");
 	mainFunc(["greplace", "-n", "foo", "foobar", dir]);
 	assert(readText(dir ~ "/foo/foo/foo.txt") == "foo");
+}
+
+// Copy mode
+unittest
+{
+	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
+	mkdirRecurse(dir ~ "/foo/foo");
+	std.file.write(dir ~ "/foo/foo/foo.txt", "foo");
+	mainFunc(["greplace", "-c", "foo", "bar", dir]);
+	assert(readText(dir ~ "/foo/foo/foo.txt") == "foo");
+	assert(readText(dir ~ "/bar/bar/bar.txt") == "bar");
 }
 
 // Renamed empty directories
