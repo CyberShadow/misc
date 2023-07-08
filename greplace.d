@@ -1,6 +1,6 @@
 #!/usr/bin/env dub
 /+ dub.sdl:
- dependency "ae" version="==0.0.3236"
+ dependency "ae" version="==0.0.3424"
 +/
 
 /**
@@ -67,42 +67,42 @@ void greplace(
 		{
 			haystack = std.array.replace(
 				haystack,
-				from.bytes,
-				to.bytes,
+				from.asBytes,
+				to.asBytes,
 			);
 
 			if (inFileContents && wide)
 			{
 				haystack = std.array.replace(
 					haystack,
-					fromw.bytes,
-					tow.bytes,
+					fromw.asBytes,
+					tow.asBytes,
 				);
 			}
 		}
 		else
 		{
 			haystack = caseInsensitiveReplace(
-				haystack.fromBytes!string,
+				haystack.as!string,
 				from,
 				to
-			).bytes;
+			).asBytes;
 
 			if (inFileContents && wide)
 			{
 				// Even offsets
 				haystack = caseInsensitiveReplace(
-					haystack[0 .. $ / 2 * 2].fromBytes!wstring,
+					haystack[0 .. $ / 2 * 2].as!wstring,
 					from,
 					to
-				).bytes ~ haystack[$ / 2 * 2 .. $];
+				).asBytes ~ haystack[$ / 2 * 2 .. $];
 				// Odd offsets
 				if (haystack.length)
 				haystack = haystack[0 .. 1] ~ caseInsensitiveReplace(
-					haystack[1 .. 1 + ($ - 1) / 2 * 2].fromBytes!wstring,
+					haystack[1 .. 1 + ($ - 1) / 2 * 2].as!wstring,
 					from,
 					to
-				).bytes ~ haystack[1 + ($ - 1) / 2 * 2 .. $];
+				).asBytes ~ haystack[1 + ($ - 1) / 2 * 2 .. $];
 			}
 		}
 
@@ -126,7 +126,7 @@ void greplace(
 						throw new Exception("File " ~ entry.fullName ~ " already contains " ~ to);
 				}
 
-				if (!noFilenames && entry.fullName.bytes.I!replace(from, to, false).I!replace(to, from, false) != entry.fullName)
+				if (!noFilenames && entry.fullName.asBytes.I!replace(from, to, false).I!replace(to, from, false) != entry.fullName)
 					throw new Exception("File name " ~ entry.fullName ~ " already contains " ~ to);
 
 				if (entry.entryIsDir)
@@ -183,7 +183,7 @@ void greplace(
 
 			if (!noFilenames)
 			{
-				string newName = originalName.bytes.I!replace(from, to, false).fromBytes!string;
+				string newName = originalName.asBytes.I!replace(from, to, false).as!string;
 				string newPath = root.buildPath(newName);
 
 				if (newName != originalName)
@@ -293,7 +293,7 @@ H caseInsensitiveReplace(H)(H haystack, string from, string to)
 		return result.data;
 	}
 
-	if (from.bytes.all!(c => c < 0x80))
+	if (from.asBytes.all!(c => c < 0x80))
 	{
 		// ASCII case-insensitive search
 		struct Pred
