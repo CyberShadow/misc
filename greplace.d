@@ -1,6 +1,6 @@
 #!/usr/bin/env dub
 /+ dub.sdl:
- dependency "ae" version="==0.0.3424"
+ dependency "ae" version="==0.0.3432"
 +/
 
 /**
@@ -429,6 +429,19 @@ unittest
 	mainFunc(["greplace", "-c", "foo", "bar", dir]);
 	assert(readText(dir ~ "/foo/foo/foo.txt") == "foo");
 	assert(readText(dir ~ "/bar/bar/bar.txt") == "bar");
+}
+
+// Replace in current directory
+unittest
+{
+	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
+	std.file.write(dir ~ "/test.txt", "foo");
+	{
+		auto oldPwd = getcwd(); scope(exit) chdir(oldPwd);
+		chdir(dir);
+		mainFunc(["greplace", "foo", "bar"]);
+	}
+	assert(readText(dir ~ "/test.txt") == "bar");
 }
 
 // Renamed empty directories
