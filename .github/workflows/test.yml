@@ -1,0 +1,32 @@
+name: test
+on: [ push, pull_request ]
+
+jobs:
+  test:
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        os: [ ubuntu-20.04 ]
+        dc: [ dmd-2.100.0 ]
+        arch: [ x86_64 ]
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install D compiler
+        uses: dlang-community/setup-dlang@1ccbc70a0eff7f264857b53c562aa45fd7f1e479
+        with:
+          compiler: ${{ matrix.dc }}
+
+      - run: |
+          set -eEuo pipefail
+          for f in *.d ; do
+            src=$(cat "$f")
+            if [[ "$src" == '#!/usr/bin/env dub'* ]] ; then
+              DFLAGS=-unittest dub --single "$f"
+            # elif [[ "$src" == *$'\nvoid main('* || "$src" == *$'\nint main('* || "$src" == *$'\nmixin main!(funopt!'* ]] ; then
+            #   dmd -g -i -unittest -run "$f"
+            # else
+            #   dmd -g -i -unittest -main -run "$f"
+            fi
+          done
