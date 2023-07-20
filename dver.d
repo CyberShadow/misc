@@ -24,12 +24,19 @@ import ae.utils.meta : I;
 
 version (Posix) import core.sys.posix.sys.stat;
 
+enum Compiler
+{
+	dmd,
+	ldc,
+}
+
 int dver(
 	Switch!("Download versions if not present", 'd') download,
 	Switch!("Verbose output", 'v') verbose,
 	Switch!("Run via Wine", 'w') wine,
 	Switch!("Use 32-bit model", 0, "32") model32,
 	Option!(string, "Whether to use a beta release, and which") beta,
+	Option!(Compiler, "Compiler") compiler/* = Compiler.dmd*/,
 	Parameter!(string, "D version to use") dVersion,
 	Parameter!(string, "Program to execute") program,
 	Parameter!(string[], "Program arguments") args = null,
@@ -39,7 +46,7 @@ int dver(
 
 	auto downloadDir = environment.get("DMD_DOWNLOAD_DIR", null)
 		.enforce("Please set the environment variable DMD_DOWNLOAD_DIR to " ~
-			"the location where DMD versions should be downloaded and unpacked."
+			"the location where D versions should be downloaded and unpacked."
 		);
 
 	string baseVersion = dVersion;
@@ -66,46 +73,34 @@ int dver(
 		else
 			static assert(false);
 	}
-
-	string platformSuffix = baseVersion < "2.071.0" ? "" : "." ~ platform;
-	auto dir = downloadDir.buildPath("dmd." ~ dVersion ~ platformSuffix);
-
-	string model = model32 ? "32" : "64";
-	string[] binDirs = [
-		`dmd2/` ~ platform ~ `/bin` ~ model,
-		`dmd2/` ~ platform ~ `/bin`,
-		`dmd/` ~ platform ~ `/bin` ~ model,
-		`dmd/` ~ platform ~ `/bin`,
-		`dmd/bin`,
-	];
-	string[] srcDirs = [
-		`dmd/src`,
-		`dmd2/src`,
-	];
 	string binExt = platform == "windows" ? ".exe" : "";
 
-	bool found;
-	if (dir.exists)
+	string fn, dir, url, platformSuffix, majorVersionMask;
+	string compilerExecutable;
+	string[] binDirs;
+	string[] srcDirs;
+	final switch (compiler)
 	{
-		foreach (binDir; binDirs)
-		{
-			auto binPath = dir ~ `/` ~ binDir;
-			auto dmd = binPath ~ "/dmd" ~ binExt;
-			if (dmd.exists)
-			{
-				if (verbose) stderr.writefln("dver: Found dmd: %s", dmd);
-				found = true;
-				break;
-			}
-		}
-		enforce(found, "Directory exists but did not find DMD binary: " ~ dir);
-	}
+		case Compiler.dmd:
+			compilerExecutable = "dmd";
+			auto base = "dmd." ~ dVersion;
+			platformSuffix = baseVersion < "2.071.0" ? "" : "." ~ platform;
+			dir = downloadDir.buildPath(base ~ platformSuffix);
+			majorVersionMask = base ~ ".*";
 
-	if (!found)
-	{
-		if (download)
-		{
-			string fn, url;
+			string model = model32 ? "32" : "64";
+			binDirs = [
+				`dmd2/` ~ platform ~ `/bin` ~ model,
+				`dmd2/` ~ platform ~ `/bin`,
+				`dmd/` ~ platform ~ `/bin` ~ model,
+				`dmd/` ~ platform ~ `/bin`,
+				`dmd/bin`,
+			];
+			srcDirs = [
+				`dmd/src`,
+				`dmd2/src`,
+			];
+
 			if (baseVersion.startsWith("0."))
 			{
 				fn = "dmd.%s.zip".format(
@@ -117,7 +112,7 @@ int dver(
 			}
 			else
 			{
-				fn = "dmd." ~ dVersion ~ platformSuffix ~ ".zip";
+				fn = base ~ platformSuffix ~ ".zip";
 				url = "http://downloads.dlang.org/%sreleases/%s.x/%s/%s".format(
 					beta ? "pre-" : "",
 					baseVersion[0],
@@ -125,6 +120,64 @@ int dver(
 					fn,
 				);
 			}
+			break;
+
+		case Compiler.ldc:
+			compilerExecutable = "ldc2";
+			auto base = "ldc2-" ~ dVersion;
+			majorVersionMask = base ~ "-*";
+			auto os = platform;
+			auto arch =
+				os == "windows" ? (
+					model32 ? "x86" : "x64"
+				) :
+				os == "linux" ? (
+					model32 ? null : "x86_64"
+				) : null;
+			enforce(arch, "Can't target this compiler/OS/model");
+			auto model = model32 ? "32" : "64";
+
+			platformSuffix = "-" ~ os ~ "-" ~ arch;
+			auto ext = platform == "windows" ? ".7z" : ".tar.xz";
+			if (platform == "windows" && dVersion.value.split(".").map!(to!int).array < [1, 7])
+			{
+				platformSuffix = "-win" ~ model ~ "-msvc";
+				ext = ".zip";
+			}
+			dir = downloadDir.buildPath(base ~ platformSuffix);
+			fn = base ~ platformSuffix ~ ext;
+			url = "https://github.com/ldc-developers/ldc/releases/download/v%s/%s".format(dVersion, fn);
+
+			binDirs = [
+				base ~ platformSuffix ~ "/bin",
+			];
+			srcDirs = [
+				base ~ platformSuffix ~ "/import",
+			];
+			break;
+	}
+
+	bool found;
+	if (dir.exists)
+	{
+		foreach (binDir; binDirs)
+		{
+			auto binPath = dir ~ `/` ~ binDir;
+			auto executablePath = binPath ~ "/" ~ compilerExecutable ~ binExt;
+			if (executablePath.exists)
+			{
+				if (verbose) stderr.writefln("dver: Found %s: %s", compilerExecutable, executablePath);
+				found = true;
+				break;
+			}
+		}
+		enforce(found, "Directory exists but did not find DMD binary: " ~ dir);
+	}
+
+	if (!found)
+	{
+		if (download)
+		{
 			if (verbose) stderr.writefln("dver: Downloading %s...", fn);
 			auto zip = downloadDir.buildPath(fn);
 			zip.cached!((string target) {
@@ -141,13 +194,13 @@ int dver(
 			});
 
 			if (verbose) stderr.writefln("dver: Unzipping %s...", fn);
-			atomic!unzip(zip, dir);
+			atomic!unpack(zip, dir);
 			found = true;
 		}
 		else
 		{
 			if (verbose) stderr.writeln("dver: Directory not found, scanning similar versions...");
-			auto dirs = dirEntries(downloadDir, `dmd.` ~ dVersion ~ ".*" ~ platformSuffix, SpanMode.shallow)
+			auto dirs = dirEntries(downloadDir, majorVersionMask ~ platformSuffix, SpanMode.shallow)
 				.filter!(de => de.isDir)
 				.map!(de => de.baseName.chomp(platformSuffix))
 				.array
@@ -170,7 +223,7 @@ int dver(
 	string srcDir = srcDirs.front;
 
 	// Tell-tale to detect the bin directory we want:
-	auto progBin = program.among("dmd", "rdmd", "dub") ? program : "dmd";
+	auto progBin = program.among(compilerExecutable, "rdmd", "dub") ? program : compilerExecutable;
 
 	foreach (binDir; binDirs)
 	{
@@ -221,7 +274,7 @@ int dver(
 				if (verbose) stderr.writefln("dver: PATH=%s", environment["PATH"]);
 			}
 			version (Posix)
-				if ("/etc/dmd.conf".exists && confPath.exists && !wine)
+				if (compiler == Compiler.dmd && "/etc/dmd.conf".exists && confPath.exists && !wine)
 					command = [
 						"bwrap",
 					] ~ (
