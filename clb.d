@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3432"
++/
+
 /// Simple HTTP load balancer with auto-scaling.
 module clb;
 
