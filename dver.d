@@ -19,6 +19,7 @@ import std.stdio;
 import std.string;
 
 import ae.sys.archive;
+import ae.sys.cmd;
 import ae.sys.file;
 import ae.utils.meta : I;
 
@@ -262,6 +263,7 @@ int dver(
 					if (verbose) stderr.writeln("Adding .exe suffix to executable path: " ~ exePath);
 					exePath = exePath.setExtension(".exe");
 				}
+				environment["WINEPATH"] = query(["winepath", "-w", binPath]);
 
 				command = ["wine"] ~ exePath ~ command[1..$];
 			}
