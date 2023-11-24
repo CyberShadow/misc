@@ -5,7 +5,7 @@
 # locations.
 
 function run() {
-	local tmpfile=/tmp/locate-emacs.$PID
+	local tmpfile=/tmp/locate-emacs.$$
 	unbuffer plocate "$@" \
 		| grep --line-buffered -vFf \
 			   ~/work/misc/locate-emacs-exclusions.txt \
