@@ -239,7 +239,17 @@ private:
 		assert(pid);
 		auto signal = killSchedule.shift().signal;
 		stderr.writefln("clb: Killing worker PID %d with %d", pid.processID(), signal);
-		pid.kill(signal);
+		try
+			pid.kill(signal);
+		catch (ProcessException e)
+		{
+			// There is a race condition when using wait() in a thread, like we do.
+			// If the worker process exits just as we're about to kill it,
+			// the PID in the `Pid` object will be set to -2.
+			// This operation will fail.
+			// TODO: Switch to SIGCHLD or perhaps something a bit more scalable than that.
+			stderr.writefln("clb: Failed to kill PID %d with %d: %s", pid.processID(), signal, e.msg);
+		}
 		prodKill();
 	}
 
