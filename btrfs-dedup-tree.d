@@ -33,29 +33,36 @@ import std.stdio;
 
 // ae is https://github.com/CyberShadow/ae
 import ae.sys.btrfs.extent_same;
-import ae.sys.file;
 import ae.utils.digest;
 import ae.utils.funopt;
 import ae.utils.main;
 
 void dedupFile(string pathA, string pathB)
 {
-	if (mdFile(pathA) != mdFile(pathB))
-		return;
-
 	auto fA = File(pathA, "rb");
 	auto fB = File(pathB, "rb");
+	if (fA.size != fB.size)
+		return;
 
 	auto pos = 0;
 	auto size = fA.size;
 	while (pos < size)
 	{
-		auto result = sameExtent([
-				Extent(fA, pos),
-				Extent(fB, pos),
-			], size - pos);
-		stderr.writefln(" >> %d bytes deduped at %d", result.totalBytesDeduped, pos);
-		pos += result.totalBytesDeduped;
+		Extent[2] extents = [
+			Extent(fA, pos),
+			Extent(fB, pos),
+		];
+		try
+		{
+			auto result = sameExtent(extents, size - pos);
+			stderr.writefln(" >> %d bytes deduped at %d", result.totalBytesDeduped, pos);
+			pos += result.totalBytesDeduped;
+		}
+		catch (Exception e)
+		{
+			stderr.writefln(" >> %s", e.msg);
+			return;
+		}
 	}
 }
 
