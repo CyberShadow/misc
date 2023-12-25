@@ -96,13 +96,17 @@ void scan(SubPath[] paths)
 	auto files = paths.filter!(path => path.de.isFile).array;
 	if (files.length >= 2)
 	{
-		foreach (file1; files[1..$])
-		{
-			if (files[0].de.size != file1.de.size)
-				return;
-			stderr.writeln(files[0].de.absolutePath.relativePath(roots[files[0].index].absolutePath));
-			dedupFile(files[0].de, file1.de);
-		}
+		DirEntry[size_t][ulong] sizes;
+		foreach (file; files)
+			sizes[file.de.size][file.index] = file.de;
+		foreach (size, entries; sizes)
+			if (entries.length > 1)
+			{
+				auto entry0 = entries.byKeyValue.front;
+				stderr.writeln(entry0.value.absolutePath.relativePath(roots[entry0.key].absolutePath));
+				foreach (entry1; entries.byKeyValue.dropOne)
+					dedupFile(entry0.value, entry1.value);
+			}
 	}
 }
 
