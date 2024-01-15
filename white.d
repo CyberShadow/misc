@@ -92,6 +92,8 @@ void main()
 		}
 	};
 
+	x11.handleMappingNotify = (event) { /* ignore */ };
+
 	x11.handleClientMessage = (event) {
 		if (event.type == atoms["WM_PROTOCOLS"])
 		{
