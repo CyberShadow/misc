@@ -27,6 +27,7 @@ import ae.utils.time;
 
 void program(
 	Switch!("Sort directories too, not just files", 'd') dirs = false,
+	Switch!("Rename date directories instead of attempting to merge them", 'r') noMerge = false,
 	Switch!("Skip interactive confirmation", 'y') noConfirm = false,
 	Option!(string, "Create dated directories here (instead of the current directory)", "DIR", 't') target = null,
 	string[] paths = null,
@@ -59,7 +60,12 @@ void program(
 		if (de.isDir && de.baseName.match(re!`^20\d\d-\d\d-\d\d`) && !target)
 			continue;
 		string sourceItem = de.name;
-		string targetItem = buildPath(target, sourceItem.timeLastModified.formatTime!"Y-m-d", sourceItem.baseName);
+		auto dateDir = sourceItem.timeLastModified.formatTime!"Y-m-d";
+		string suffix = "";
+		@property targetItem() { return buildPath(target, dateDir ~ suffix, sourceItem.baseName); }
+		if (noMerge)
+			while (targetItem.dirName.exists)
+				suffix = suffix.length ? [cast(char)(suffix[0] + 1)].assumeUnique : "b";
 
 		items ~= [sourceItem, targetItem];
 		extCount[toLower(de.extension)]++;
