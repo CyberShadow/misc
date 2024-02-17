@@ -49,7 +49,7 @@ void program(
 			candidates = dirEntries("", SpanMode.shallow).array;
 	}
 
-	string[] items;
+	string[2][] items;
 	int[string] extCount, dateCount;
 
 	foreach (DirEntry de; candidates)
@@ -58,8 +58,11 @@ void program(
 			continue;
 		if (de.isDir && de.baseName.match(re!`^20\d\d-\d\d-\d\d`))
 			continue;
-		items ~= de;
-		extCount[toLower(de.name.extension)]++;
+		string sourceItem = de.name;
+		string targetItem = buildPath(target, sourceItem.timeLastModified.formatTime!"Y-m-d", sourceItem.baseName);
+
+		items ~= [sourceItem, targetItem];
+		extCount[toLower(de.extension)]++;
 		dateCount[de.timeLastModified.formatTime!"Ymd"]++;
 	}
 
@@ -78,15 +81,17 @@ void program(
 
 	foreach (item; items)
 	{
-		string fn = buildPath(target, item.timeLastModified.formatTime!"Y-m-d", item.baseName);
-		enforce(!fn.exists, "Refusing to overwrite '%s' with '%s'.".format(fn, item));
+		auto targetItem = item[1];
+		auto sourceItem = item[0];
+		enforce(!targetItem.exists, "Refusing to overwrite '%s' with '%s'.".format(targetItem, sourceItem));
 	}
 
 	foreach (item; items)
 	{
-		string fn = buildPath(target, item.timeLastModified.formatTime!"Y-m-d", item.baseName);
-		ensurePathExists(fn);
-		rename(item, fn);
+		auto targetItem = item[1];
+		auto sourceItem = item[0];
+		ensurePathExists(targetItem);
+		rename(sourceItem, targetItem);
 	}
 }
 
