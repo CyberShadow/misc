@@ -56,7 +56,7 @@ void program(
 	{
 		if (!sortDirs && de.isDir)
 			continue;
-		if (de.isDir && de.baseName.match(re!`^20\d\d-\d\d-\d\d`))
+		if (de.isDir && de.baseName.match(re!`^20\d\d-\d\d-\d\d`) && !target)
 			continue;
 		string sourceItem = de.name;
 		string targetItem = buildPath(target, sourceItem.timeLastModified.formatTime!"Y-m-d", sourceItem.baseName);
