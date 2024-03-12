@@ -1,6 +1,7 @@
 #!/usr/bin/env dub
 /+ dub.sdl:
  dependency "ae" version="==0.0.3432"
+ dependency "ae:zlib" version="==0.0.3432"
 +/
 
 /**
