@@ -1,6 +1,6 @@
 #!/usr/bin/env dub
 /+ dub.sdl:
- dependency "ae" version="==0.0.3432"
+ dependency "ae" version="==0.0.3543"
 +/
 
 /**
@@ -16,8 +16,8 @@ import std.algorithm;
 import std.array;
 import std.ascii;
 import std.conv;
+import std.exception;
 import std.file;
-import std.getopt;
 import std.path;
 import std.range;
 import std.stdio;
@@ -40,71 +40,86 @@ void greplace(
 	Switch!("Only search and replace in file names and paths") noContent,
 	Switch!("Only search and replace in file content") noFilenames,
 	Switch!("Recurse in symlinked directories") followSymlinks,
-	Switch!("Swap FROM-STR and TO-STR", 'r') reverse,
+	Switch!("Swap FROM and TO", 'r') reverse,
 	Switch!("Case-insensitive, preserve case when replacing", 'i') caseInsensitive,
-	Parameter!(string, "String to search") from,
-	Parameter!(string, "String to replace with") to,
+	Parameter!(string, "String to search", "FROM") firstFrom,
+	Parameter!(string, "String to replace with", "TO") firstTo,
+	Option!(string[], "Additional FROM", "STR", 'F', "from") extraFrom,
+	Option!(string[], "Additional TO", "STR", 'T', "to") extraTo,
 	Parameter!(string[], "Paths (files or directories) to search in (default is current directory)") targets = null,
 )
 {
 	if (!targets.length)
 		targets = [""];
 
-	if (reverse)
-		swap(from.value, to.value);
-
-	wstring fromw, tow;
-	if (wide)
+	string[2][] pairs = [[firstFrom, firstTo]];
+	if (extraFrom.length && !extraTo.length)
 	{
-		fromw = std.conv.to!wstring(from);
-		tow   = std.conv.to!wstring(to);
+		// Broadcast all "from" to single "to". Implicitly requires --force.
+		enforce(force, "Multiple-FROM to single-TO replacement can not be reversed, and requires --force");
+		pairs ~= extraFrom.map!(from => [from, firstTo].staticArray).array;
 	}
+	else
+	if (extraFrom.length == extraTo.length)
+		pairs ~= zip(extraFrom, extraTo).map!(pair => [pair.expand].staticArray).array;
+	else
+		throw new Exception("Mismatching number of from/to pairs");
+
+	auto reversePairs = pairs.dup;
+	foreach (ref pair; reversePairs)
+		swap(pair[0], pair[1]);
+	reversePairs.reverse();
+
+	if (reverse)
+		swap(pairs, reversePairs);
 
 	alias Bytes = immutable(ubyte)[];
 
-	Bytes replace(Bytes haystack, string from, string to, bool inFileContents)
+	Bytes replace(Bytes haystack, const string[2][] pairs, bool inFileContents)
 	{
 		if (!caseInsensitive)
 		{
-			haystack = std.array.replace(
-				haystack,
-				from.asBytes,
-				to.asBytes,
-			);
-
-			if (inFileContents && wide)
-			{
+			foreach (pair; pairs)
 				haystack = std.array.replace(
 					haystack,
-					fromw.asBytes,
-					tow.asBytes,
+					pair[0].asBytes,
+					pair[1].asBytes,
 				);
-			}
+
+			if (inFileContents && wide)
+				foreach (pair; pairs)
+					haystack = std.array.replace(
+						haystack,
+						std.conv.to!wstring(pair[0]).asBytes,
+						std.conv.to!wstring(pair[1]).asBytes,
+					);
 		}
 		else
 		{
-			haystack = caseInsensitiveReplace(
-				haystack.as!string,
-				from,
-				to
-			).asBytes;
+			foreach (pair; pairs)
+				haystack = caseInsensitiveReplace(
+					haystack.as!string,
+					pair[0],
+					pair[1],
+				).asBytes;
 
 			if (inFileContents && wide)
-			{
-				// Even offsets
-				haystack = caseInsensitiveReplace(
-					haystack[0 .. $ / 2 * 2].as!wstring,
-					from,
-					to
-				).asBytes ~ haystack[$ / 2 * 2 .. $];
-				// Odd offsets
-				if (haystack.length)
-				haystack = haystack[0 .. 1] ~ caseInsensitiveReplace(
-					haystack[1 .. 1 + ($ - 1) / 2 * 2].as!wstring,
-					from,
-					to
-				).asBytes ~ haystack[1 + ($ - 1) / 2 * 2 .. $];
-			}
+				foreach (pair; pairs)
+				{
+					// Even offsets
+					haystack = caseInsensitiveReplace(
+						haystack[0 .. $ / 2 * 2].as!wstring,
+						pair[0],
+						pair[1],
+					).asBytes ~ haystack[$ / 2 * 2 .. $];
+					// Odd offsets
+					if (haystack.length)
+					haystack = haystack[0 .. 1] ~ caseInsensitiveReplace(
+						haystack[1 .. 1 + ($ - 1) / 2 * 2].as!wstring,
+						pair[0],
+						pair[1],
+					).asBytes ~ haystack[1 + ($ - 1) / 2 * 2 .. $];
+				}
 		}
 
 		return haystack;
@@ -123,12 +138,20 @@ void greplace(
 
 				if (s)
 				{
-					if (s.I!replace(from, to, true).I!replace(to, from, true) != s)
-						throw new Exception("File " ~ entry.fullName ~ " already contains " ~ to);
+					if (s.I!replace(pairs, true).I!replace(reversePairs, true) != s)
+						throw new Exception(
+							pairs.length == 1
+							? "File " ~ entry.fullName ~ " already contains " ~ pairs[0][1]
+							: "Replacement in file " ~ entry.fullName ~ " is not reversible"
+						);
 				}
 
-				if (!noFilenames && entry.fullName.asBytes.I!replace(from, to, false).I!replace(to, from, false) != entry.fullName)
-					throw new Exception("File name " ~ entry.fullName ~ " already contains " ~ to);
+				if (!noFilenames && entry.fullName.asBytes.I!replace(pairs, false).I!replace(reversePairs, false) != entry.fullName)
+					throw new Exception(
+						pairs.length == 1
+						? "File name " ~ entry.fullName ~ " already contains " ~ pairs[0][1]
+						: "Replacement in file name " ~ entry.fullName ~ " is not reversible"
+					);
 
 				if (followSymlinks ? entry.isDir : entry.entryIsDir)
 					entry.recurse();
@@ -164,7 +187,7 @@ void greplace(
 
 			if (!noFilenames)
 			{
-				targetName = originalName.asBytes.I!replace(from, to, false).as!string;
+				targetName = originalName.asBytes.I!replace(pairs, false).as!string;
 				targetPath = root.buildPath(targetName);
 
 				if (targetName != originalName)
@@ -214,7 +237,7 @@ void greplace(
 			if (s)
 			{
 				auto orig = s;
-				s = s.I!replace(from, to, true);
+				s = s.I!replace(pairs, true);
 
 				if (s !is orig && s != orig)
 				{
@@ -536,6 +559,24 @@ unittest
 	std.file.write(dir ~ "/test.txt", "яблоко Яблоко ЯБЛОКО яБЛОКО");
 	mainFunc(["greplace", "-i", "яблоко", "груша", dir]);
 	assert(readText(dir ~ "/test.txt") == "груша Груша ГРУША гРУША");
+}
+
+// Multiple pairs
+unittest
+{
+	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
+	std.file.write(dir ~ "/test.txt", "foobaz");
+	mainFunc(["greplace", "foo", "bar", "-F", "baz", "-T", "quux", dir]);
+	assert(readText(dir ~ "/test.txt") == "barquux");
+}
+
+// Multiple pairs - chain
+unittest
+{
+	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
+	std.file.write(dir ~ "/test.txt", "foo");
+	mainFunc(["greplace", "foo", "bar", "-F", "bar", "-T", "baz", dir]);
+	assert(readText(dir ~ "/test.txt") == "baz");
 }
 
 mixin main!mainFunc;
