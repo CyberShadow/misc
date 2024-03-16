@@ -174,11 +174,19 @@ void greplace(
 				entry.fullName ~ " != " ~ currentPath);
 
 			Bytes s;
-			if (!noFilenames && !followSymlinks && entry.isSymlink)
+			bool replaceNeeded;
+
+			if ((!noFilenames || copy) && !followSymlinks && entry.isSymlink)
+			{
 				s = cast(Bytes)readLink(currentPath);
+				replaceNeeded = !noFilenames;
+			}
 			else
-			if (!noContent && (followSymlinks ? entry.isFile : entry.entryIsFile))
+			if ((!noContent || copy) && (followSymlinks ? entry.isFile : entry.entryIsFile))
+			{
 				s = cast(Bytes)std.file.read(currentPath);
+				replaceNeeded = !noContent;
+			}
 
 			bool writeNeeded;
 
@@ -234,7 +242,7 @@ void greplace(
 				}
 			}
 
-			if (s)
+			if (replaceNeeded)
 			{
 				auto orig = s;
 				s = s.I!replace(pairs, true);
@@ -452,6 +460,17 @@ unittest
 	mainFunc(["greplace", "-c", "foo", "bar", dir]);
 	assert(readText(dir ~ "/foo/foo/foo.txt") == "foo");
 	assert(readText(dir ~ "/bar/bar/bar.txt") == "bar");
+}
+
+// Copy mode - filenames only
+unittest
+{
+	auto dir = deleteme; mkdir(dir); scope(exit) rmdirRecurse(dir);
+	mkdirRecurse(dir ~ "/foo/foo");
+	std.file.write(dir ~ "/foo/foo/foo.txt", "foo");
+	mainFunc(["greplace", "-c", "--no-content", "foo", "bar", dir]);
+	assert(readText(dir ~ "/foo/foo/foo.txt") == "foo");
+	assert(readText(dir ~ "/bar/bar/bar.txt") == "foo");
 }
 
 // Replace in current directory
