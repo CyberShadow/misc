@@ -77,12 +77,12 @@ void program(
 				{
 					case octal!100644: // file
 					case octal!100755: // executable file
+					case octal!120000: // symlink
 						copyBlob(Git.BlobID(entry.hash));
 						break;
 					case octal! 40000: // tree
 						copyTree(Git.TreeID(entry.hash));
 						break;
-					case octal!120000: // symlink
 					case octal!160000: // submodule
 						break;
 					default:
