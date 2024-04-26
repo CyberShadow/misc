@@ -97,8 +97,9 @@ void program(
 			auto commit = obj.parseCommit();
 
 			copyTree(commit.tree);
-			foreach (parent; commit.parents)
-				copyCommit(parent);
+			if (!shallow)
+				foreach (parent; commit.parents)
+					copyCommit(parent);
 		});
 	}
 
