@@ -44,7 +44,7 @@ void dir2bug(bool script, string[] files)
 		case Mode.pretty:
 			break;
 		case Mode.bash:
-			writeln("#!/bin/bash");
+			writeln("#!/usr/bin/env bash");
 			writeln();
 			break;
 	}

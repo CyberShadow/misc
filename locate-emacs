@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Locate helper for helm-locate, helm-for-files, etc.
 # Filters unnecessary junk and prioritizes files from more likely
