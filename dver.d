@@ -1,7 +1,8 @@
 #!/usr/bin/env dub
 /+ dub.sdl:
- dependency "ae" version="==0.0.3432"
- dependency "ae:zlib" version="==0.0.3432"
+ dependency "ae" version="==0.0.3573"
+ dependency "ae:zlib" version="==0.0.3573"
+ stringImportPaths "."
 +/
 
 /**
@@ -37,6 +38,7 @@ int dver(
 	Switch!("Verbose output", 'v') verbose,
 	Switch!("Run via Wine", 'w') wine,
 	Switch!("Use 32-bit model", 0, "32") model32,
+	Switch!("Patch binaries to be compatible with NixOS") nixify,
 	Option!(string, "Whether to use a beta release, and which") beta,
 	Option!(Compiler, "Compiler") compiler/* = Compiler.dmd*/,
 	Parameter!(string, "D version to use") dVersion,
@@ -77,9 +79,12 @@ int dver(
 	}
 	string binExt = platform == "windows" ? ".exe" : "";
 
+	if (inNixOS)
+		nixify = true;
+
 	string fn, dir, url, platformSuffix, majorVersionMask;
 	string compilerExecutable;
-	string[] binDirs;
+	string[] binDirs, allBinDirs;
 	string[] srcDirs;
 	final switch (compiler)
 	{
@@ -91,13 +96,22 @@ int dver(
 			majorVersionMask = base ~ ".*";
 
 			string model = model32 ? "32" : "64";
-			binDirs = [
-				`dmd2/` ~ platform ~ `/bin` ~ model,
-				`dmd2/` ~ platform ~ `/bin`,
-				`dmd/` ~ platform ~ `/bin` ~ model,
-				`dmd/` ~ platform ~ `/bin`,
-				`dmd/bin`,
-			];
+			foreach (binModel; ["32", "64"])
+			{
+				auto modelDirs = [
+					`dmd2/` ~ platform ~ `/bin` ~ model,
+					`dmd/` ~ platform ~ `/bin` ~ model,
+				];
+				if (binModel == "32")
+					modelDirs ~= [
+						`dmd2/` ~ platform ~ `/bin`,
+						`dmd/` ~ platform ~ `/bin`,
+						`dmd/bin`,
+					];
+				allBinDirs ~= modelDirs;
+				if (model == binModel)
+					binDirs = modelDirs;
+			}
 			srcDirs = [
 				`dmd/src`,
 				`dmd2/src`,
@@ -150,7 +164,7 @@ int dver(
 			fn = base ~ platformSuffix ~ ext;
 			url = "https://github.com/ldc-developers/ldc/releases/download/v%s/%s".format(dVersion, fn);
 
-			binDirs = [
+			binDirs = allBinDirs = [
 				base ~ platformSuffix ~ "/bin",
 			];
 			srcDirs = [
@@ -219,21 +233,18 @@ int dver(
 	}
 	enforce(found, "Can't find this D version.");
 
+	// Patching
+
 	while (!srcDirs.empty && !exists(dir.buildPath(srcDirs.front)))
 		srcDirs.popFront();
 	enforce(!srcDirs.empty, "Can't find src dir in: " ~ dir);
 	string srcDir = srcDirs.front;
 
-	// Tell-tale to detect the bin directory we want:
-	auto progBin = program.among(compilerExecutable, "rdmd", "dub") ? program : compilerExecutable;
-
-	foreach (binDir; binDirs)
+	foreach (binDir; allBinDirs)
 	{
 		auto binPath = dir ~ `/` ~ binDir;
-		auto progPath = binPath ~ `/` ~ progBin ~ binExt;
-		if (progPath.exists)
+		if (binPath.exists)
 		{
-			if (verbose) stderr.writefln("dver: Found %s: %s", progBin, progPath);
 			auto confPath = binPath.buildPath("dmd.conf");
 			auto relSrcPath = relativePath(dir.buildPath(srcDir), binPath);
 			auto suffix1 = "\r\n; added by dver\r\nDFLAGS=-I%@P%/../src/phobos -L-L%@P%/../lib\r\n";
@@ -248,13 +259,47 @@ int dver(
 				}
 			version (Posix)
 			{
-				auto dmdAttrs = progPath.getAttributes;
-				if (!(dmdAttrs & S_IRUSR))
+				foreach (de; binPath.dirEntries(SpanMode.shallow))
 				{
-					stderr.writefln("dver: Making %s readable", progBin);
-					progPath.setAttributes(dmdAttrs | S_IRUSR);
+					if (!(de.attributes & S_IRUSR))
+					{
+						stderr.writefln("dver: Making %s readable", de);
+						de.setAttributes(de.attributes | S_IRUSR);
+					}
+					if (de.read(4) == "\x7FELF" && !(de.attributes & S_IXUSR))
+					{
+						stderr.writefln("dver: Making %s executable", de);
+						de.setAttributes(de.attributes | S_IXUSR);
+					}
 				}
 			}
+		}
+	}
+
+	if (nixify)
+	{
+		auto nixDir = dir ~ ".nixified";
+		if (!nixDir.exists)
+			run([
+				"nix-build",
+				"-E", import("dver-nixify.nix"),
+				"--arg", "dir", dir,
+				"--out-link", nixDir,
+			], stdin, stderr, stderr);
+		dir = nixDir;
+	}
+
+	// Tell-tale to detect the bin directory we want:
+	auto progBin = program.among(compilerExecutable, "rdmd", "dub") ? program : compilerExecutable;
+
+	foreach (binDir; binDirs)
+	{
+		auto binPath = dir ~ `/` ~ binDir;
+		auto progPath = binPath ~ `/` ~ progBin ~ binExt;
+		if (progPath.exists)
+		{
+			if (verbose) stderr.writefln("dver: Found %s: %s", progBin, progPath);
+			auto confPath = binPath.buildPath("dmd.conf");
 
 			if (wine)
 			{
@@ -265,11 +310,11 @@ int dver(
 			}
 			else
 			{
-				auto attributes = progPath.getAttributes();
-				if (!(attributes & octal!111))
-					progPath.setAttributes((attributes & octal!444) >> 2);
-				environment["PATH"] = binPath ~ pathSeparator ~ environment["PATH"];
-				if (verbose) stderr.writefln("dver: PATH=%s", environment["PATH"]);
+				version (Posix)
+				{
+					environment["PATH"] = binPath ~ pathSeparator ~ environment["PATH"];
+					if (verbose) stderr.writefln("dver: PATH=%s", environment["PATH"]);
+				}
 			}
 			version (Posix)
 				if (compiler == Compiler.dmd && "/etc/dmd.conf".exists && confPath.exists && !wine)
@@ -301,6 +346,14 @@ int dver(
 			if (verbose) stderr.writefln("dver: Not found, skipping directory: %s", progPath);
 	}
 	throw new Exception("Can't find bin directory under " ~ dir);
+}
+
+bool inNixOS()
+{
+	version (linux)
+		return "/etc/NIXOS".exists;
+	else
+		return false;
 }
 
 import ae.utils.main;
