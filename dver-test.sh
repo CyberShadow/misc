@@ -15,4 +15,6 @@ echo 'void main() {}' > /tmp/test.d
 ./dver -vd      2.055 dmd -c /tmp/test.d
 ./dver -vd --32 2.055 dmd -c /tmp/test.d
 ./dver -vd --32 2.030 dmd -c /tmp/test.d
+./dver -vd --32 1.022 dmd -c /tmp/test.d
 ./dver -vd --32 0.175 dmd -c /tmp/test.d
+./dver -vd --32 0.100 dmd -c /tmp/test.d

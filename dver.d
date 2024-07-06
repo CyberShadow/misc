@@ -317,12 +317,20 @@ int dver(
 				}
 			}
 			version (Posix)
-				if (compiler == Compiler.dmd && "/etc/dmd.conf".exists && confPath.exists && !wine)
+				if (compiler == Compiler.dmd && confPath.exists && !wine)
 					command = [
 						"bwrap",
 					] ~ (
 						dirEntries("/", SpanMode.shallow)
 						.filter!(de => de.isDir)
+						.filter!(de => de.baseName != "etc")
+						.map!(de => de.isSymlink
+							? ["--symlink", de.readLink, de.name]
+							: ["--dev-bind", de.name, de.name]
+						).join
+					) ~ (
+						dirEntries("/etc", SpanMode.shallow)
+						.filter!(de => de.baseName != "dmd.conf")
 						.map!(de => de.isSymlink
 							? ["--symlink", de.readLink, de.name]
 							: ["--dev-bind", de.name, de.name]
