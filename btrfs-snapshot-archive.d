@@ -1,3 +1,10 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3569"
+ dflags "-i"  # https://github.com/dlang/dub/issues/2638
+ stringImportPaths "."
++/
+
 /// Copy snapshots from one volume to another.
 /// Supports remote hosts for source or target (push or pull) using
 /// ssh://user@host//path/to/btrfs/root URLs.

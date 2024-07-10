@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3569"
++/
+
 /**
    Parse the output of e.g. `tcpdump -v -n` and display a per-second
    summary of active connections.
@@ -7,12 +12,12 @@
 
 module tcpdump_analyze;
 
-import ae.utils.regex;
-
 import std.math;
 import std.regex;
 import std.stdio;
 import std.string;
+
+import ae.utils.regex;
 
 void flush(string ts)
 {

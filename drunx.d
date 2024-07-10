@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dflags "-i"  # https://github.com/dlang/dub/issues/2638
++/
+
 /**
    Build a D program (with no additional flags) and run it.
 

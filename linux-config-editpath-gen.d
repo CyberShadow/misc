@@ -1,3 +1,9 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3569"
+ dflags "-i"  # https://github.com/dlang/dub/issues/2638
++/
+
 /**
    Generate the diff between two kernel .config files, in a format
    consumable by linux-config-bisectrepo-apply.

@@ -1,7 +1,12 @@
-import ae.sys.datamm;
-import ae.sys.file;
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3569"
++/
 
 import std.stdio;
+
+import ae.sys.datamm;
+import ae.sys.file;
 
 void process(in void[] data)
 {

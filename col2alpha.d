@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3569"
++/
+
 /**
    Take an image (without an alpha channel), and create an image (with
    an alpha channel) such that each pixel's alpha channel value is

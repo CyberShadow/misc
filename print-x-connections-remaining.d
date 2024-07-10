@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "libx11" version="==0.0.1"
++/
+
 /**
    Estimate the number of free X11 client slots by saturating the
    pool, and counting the number of successful connections.

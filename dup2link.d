@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3569"
++/
+
 /**
    Replace duplicate files under the given directories with hard
    links. Do this safely and efficiently.
@@ -7,6 +12,7 @@ module dup2link;
 import std.stdio;
 import std.file;
 import std.exception;
+
 import ae.sys.file;
 import ae.sys.console;
 

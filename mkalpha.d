@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3569"
++/
+
 /**
    Take two images of the same possibly-translucent object:
    first on a black background, second on a white background.

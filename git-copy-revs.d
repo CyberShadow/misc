@@ -1,6 +1,6 @@
 #!/usr/bin/env nix-shell
 /+ dub.sdl:
- dependency "ae" version="==0.0.3565"
+ dependency "ae" version="==0.0.3573"
 +/
 
 /*

@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3569"
++/
+
 /// Read a 32-bit BMP image.
 /// Produce a monochrome PNG image.
 /// Does not perform dithering.

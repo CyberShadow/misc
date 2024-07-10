@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3569"
++/
+
 /**
    Prepare a commit message template based on which files are
    modified. To be used with the git-prepare-commit-msg hook.

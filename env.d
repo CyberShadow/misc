@@ -1,3 +1,6 @@
+#!/usr/bin/env dub
+/+ dub.sdl: +/
+
 /**
    A cross-platform implementation of env, as in coreutils.
 */

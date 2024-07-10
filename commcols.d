@@ -1,3 +1,6 @@
+#!/usr/bin/env dub
+/+ dub.sdl: +/
+
 /**
    commcols - show common lines as columns
 

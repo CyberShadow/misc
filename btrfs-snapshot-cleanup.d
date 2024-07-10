@@ -1,3 +1,10 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3569"
+ dflags "-i"  # https://github.com/dlang/dub/issues/2638
+ stringImportPaths "."
++/
+
 /// Clean up older snapshots, as backed up by btrfs-snapshot-archive.
 module btrfs_snapshot_cleanup;
 

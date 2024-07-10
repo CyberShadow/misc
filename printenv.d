@@ -1,3 +1,6 @@
+#!/usr/bin/env dub
+/+ dub.sdl: +/
+
 /**
    Debug tool; prints environment and arguments.
 */

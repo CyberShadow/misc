@@ -1,4 +1,3 @@
-#!/usr/bin/perl
 use strict;
 use Fcntl qw(F_SETLK F_WRLCK SEEK_SET);
 my $file = $ARGV[0];

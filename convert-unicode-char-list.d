@@ -1,3 +1,6 @@
+#!/usr/bin/env dub
+/+ dub.sdl: +/
+
 /// Used by ~/libexec/unicode-character-menu to convert UnicodeData.txt
 /// into something usable by rofi.
 

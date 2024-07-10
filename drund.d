@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dflags "-i"  # https://github.com/dlang/dub/issues/2638
++/
+
 /**
    Build a D program (in super-debug mode, i.e. against a debug
    phobos/druntime) and run it.

@@ -1,3 +1,9 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3569"
+ dflags "-i"  # https://github.com/dlang/dub/issues/2638
++/
+
 /**
    Generate the edit path from one kernel .config to another, as a
    git repository.

@@ -1,7 +1,7 @@
 #!/usr/bin/env dub
 /+ dub.sdl:
- dependency "ae" version="==0.0.3461"
- dependency "ae:x11" version="==0.0.3461"
+ dependency "ae" version="==0.0.3569"
+ dependency "ae:x11" version="==0.0.3569"
 +/
 
 /// Creates a white window.

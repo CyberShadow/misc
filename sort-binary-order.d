@@ -1,3 +1,8 @@
+#!/usr/bin/env dub
+/+ dub.sdl:
+ dependency "ae" version="==0.0.3569"
++/
+
 /**
    Sort lines in binary bisection order, i.e.:
    0 1 2 3 4 5 6 7 -> 4 2 6 1 3 5 7 0
@@ -9,11 +14,11 @@
 
 module sort_binary_order;
 
-import ae.sys.file;
-import ae.utils.text;
-
 import std.exception;
 import std.stdio;
+
+import ae.sys.file;
+import ae.utils.text;
 
 void main(string[] args)
 {
