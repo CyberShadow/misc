@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+
+# CI test script.
+# Invoked from .github/workflows/test.yml.
+
+set -eEuo pipefail
+
+export LC_ALL=C
+
+mapfile -t versioned_files < <(
+	git ls-files
+)
+mapfile -t d_files < <(
+	printf '%s\n' "${versioned_files[@]}" |
+		grep '\.d$'
+)
+mapfile -t d_files_with_main < <(
+	grep -l '\bmain\b' "${d_files[@]}"
+)
+mapfile -t buildable_d_files < <(
+	grep -L \
+		 -e '^import mylib.' \
+		 "${d_files_with_main[@]}"
+)
+mapfile -t files_with_shebang < <(
+	awk '{ if ($0 ~ "^#!") print FILENAME; nextfile; }' "${versioned_files[@]}"
+)
+mapfile -t files_with_d_shebang < <(
+	grep -l \
+		 -e '#!/usr/bin/env dub' \
+		 -e 'nix-shell -i.*dub' \
+		 "${versioned_files[@]}"
+)
+mapfile -t executable_files < <(
+	find "${versioned_files[@]}" -maxdepth 0 -executable
+)
+
+# 1. A file has a shebang iff it is executable
+diff -u /dev/null <(
+	comm -3 \
+		<(printf '%s\n' "${files_with_shebang[@]}") \
+		<(printf '%s\n' "${executable_files[@]}")
+)
+
+# 2. A file has a D shebang iff it is a buildable D program
+diff -u /dev/null <(
+	comm -3 \
+		<(printf '%s\n' "${files_with_d_shebang[@]}") \
+		<(printf '%s\n' "${buildable_d_files[@]}")
+)
+
+mapfile -t testable_d_files < <(
+	printf '%s\n' "${buildable_d_files[@]}" |
+		grep -vxFf <(
+			# Has "rt_cmdline_enabled = false", can't use --DRT-testmode=test-only
+			grep -lxF \
+				 -e 'import drunner;' \
+				 "${d_files[@]}"
+		)
+)
+
+# 3. Buildable D programs pass unittests
+for f in "${testable_d_files[@]}"; do
+	DFLAGS=-unittest dub --single "$f" -- --DRT-testmode=test-only
+	# elif [[ "$src" == *$'\nvoid main('* || "$src" == *$'\nint main('* || "$src" == *$'\nmixin main!(funopt!'* ]] ; then
+	#   dmd -g -i -unittest -run "$f"
+	# else
+	#   dmd -g -i -unittest -main -run "$f"
+done

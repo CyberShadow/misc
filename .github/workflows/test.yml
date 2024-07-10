@@ -18,15 +18,4 @@ jobs:
         with:
           compiler: ${{ matrix.dc }}
 
-      - run: |
-          set -eEuo pipefail
-          for f in *.d ; do
-            src=$(cat "$f")
-            if [[ "$src" == '#!/usr/bin/env dub'* ]] ; then
-              DFLAGS=-unittest dub --single "$f"
-            # elif [[ "$src" == *$'\nvoid main('* || "$src" == *$'\nint main('* || "$src" == *$'\nmixin main!(funopt!'* ]] ; then
-            #   dmd -g -i -unittest -run "$f"
-            # else
-            #   dmd -g -i -unittest -main -run "$f"
-            fi
-          done
+      - run: ./ci
