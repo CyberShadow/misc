@@ -705,7 +705,7 @@ mixin main!(funopt!(clb, FunOptConfig([std.getopt.config.stopOnFirstNonOption]))
 // Basic test
 unittest
 {
-	.workerCommand = ["/bin/bash", "-c", q"EOF
+	.workerCommand = ["bash", "-c", q"EOF
 while IFS= read -r line
 do
 	if [[ "$line" == $'\r' ]]
@@ -746,7 +746,7 @@ EOF"];
 // Load-balancing test
 unittest
 {
-	.workerCommand = ["/bin/bash", "-c", q"EOF
+	.workerCommand = ["bash", "-c", q"EOF
 while IFS= read -r line
 do
 	if [[ "$line" == $'\r' ]]
@@ -800,7 +800,7 @@ EOF"];
 // Test multiple requests per worker
 unittest
 {
-	.workerCommand = ["/bin/bash", "-c", q"EOF
+	.workerCommand = ["bash", "-c", q"EOF
 while IFS= read -r line
 do
 	if [[ "$line" == $'\r' ]]
@@ -854,7 +854,7 @@ EOF"];
 // Test pipelining
 unittest
 {
-	.workerCommand = ["/bin/bash", "-c", q"EOF
+	.workerCommand = ["bash", "-c", q"EOF
 for n in $(seq 3)
 do
 	while IFS= read -r line
@@ -914,7 +914,7 @@ EOF"];
 // Test --max-requests
 unittest
 {
-	.workerCommand = ["/bin/bash", "-c", q"EOF
+	.workerCommand = ["bash", "-c", q"EOF
 while IFS= read -r line
 do
 	if [[ "$line" == $'\r' ]]
@@ -968,7 +968,7 @@ EOF"];
 // Test --max-idle
 unittest
 {
-	.workerCommand = ["/bin/bash", "-c", q"EOF
+	.workerCommand = ["bash", "-c", q"EOF
 while IFS= read -r line
 do
 	if [[ "$line" == $'\r' ]]
@@ -1024,7 +1024,7 @@ EOF"];
 // Test --timeout
 unittest
 {
-	.workerCommand = ["/bin/bash", "-c", q"EOF
+	.workerCommand = ["bash", "-c", q"EOF
 # Buggy worker that stops replying after the first reply
 while IFS= read -r line
 do
@@ -1080,7 +1080,7 @@ EOF"];
 // Test --retry
 unittest
 {
-	.workerCommand = ["/bin/bash", "-c", q"EOF
+	.workerCommand = ["bash", "-c", q"EOF
 # Buggy worker that stops replying after the first reply
 while IFS= read -r line
 do
@@ -1138,7 +1138,7 @@ version (Posix)
 unittest
 {
 	import core.sys.posix.signal : SIGTERM;
-	.workerCommand = ["/bin/bash", "-c", q"EOF
+	.workerCommand = ["bash", "-c", q"EOF
 # Buggy worker that stops replying after the first reply
 while IFS= read -r line
 do
@@ -1198,7 +1198,7 @@ version (Posix)
 unittest
 {
 	import core.sys.posix.signal : SIGTERM, SIGKILL;
-	.workerCommand = ["/bin/bash", "-c", q"EOF
+	.workerCommand = ["bash", "-c", q"EOF
 # Buggy worker that stops replying after the first reply, and ignores SIGTERM
 trap '' TERM INT
 while IFS= read -r line
