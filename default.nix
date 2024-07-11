@@ -62,21 +62,17 @@ let
 
   # Test 1: A file has a shebang iff it is executable
   test-shebang-executable = pkgs.runCommand "test-shebang-executable" {} ''
-    diff -u /dev/null <(
-      comm -3 \
-        <(printf '%s\n' ${lib.escapeShellArgs filesWithShebang} | sort) \
-        <(printf '%s\n' ${lib.escapeShellArgs executableFiles} | sort)
-    )
+    diff \
+      <(printf '%s\n' ${lib.escapeShellArgs filesWithShebang} | sort) \
+      <(printf '%s\n' ${lib.escapeShellArgs executableFiles} | sort)
     touch $out
   '';
 
   # Test 2: A file has a D shebang iff it is a buildable D program
   test-shebang-buildable = pkgs.runCommand "test-shebang-buildable" {} ''
-    diff -u /dev/null <(
-      LC_ALL=c comm -3 \
-        <(printf '%s\n' ${lib.escapeShellArgs filesWithDShebang} | sort) \
-        <(printf '%s\n' ${lib.escapeShellArgs buildableDFiles} | sort)
-    )
+    diff \
+      <(printf '%s\n' ${lib.escapeShellArgs filesWithDShebang} | sort) \
+      <(printf '%s\n' ${lib.escapeShellArgs buildableDFiles} | sort)
     touch $out
   '';
 
