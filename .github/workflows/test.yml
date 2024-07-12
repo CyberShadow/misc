@@ -14,4 +14,5 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: cachix/install-nix-action@v27
+      - run: nix-build --show-trace -A programs
       - run: nix-build --show-trace -A tests

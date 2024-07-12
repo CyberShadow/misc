@@ -136,41 +136,70 @@ let
         "${dep.pname}-${dep.version}.zip" = zip;
       };
 
-  test-d-unittest = f:
-    pkgs.runCommand "test-d-unittest-${f}" {
-      buildInputs = [
-        pkgs.dmd
-        pkgs.dub
-      ];
-    } ''
-      export HOME=/build
-      ${lib.concatMapStringsSep "\n" (dep: ''
-        dub fetch ${dep.pname}@${dep.version} --cache=user --skip-registry=standard --registry=file://${fetchDDep dep}
-      '') dDeps}
-      ln -vs ${./${f}} ./${f}
-      ${lib.optionalString (builtins.match ".*import btrfs_common;.*" (readFile f) != null) ''
-        ln -vs ${./btrfs_common.d} ./btrfs_common.d
-        ln -vs ${./btrfs_ssh_lock.pl} ./btrfs_ssh_lock.pl
-      ''}${lib.optionalString (builtins.match ".*import linux_config_common;.*" (readFile f) != null) ''
-        ln -vs ${./linux_config_common.d} ./linux_config_common.d
-      ''}${lib.optionalString (builtins.match ".*path-treemap-viewer.html.*" (readFile f) != null) ''
-        ln -vs ${./path-treemap-viewer.html} ./path-treemap-viewer.html
-      ''}${lib.optionalString (builtins.match ".*dver-nixify.nix.*" (readFile f) != null) ''
-        ln -vs ${./dver-nixify.nix} ./dver-nixify.nix
-      ''}
-      DFLAGS="-unittest -L-L${dLibs}/lib" dub --single ${f} --skip-registry=standard -- --DRT-testmode=test-only
-      touch $out
-    '';
+  dProgram = f:
+    let
+      name = lib.removeSuffix ".d" f;
+      buildCommon = ''
+        export HOME=/build
+        ${lib.concatMapStringsSep "\n" (dep: ''
+          dub fetch ${dep.pname}@${dep.version} --cache=user --skip-registry=standard --registry=file://${fetchDDep dep}
+        '') dDeps}
+        ln -vs ${./${f}} ./${f}
+        ${lib.optionalString (builtins.match ".*import btrfs_common;.*" (readFile f) != null) ''
+          ln -vs ${./btrfs_common.d} ./btrfs_common.d
+          ln -vs ${./btrfs_ssh_lock.pl} ./btrfs_ssh_lock.pl
+        ''}${lib.optionalString (builtins.match ".*import drunner;.*" (readFile f) != null) ''
+          ln -vs ${./drunner.d} ./drunner.d
+        ''}${lib.optionalString (builtins.match ".*import linux_config_common;.*" (readFile f) != null) ''
+          ln -vs ${./linux_config_common.d} ./linux_config_common.d
+        ''}${lib.optionalString (builtins.match ".*path-treemap-viewer.html.*" (readFile f) != null) ''
+          ln -vs ${./path-treemap-viewer.html} ./path-treemap-viewer.html
+        ''}${lib.optionalString (builtins.match ".*dver-nixify.nix.*" (readFile f) != null) ''
+          ln -vs ${./dver-nixify.nix} ./dver-nixify.nix
+        ''}
+      '';
+    in
+      pkgs.stdenv.mkDerivation (finalAttrs: {
+        inherit name;
+        src = f;
+        dontUnpack = true;
+        buildInputs = [
+          pkgs.dmd
+          pkgs.dub
+        ];
+        buildPhase = ''
+          ${buildCommon}
+          DFLAGS="-L-L${dLibs}/lib" dub build --single ${name}.d --skip-registry=standard
+        '';
+        installPhase = ''
+          mkdir -p $out/bin
+          cp ${name} $out/bin
+        '';
+        passthru.tests.unittest = pkgs.runCommand "test-d-unittest-${f}" {
+          inherit (finalAttrs) src buildInputs;
+        } ''
+          ${buildCommon}
+          DFLAGS="-unittest -L-L${dLibs}/lib" dub --single ${name}.d --skip-registry=standard -- --DRT-testmode=test-only
+          touch $out
+        '';
+      });
+
+  programs = builtins.listToAttrs
+    (map (f: {
+      inherit (dProgram f) name;
+      value = dProgram f;
+    })
+      buildableDFiles);
 
   test-all-d-unittests = builtins.listToAttrs
     (map (f: {
-      # For some reason, if the output attrset has a ".", then nix-build will skip it
-      name = builtins.replaceStrings ["."] ["-"] "unittest-${f}";
-      value = test-d-unittest f;
+      name = "unittest-${(dProgram f).name}";
+      value = (dProgram f).passthru.tests.unittest;
     })
       testableDFiles);
 
 in {
+  inherit programs;
   tests = {
     inherit test-shebang-executable;
     inherit test-shebang-buildable;
