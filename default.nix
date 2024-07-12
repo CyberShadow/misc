@@ -136,9 +136,7 @@ let
         "${dep.pname}-${dep.version}.zip" = zip;
       };
 
-  test-d-unittest = map (f:
-    let
-    in
+  test-d-unittest = f:
     pkgs.runCommand "test-d-unittest-${f}" {
       buildInputs = [
         pkgs.dmd
@@ -162,12 +160,19 @@ let
       ''}
       DFLAGS="-unittest -L-L${dLibs}/lib" dub --single ${f} --skip-registry=standard -- --DRT-testmode=test-only
       touch $out
-    ''
-  ) testableDFiles;
+    '';
+
+  test-all-d-unittests = builtins.listToAttrs
+    (map (f: {
+      # For some reason, if the output attrset has a ".", then nix-build will skip it
+      name = builtins.replaceStrings ["."] ["-"] "unittest-${f}";
+      value = test-d-unittest f;
+    })
+      testableDFiles);
 
 in {
-  test-all = [
-    test-shebang-executable
-    test-shebang-buildable
-  ] ++ test-d-unittest;
+  tests = {
+    inherit test-shebang-executable;
+    inherit test-shebang-buildable;
+  } // test-all-d-unittests;
 }
