@@ -282,6 +282,7 @@ int dver(
 		if (!nixDir.exists)
 			run([
 				"nix-build",
+				"--fallback",
 				"-E", import("dver-nixify.nix"),
 				"--arg", "dir", dir,
 				"--out-link", nixDir,
