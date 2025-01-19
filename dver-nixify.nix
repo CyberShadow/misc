@@ -12,6 +12,7 @@ let
     pkgs.stdenvNoCC.mkDerivation {
       name = "dver-nixified";
       dontUnpack = true;
+      dontStrip = true;
       src = source;
       buildInputs = [
         libPkgs.libgcc
@@ -25,8 +26,29 @@ let
         cp -a $src $out
       '';
     };
-in
-pkgs.lib.lists.foldl patch dir [
-  pkgs
-  pkgs.pkgsi686Linux
-]
+  patched = pkgs.lib.lists.foldl patch dir [
+    pkgs
+    pkgs.pkgsi686Linux
+  ];
+  wrapped = pkgs.stdenvNoCC.mkDerivation {
+    name = "dver-nixified";
+    dontUnpack = true;
+    dontStrip = true;
+    src = patched;
+    nativeBuildInputs = [
+      pkgs.makeWrapper
+    ];
+    buildPhase = ''
+      cp -a $src $out
+      find $out -executable -type f -name dub |
+        while read -r f; do
+          chmod +w "$(dirname "$f")"
+          wrapProgram "$f" \
+            --set LD_LIBRARY_PATH "${pkgs.lib.makeLibraryPath [
+              pkgs.curl
+            ]}" \
+            --set SSL_CERT_FILE ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
+        done
+    '';
+  };
+in wrapped
