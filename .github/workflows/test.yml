@@ -12,8 +12,9 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: cachix/install-nix-action@v27
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
       - run: nix-build --show-trace -A programs
       - run: nix-build --show-trace -A tests
       - run: nix --extra-experimental-features 'nix-command flakes' build .
