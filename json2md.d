@@ -18,16 +18,19 @@ import ae.utils.funopt;
 import ae.utils.json;
 import ae.utils.main;
 
-void program()
+void program(
+	Switch!("Escape cells as code", 'e') escape = false,
+)
 {
 	auto data = readFile(stdin).assumeUTF.jsonParse!(OrderedMap!(string, string)[]);
 	if (!data.length)
 		return;
+	auto processCell = escape ? &mdEscape : (string s) => s;
 	auto keys = data[0].keys;
-	writefln("| %-(%s |%| %)", keys.map!mdEscape);
+	writefln("| %-(%s |%| %)", keys.map!processCell);
 	writefln("| %-(%s |%| %)", keys.map!(s => "-"));
 	foreach (row; data)
-		writefln("| %-(%s |%| %)", keys.map!(key => row[key]).map!mdEscape);
+		writefln("| %-(%s |%| %)", keys.map!(key => row[key]).map!processCell);
 }
 
 mixin main!(funopt!program);
