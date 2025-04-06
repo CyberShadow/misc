@@ -129,6 +129,7 @@ void program(
 			.dirEntries("dmd.*", SpanMode.shallow)
 			.filter!(de => de.isDir)
 			.filter!(de => !de.name.endsWith(".windows"))
+			.filter!(de => !de.name.endsWith(".nixified"))
 			.map!(de => de.baseName[4..$].chomp(".linux"))
 			.filter!(ver =>          ver >= minVer       )
 			.filter!(ver => maxVer ? ver <= maxVer : true)
