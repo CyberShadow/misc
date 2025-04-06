@@ -337,7 +337,7 @@ void program(
 					eqv = results[versions[index-1]].status == results[versions[index]].status;
 				else
 					eqv = (results[versions[index-1]].status==0) == (results[versions[index]].status==0);
-				if (!eqv && verDate(versions[index-1]) > SysTime(canBisectAfter))
+				if (!eqv && (verDate(versions[index-1]) > SysTime(canBisectAfter)).ifThrown(false))
 					try
 						bisectResults ~= bisect(versions[index-1], versions[index]);
 					catch (Exception e)
