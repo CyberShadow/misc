@@ -18,6 +18,7 @@ let
         libPkgs.libgcc
         libPkgs.libgcc.lib
         libPkgs.libstdcxx5
+        libPkgs.curl.out
       ];
       nativeBuildInputs = [
         libPkgs.autoPatchelfHook
