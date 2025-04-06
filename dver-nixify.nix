@@ -19,6 +19,7 @@ let
         libPkgs.libgcc.lib
         libPkgs.libstdcxx5
         libPkgs.curl.out
+        libPkgs.curlWithGnuTls.out
       ];
       nativeBuildInputs = [
         libPkgs.autoPatchelfHook
