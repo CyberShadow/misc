@@ -4,14 +4,21 @@
 # Filters unnecessary junk and prioritizes files from more likely
 # locations.
 
+exclusions=(-f ~/work/misc/locate-emacs-exclusions.txt)
+if [[ -f ~/.config/private/locate-emacs-exclusions.txt ]]; then
+	exclusions+=(-f ~/.config/private/locate-emacs-exclusions.txt)
+fi
+lowprio=(-f ~/work/misc/locate-emacs-lowprio.txt)
+if [[ -f ~/.config/private/locate-emacs-lowprio.txt ]]; then
+	lowprio+=(-f ~/.config/private/locate-emacs-lowprio.txt)
+fi
+
 function run() {
 	local tmpfile=/tmp/locate-emacs.$$
 	unbuffer plocate "$@" \
-		| grep --line-buffered -vFf \
-			   ~/work/misc/locate-emacs-exclusions.txt \
+		| grep --line-buffered -vF "${exclusions[@]}" \
 		| tee "$tmpfile" \
-		| grep --line-buffered -vFf \
-			   ~/work/misc/locate-emacs-lowprio.txt
+		| grep --line-buffered -vF "${lowprio[@]}" \
 
 	grep --line-buffered -Ff \
 		 ~/work/misc/locate-emacs-lowprio.txt \
