@@ -109,6 +109,11 @@ let
       sha256 = "sha256:1pvfjam5dgzffwh5w6i37wzpf1x5aij58hgs07bb00qyrz21pyqb";
     }
     {
+      pname = "ae";
+      version = "0.0.3636";
+      sha256 = "sha256:0h22zcz4nvaznih8vjsq3zdmg89w7v0l44ia1lnhzhc52211vm6q";
+    }
+    {
       pname = "chunker";
       version = "0.0.1";
       sha256 = "sha256:04bps3hbm8zkb64553hbpcyan203xkdl63yqmsx72wymwnavjij6";
