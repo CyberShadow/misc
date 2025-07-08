@@ -1,3 +1,6 @@
 /-/
+/home/vladimir/.cache/
 /home/vladimir/tmp/
 /usr/
+/.worktree/
+/nix/store/
