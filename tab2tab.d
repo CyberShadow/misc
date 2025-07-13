@@ -209,13 +209,10 @@ void program(
 			case "md":
 			case "org":
 				// This unified parser handles both Markdown and Org-Mode tables
-				auto allLines = f.readFile().assumeUnique.asText.splitLines
+				auto lines = f.readFile().assumeUnique.asText.splitLines
 					.map!(a => a.strip)
 					.filter!(a => a.length > 0 && a.startsWith("|"))
 					.array;
-
-				if (allLines.empty)
-					return Table.init;
 
 				// Helper to parse a row like `| a | b |`
 				auto parsePipedRow = (string line) {
@@ -225,21 +222,12 @@ void program(
 					return s.split('|').map!(c => c.strip()).array;
 				};
 
-				// The separator line in MD/Org contains `---` and starts with `|`
-				auto sepIdx = allLines.countUntil!(line => line.canFind("---"));
-
-				if (sepIdx < 1) // No separator or separator is first line
-				{
-					// Assume no separator, first line is header, rest is data
-					auto headers = parsePipedRow(allLines[0]);
-					auto rows = allLines[1..$].map!parsePipedRow.array;
-					return Table(headers, normalizeRows(rows, headers.length));
-				}
-
-				auto headers = parsePipedRow(allLines[sepIdx - 1]);
-				auto dataLines = allLines[sepIdx + 1 .. $];
-				auto rows = dataLines.map!parsePipedRow.array;
-
+				alias isSeparatorLine = line => line.startsWith("|-") || line.startsWith("| ---");
+				lines = lines.filter!(line => !isSeparatorLine(line)).array;
+				if (lines.empty)
+					return Table.init;
+				auto headers = parsePipedRow(lines[0]);
+				auto rows = lines[1..$].map!parsePipedRow.array;
 				return Table(headers, normalizeRows(rows, headers.length));
 
 			default:
