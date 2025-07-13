@@ -304,19 +304,25 @@ void program(
 				break;
 
 			case "json":
-				auto arr = JSONValue(JSONType.array);
-				foreach (row; t.rows)
+				static if (__traits(hasMember, JSONOptions, "preserveObjectOrder"))
 				{
-					auto obj = JSONValue(JSONType.object);
-					foreach (i, h; t.headers)
+					JSONValue[] rows;
+					foreach (row; t.rows)
 					{
-						if (i < row.length)
-							obj[h] = JSONValue(row[i]);
+						auto obj = JSONValue.emptyOrderedObject;
+						foreach (i, h; t.headers)
+						{
+							if (i < row.length)
+								obj[h] = JSONValue(row[i]);
+						}
+						rows ~= obj;
 					}
-					arr.array ~= obj;
+					auto doc = JSONValue(rows);
+					f.write(doc.toJSON());
+					break;
 				}
-				f.write(arr.toJSON());
-				break;
+				else
+					throw new Exception("Cannot write JSON - your std.json cannot preserve object order.");
 
 			case "sql":
 				auto w = f.lockingTextWriter;
