@@ -60,6 +60,8 @@ void program(
 	Option!(string, "Format to convert to.") to,
 	Switch!("Escape Markdown cells.") mdEscape = false,
 	Option!(string, "Table name for SQL output.") tableName = "table",
+	Parameter!(string, "Input file (default: stdin).") inputFileName = null,
+	Parameter!(string, "Output file (default: stdout).") outputFileName = null,
 )
 {
 	auto t = (File f) {
@@ -233,7 +235,7 @@ void program(
 			default:
 				throw new Exception("Unknown input format: " ~ from);
 		}
-	}(imported!"std.stdio".stdin);
+	}(inputFileName ? imported!"std.stdio".File(inputFileName, "rb") : imported!"std.stdio".stdin);
 
 	(File f) {
 		switch (to)
@@ -369,7 +371,7 @@ void program(
 			default:
 				throw new Exception("Unknown output format: " ~ to);
 		}
-	}(imported!"std.stdio".stdout);
+	}(outputFileName ? imported!"std.stdio".File(outputFileName, "wb") : imported!"std.stdio".stdout);
 }
 
 mixin main!(funopt!program);
