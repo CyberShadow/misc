@@ -194,6 +194,7 @@ void program(
 		auto result = execute(dverArgs ~ [ver, "which", "dmd"]);
 		enforce(result.status == 0, "Failed to find the dmd executable path to " ~ ver);
 		auto exe = result.output.strip();
+		exe = exe.replace(".nixified", "");
 		return exe.timeLastModified();
 	}
 
