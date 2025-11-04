@@ -11,6 +11,7 @@
 module btrfs_snapshot_archive;
 
 import core.time;
+import core.thread;
 
 import std.algorithm.iteration;
 import std.algorithm.mutation;
@@ -38,6 +39,112 @@ import ae.utils.time.parsedur;
 
 import btrfs_common;
 
+/// Parse size with optional suffix (K, M, G, T, etc.)
+ulong parseSize(string s)
+{
+	import std.ascii : isAlpha;
+	import std.string : strip, toUpper, indexOf;
+	import std.exception : enforce;
+	import std.conv : to;
+
+	static immutable prefixChars = " KMGTPEZY";
+	s = s.strip().toUpper();
+	if (s.endsWith("IB"))
+		s = s[0 .. $-2];
+	else
+	if (s.endsWith("B"))
+		s = s[0 .. $-1];
+	sizediff_t magnitude = 0;
+	if (s.length && isAlpha(s[$-1]))
+	{
+		magnitude = prefixChars.indexOf(s[$-1]);
+		enforce(magnitude > 0, "Unrecognized size suffix: " ~ s);
+		s = s[0 .. $-1];
+	}
+
+	return s.to!ulong * (1024UL ^^ magnitude);
+}
+
+unittest
+{
+	assert(parseSize("0") == 0);
+	assert(parseSize("1") == 1);
+	assert(parseSize("1b") == 1);
+	assert(parseSize("1k") == 1024);
+	assert(parseSize("1kb") == 1024);
+	assert(parseSize("1kib") == 1024);
+	assert(parseSize("1M") == 1024 * 1024);
+	assert(parseSize("1G") == 1024 * 1024 * 1024);
+}
+
+/// Copy data from input to output with a size limit.
+/// Throws if the limit is exceeded, including the actual size in the error message.
+auto sizeLimitedPipe(File input, File output, ulong maxBytes)
+{
+	static class SizeLimiter : Thread
+	{
+		File input, output;
+		ulong maxBytes;
+		ulong totalBytes;
+		Exception error;
+
+		this(File input, File output, ulong maxBytes)
+		{
+			this.input = input;
+			this.output = output;
+			this.maxBytes = maxBytes;
+			super(&run);
+		}
+
+		void run()
+		{
+			try
+			{
+				ubyte[64 * 1024] buffer;
+				bool limitExceeded = false;
+
+				while (true)
+				{
+					auto chunk = input.rawRead(buffer[]);
+					if (chunk.length == 0)
+						break;
+
+					totalBytes += chunk.length;
+
+					if (!limitExceeded)
+					{
+						if (totalBytes > maxBytes)
+						{
+							limitExceeded = true;
+							output.close(); // Stop writing, signal downstream
+							// But keep reading to get accurate total
+						}
+						else
+							output.rawWrite(chunk);
+					}
+				}
+
+				if (limitExceeded)
+				{
+					error = new Exception(format(
+						"Size limit exceeded: %s bytes (limit: %s bytes)",
+						totalBytes, maxBytes));
+				}
+				else if (!limitExceeded)
+					output.close();
+			}
+			catch (Exception e)
+			{
+				error = e;
+			}
+		}
+	}
+
+	auto t = new SizeLimiter(input, output, maxBytes);
+	t.start();
+	return t;
+}
+
 enum RsyncCondition
 {
 	never,
@@ -64,6 +171,7 @@ int btrfs_snapshot_archive(
 	Switch!("Only sync marks, don't copy new snapshots") markOnly = false,
 	Switch!("Create a \"latest\" symbolic link, pointing at the lexicographically highest snapshot") createLatestSymlink = false,
 	Option!(RsyncCondition, "When to use rsync instead of btrfs-send/receive (never/error/always). 'error' tries btrfs-send/receive first, and falls back to rsync on error.", "WHEN") rsync = RsyncCondition.never,
+	Option!(string, "Maximum allowed size for btrfs-send data (supports K, M, G, T suffixes)", "SIZE") maxSize = null,
 )
 {
 	if (markOnly)
@@ -327,6 +435,8 @@ int btrfs_snapshot_archive(
 
 				void copyBtrfsSendReceive()
 				{
+					bool haveSizeOverride = successMark && (snapshotSubvolume ~ ".size-ok") in srcDir;
+
 					{
 						auto parent = findParent(snapshot);
 						if (parent.snapshot)
@@ -376,21 +486,28 @@ int btrfs_snapshot_archive(
 						}
 
 						auto btrfsPipe = pipe();
-						File readEnd, writeEnd;
+						File readEnd = btrfsPipe.readEnd;
+						File writeEnd = btrfsPipe.writeEnd;
+						typeof(sizeLimitedPipe(File.init, File.init, 0)) sizeLimiterThread;
 						Pid pvPid;
+
+						auto maxSizeBytes = maxSize ? parseSize(maxSize) : ulong.max;
+						bool applySizeLimit = maxSizeBytes != ulong.max && !haveSizeOverride;
+
+						if (applySizeLimit)
+						{
+							auto sizeLimitPipe = pipe();
+							sizeLimiterThread = sizeLimitedPipe(readEnd, sizeLimitPipe.writeEnd, maxSizeBytes);
+							readEnd = sizeLimitPipe.readEnd;
+						}
 
 						if (pv)
 						{
 							auto pvPipe = pipe();
-							pvPid = spawnProcess(["pv"], btrfsPipe.readEnd, pvPipe.writeEnd);
-							writeEnd = btrfsPipe.writeEnd;
+							pvPid = spawnProcess(["pv"], readEnd, pvPipe.writeEnd);
 							readEnd = pvPipe.readEnd;
 						}
-						else
-						{
-							readEnd = btrfsPipe.readEnd;
-							writeEnd = btrfsPipe.writeEnd;
-						}
+
 
 						auto sendPid = spawnProcess(sendArgs, File("/dev/null"), writeEnd);
 						auto recvPid = spawnProcess(recvArgs, readEnd, stderr);
@@ -399,6 +516,13 @@ int btrfs_snapshot_archive(
 						int pvStatus;
 						if (pv)
 							pvStatus = pvPid.wait();
+						if (sizeLimiterThread)
+						{
+							sizeLimiterThread.join();
+							auto limiter = sizeLimiterThread;
+							if (limiter.error)
+								throw limiter.error;
+						}
 						enforce(recvStatus == 0, "btrfs-receive failed");
 						enforce(sendStatus == 0, "btrfs-send failed");
 						enforce(pvStatus == 0, "pv failed");
