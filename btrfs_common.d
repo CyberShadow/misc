@@ -125,7 +125,8 @@ struct Lock
 			auto remoteArgs = ["perl", "-e", import("btrfs_ssh_lock.pl"), path];
 			auto args = ["ssh"] ~ sshArgs ~ escapeShellCommand(remoteArgs);
 			pipes = pipeProcess(args, Redirect.stdin | Redirect.stdout);
-			enforce(pipes.stdout.readln() == "locked\n", "Unexpected output from file locker");
+			auto output = pipes.stdout.readln();
+			enforce(output == "locked\n", "Unexpected output from file locker: " ~ output);
 		}
 		else
 		{
