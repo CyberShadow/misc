@@ -39,6 +39,7 @@ void greplace(
 	Switch!("Search and replace in UTF-16") wide,
 	Switch!("Only search and replace in file names and paths") noContent,
 	Switch!("Only search and replace in file content") noFilenames,
+	Switch!("Do not recurse into directories") noRecurse,
 	Switch!("Recurse in symlinked directories") followSymlinks,
 	Switch!("Swap FROM and TO", 'r') reverse,
 	Switch!("Case-insensitive, preserve case when replacing", 'i') caseInsensitive,
@@ -153,7 +154,7 @@ void greplace(
 						: "Replacement in file name " ~ entry.fullName ~ " is not reversible"
 					);
 
-				if (followSymlinks ? entry.isDir : entry.entryIsDir)
+				if (!noRecurse && (followSymlinks ? entry.isDir : entry.entryIsDir))
 					entry.recurse();
 			}, Yes.includeRoot);
 
@@ -275,7 +276,7 @@ void greplace(
 					assert(false);
 			}
 
-			if (followSymlinks ? entry.isDir : entry.entryIsDir)
+			if (!noRecurse && (followSymlinks ? entry.isDir : entry.entryIsDir))
 			{
 				// Avoid modifying the directory we're iterating by eagerly enumerating its entries.
 				string[] entries;
