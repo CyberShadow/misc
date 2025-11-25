@@ -145,7 +145,7 @@ let
     let
       name = lib.removeSuffix ".d" f;
       buildCommon = ''
-        export HOME=/build
+        export HOME=$PWD
         ${lib.concatMapStringsSep "\n" (dep: ''
           dub fetch ${dep.pname}@${dep.version} --cache=user --skip-registry=standard --registry=file://${fetchDDep dep}
         '') dDeps}
