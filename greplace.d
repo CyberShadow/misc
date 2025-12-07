@@ -53,6 +53,13 @@ void greplace(
 	if (!targets.length)
 		targets = [""];
 
+	bool useStdio = targets == ["-"];
+	if (useStdio)
+	{
+		enforce(!copy, "Cannot use --copy with stdin/stdout");
+		enforce(!noContent, "Cannot use --no-content when reading from stdin");
+	}
+
 	string[2][] pairs = [[firstFrom, firstTo]];
 	if (extraFrom.length && !extraTo.length)
 	{
@@ -124,6 +131,29 @@ void greplace(
 		}
 
 		return haystack;
+	}
+
+	// Handle stdin/stdout mode
+	if (useStdio)
+	{
+		Bytes input;
+		foreach (chunk; stdin.byChunk(4096))
+			input ~= chunk;
+
+		if (!force)
+		{
+			if (input.I!replace(pairs, true).I!replace(reversePairs, true) != input)
+				throw new Exception(
+					pairs.length == 1
+					? "Input already contains " ~ pairs[0][1]
+					: "Replacement in input is not reversible"
+				);
+		}
+
+		if (!dryRun)
+			stdout.rawWrite(input.I!replace(pairs, true));
+
+		return;
 	}
 
 	// Check that the replacement is reversible (unless --force is specified).
@@ -597,6 +627,26 @@ unittest
 	std.file.write(dir ~ "/test.txt", "foo");
 	mainFunc(["greplace", "foo", "bar", "-F", "bar", "-T", "baz", dir]);
 	assert(readText(dir ~ "/test.txt") == "baz");
+}
+
+// Stdin/stdout mode
+unittest
+{
+	auto inFile = deleteme ~ ".in";
+	auto outFile = deleteme ~ ".out";
+	std.file.write(inFile, "foo baz foo");
+	scope(exit) { remove(inFile); remove(outFile); }
+
+	auto oldStdin = stdin;
+	auto oldStdout = stdout;
+	stdin = File(inFile, "r");
+	stdout = File(outFile, "w");
+	scope(exit) { stdin = oldStdin; stdout = oldStdout; }
+
+	mainFunc(["greplace", "foo", "bar", "-"]);
+	stdout.close();
+
+	assert(readText(outFile) == "bar baz bar");
 }
 
 mixin main!mainFunc;
