@@ -1145,7 +1145,7 @@ do
 	if [[ "$line" == $'\r' ]]
 	then
 		printf 'HTTP/1.1 200 OK\r\nX-PID: %d\r\nContent-Length: 2\r\n\r\nOK' "$$"
-		sleep infinity
+		exec sleep infinity
 	fi
 done
 EOF"];
@@ -1206,7 +1206,7 @@ do
 	if [[ "$line" == $'\r' ]]
 	then
 		printf 'HTTP/1.1 200 OK\r\nX-PID: %d\r\nContent-Length: 2\r\n\r\nOK' "$$"
-		sleep infinity
+		exec sleep infinity
 	fi
 done
 EOF"];
