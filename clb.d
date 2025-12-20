@@ -637,6 +637,15 @@ void clb(
 		requestQueue = null;
 	});
 
+	scope(failure)
+	{
+		shutdown("Unhandled exception");
+		// Run event loop again to flush pending disconnect operations
+		try
+			socketManager.loop();
+		catch (Exception e)
+			stderr.writefln("clb: Exception during shutdown: %s", e.msg);
+	}
 	socketManager.loop();
 }
 
@@ -1253,4 +1262,81 @@ EOF"];
 	import std.range.primitives : walkLength;
 	assert(pids.sort.uniq.walkLength == 3);
 	assert(!pids.canFind(null));  // No requests were lost because of --retry
+}
+
+// Test graceful shutdown on unhandled exception
+version (Posix)
+unittest
+{
+	import std.file : exists;
+
+	// Worker that writes to a file when it receives EOF, then exits
+	.workerCommand = ["bash", "-c", q"EOF
+trap 'echo "got-eof" > /tmp/clb-test-eof-received; exit 0' EXIT
+while IFS= read -r line
+do
+	if [[ "$line" == $'\r' ]]
+	then
+		printf 'HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK'
+	fi
+done
+EOF"];
+	.maxPipelining = 1;
+	.maxRequests = ulong.max;
+	.maxIdleTime = 60.seconds;
+	.workerTimeout = 1.weeks;
+	.retry = false;
+	.killRules = [];
+
+	// Clean up any previous test artifacts
+	if (exists("/tmp/clb-test-eof-received"))
+		remove("/tmp/clb-test-eof-received");
+
+	createWorkers(1);
+	auto listenAddr = "clb-test-exception";
+	auto s = startServer(listenAddr, false);
+	scope(exit) remove(listenAddr);
+
+	addShutdownHandler((reason) {
+		.retry = false;
+		s.close();
+		foreach (worker; workers)
+			worker.shutdown();
+		workers = null;
+	});
+
+	// Send a request to start a worker
+	auto c = new HttpClient(1.seconds, new UnixConnector(listenAddr));
+	c.handleResponse = (HttpResponse r, string disconnectReason)
+	{
+		assert(r, disconnectReason);
+		// After getting response, schedule an exception to be thrown
+		socketManager.onNextTick({
+			throw new Exception("Test exception");
+		});
+	};
+	c.request(new HttpRequest("http://server/"));
+
+	// Run event loop - it should exit due to the exception
+	// Note: In real code, scope(failure) would work because the exception propagates.
+	// In this test, we catch the exception and simulate what scope(failure) would do.
+	Exception caughtException;
+	try
+		socketManager.loop();
+	catch (Exception e)
+		caughtException = e;
+
+	// This simulates what scope(failure) shutdown("Unhandled exception"); would do
+	assert(caughtException !is null && caughtException.msg == "Test exception");
+	shutdown("Unhandled exception");
+	// Run event loop again to flush pending disconnect operations
+	try socketManager.loop(); catch (Exception) {}
+
+	// Give the worker a moment to receive EOF and write the file
+	import core.thread : Thread;
+	Thread.sleep(100.msecs);
+
+	// Verify the worker received EOF
+	assert(exists("/tmp/clb-test-eof-received"), "Worker did not receive EOF on shutdown");
+	remove("/tmp/clb-test-eof-received");
 }
