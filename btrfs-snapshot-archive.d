@@ -330,7 +330,12 @@ int btrfs_snapshot_archive(
 						{
 							needSnapshotHeader(); stderr.writefln(">>> Creating mark: %s", markPath);
 							if (!dryRun)
+							{
+								// Ensure the destination is durably committed before
+								// recording success on the source.
+								btrfs_filesystem_sync(dstRoot);
 								write(markPath, "");
+							}
 						}
 					}
 				}

@@ -216,6 +216,11 @@ void btrfs_subvolume_sync(string path)
 	run(remotify(["btrfs", "subvolume", "sync", path]));
 }
 
+void btrfs_filesystem_sync(string path)
+{
+	run(remotify(["btrfs", "filesystem", "sync", path]));
+}
+
 string run(string[] args)
 {
 	import std.stdio : stdin;
