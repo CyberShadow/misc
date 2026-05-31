@@ -4,12 +4,18 @@
 +/
 
 /**
-   Compare two directory trees. When a file exists at the same
-   sub-path in both trees, deduplicate identical blocks within the
+   Compare two or more directory trees. When a file exists at the same
+   sub-path in multiple trees, deduplicate identical blocks within the
    file.
 
    Useful when you have mostly-identical directory trees, but
    brute-force full deduplication (e.g. using duperemove) is too slow.
+
+   Deduplication follows command-line argument order, like tools which
+   take source arguments before target arguments. When the same relative
+   path and file size exists under multiple directory arguments, the
+   leftmost matching file is the source extent and later matching files
+   are deduplicated to it.
 
    When the source or target already have shared extents, mind the
    deduplication direction, as btrfs will not merge all
@@ -23,6 +29,7 @@ module btrfs_dedup_tree;
 import etc.linux.memoryerror;
 
 import std.algorithm.iteration;
+import std.algorithm.sorting;
 import std.array;
 import std.exception;
 import std.file;
@@ -88,9 +95,12 @@ void scan(SubPath[] paths)
 		foreach (dir; dirs)
 			foreach (de; dirEntries(dir.de, SpanMode.shallow))
 				names[de.baseName][dir.index] = de;
-		foreach (name, entries; names)
+		foreach (name; names.keys.sort)
+		{
+			auto entries = names[name];
 			if (entries.length > 1)
-				scan(entries.byKeyValue.map!(kv => SubPath(kv.key, kv.value)).array);
+				scan(entries.keys.sort.map!(index => SubPath(index, entries[index])).array);
+		}
 	}
 
 	auto files = paths.filter!(path => path.de.isFile).array;
@@ -102,10 +112,12 @@ void scan(SubPath[] paths)
 		foreach (size, entries; sizes)
 			if (entries.length > 1)
 			{
-				auto entry0 = entries.byKeyValue.front;
-				stderr.writeln(entry0.value.absolutePath.relativePath(roots[entry0.key].absolutePath));
-				foreach (entry1; entries.byKeyValue.dropOne)
-					dedupFile(entry0.value, entry1.value);
+				auto indices = entries.keys.sort;
+				auto srcIndex = indices.front;
+				auto srcEntry = entries[srcIndex];
+				stderr.writeln(srcEntry.absolutePath.relativePath(roots[srcIndex].absolutePath));
+				foreach (dstIndex; indices.dropOne)
+					dedupFile(srcEntry, entries[dstIndex]);
 			}
 	}
 }
