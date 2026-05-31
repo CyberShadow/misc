@@ -114,6 +114,16 @@ let
       sha256 = "sha256:0h22zcz4nvaznih8vjsq3zdmg89w7v0l44ia1lnhzhc52211vm6q";
     }
     {
+      pname = "ae";
+      version = "0.0.3876";
+      sha256 = "sha256:13kxfrf0l3zxnkwi9n0xr3h57bx49vr586v1dfdhhgjsplm2v28b";
+    }
+    {
+      pname = "btrfs";
+      version = "0.0.22";
+      sha256 = "sha256:1rsv493pkldsxqrjy1kadwkcwm4cinh21v8b5f651a51f54sdkpn";
+    }
+    {
       pname = "chunker";
       version = "0.0.1";
       sha256 = "sha256:04bps3hbm8zkb64553hbpcyan203xkdl63yqmsx72wymwnavjij6";
@@ -144,6 +154,11 @@ let
   dProgram = f:
     let
       name = lib.removeSuffix ".d" f;
+      # The pinned dmd segfaults while compiling d-btrfs; use ldc only
+      # for programs which import the DUB btrfs package directly.
+      usesBtrfs = builtins.match ".*import btrfs([.;]|[ \t]*:).*" (readFile f) != null;
+      compiler = if usesBtrfs then pkgs.ldc else pkgs.dmd;
+      compilerArg = lib.optionalString usesBtrfs "--compiler=ldc2";
       buildCommon = ''
         export HOME=$PWD
         ${lib.concatMapStringsSep "\n" (dep: ''
@@ -169,12 +184,12 @@ let
         src = f;
         dontUnpack = true;
         buildInputs = [
-          pkgs.dmd
+          compiler
           pkgs.dub
         ];
         buildPhase = ''
           ${buildCommon}
-          DFLAGS="-L-L${dLibs}/lib" dub build --single ${name}.d --skip-registry=standard
+          DFLAGS="-L-L${dLibs}/lib" dub build ${compilerArg} --single ${name}.d --skip-registry=standard
         '';
         installPhase = ''
           mkdir -p $out/bin
@@ -184,7 +199,7 @@ let
           inherit (finalAttrs) src buildInputs;
         } ''
           ${buildCommon}
-          DFLAGS="-unittest -L-L${dLibs}/lib" dub --single ${name}.d --skip-registry=standard -- --DRT-testmode=test-only
+          DFLAGS="-unittest -L-L${dLibs}/lib" dub ${compilerArg} --single ${name}.d --skip-registry=standard -- --DRT-testmode=test-only
           touch $out
         '';
       });
