@@ -37,20 +37,20 @@ import ae.utils.digest;
 import ae.utils.funopt;
 import ae.utils.main;
 
-void dedupFile(string pathA, string pathB)
+void dedupFile(string srcPath, string dstPath)
 {
-	auto fA = File(pathA, "rb");
-	auto fB = File(pathB, "rb");
-	if (fA.size != fB.size)
+	auto fSrc = File(srcPath, "rb");
+	auto fDst = File(dstPath, "rb");
+	if (fSrc.size != fDst.size)
 		return;
 
 	auto pos = 0;
-	auto size = fA.size;
+	auto size = fSrc.size;
 	while (pos < size)
 	{
 		Extent[2] extents = [
-			Extent(fA, pos),
-			Extent(fB, pos),
+			Extent(fSrc, pos),
+			Extent(fDst, pos),
 		];
 		try
 		{
