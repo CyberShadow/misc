@@ -52,8 +52,8 @@ void dedupFile(string srcPath, string dstPath)
 	if (fSrc.size != fDst.size)
 		return;
 
-	auto pos = 0;
-	auto size = fSrc.size;
+	size_t pos = 0;
+	size_t size = fSrc.size;
 	while (pos < size)
 	{
 		Extent[2] extents = [
