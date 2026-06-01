@@ -43,6 +43,7 @@ import ae.sys.btrfs.extent_same;
 import ae.utils.digest;
 import ae.utils.funopt;
 import ae.utils.main;
+import ae.utils.path : relPath;
 
 void dedupFile(string srcPath, string dstPath)
 {
@@ -115,7 +116,7 @@ void scan(SubPath[] paths)
 				auto indices = entries.keys.sort;
 				auto srcIndex = indices.front;
 				auto srcEntry = entries[srcIndex];
-				stderr.writeln(srcEntry.absolutePath.relativePath(roots[srcIndex].absolutePath));
+				stderr.writeln(srcEntry.relPath(roots[srcIndex]));
 				foreach (dstIndex; indices.dropOne)
 					dedupFile(srcEntry, entries[dstIndex]);
 			}
