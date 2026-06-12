@@ -4,3 +4,4 @@
 /usr/
 /.worktree/
 /nix/store/
+/.cydo/
