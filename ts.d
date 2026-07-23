@@ -16,6 +16,11 @@ import std.datetime;
 
 import ae.utils.time;
 
+// Disable parallel GC marking to avoid a livelock in druntime
+// (https://github.com/dlang/dmd/pull/23082) which its background scan
+// threads are prone to given this program's tiny root set / shallow heap.
+extern(C) __gshared string[] rt_options = ["gcopt=parallel:0"];
+
 void main()
 {
 	stdin.setvbuf(1024, _IOLBF);
