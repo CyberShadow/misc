@@ -18,10 +18,10 @@
    are deduplicated to it.
 
    When the source or target already have shared extents, mind the
-   deduplication direction, as btrfs will not merge all
-   references. E.g. if you have files A B C D pointing to physical
-   blocks 1 1 2 2 respectively, deduplicating B and C will likely
-   result in 1 1 1 2 or 1 2 2 2, not 1 1 1 1.
+   deduplication direction, as btrfs will not merge all references.
+   E.g. if you have files A B C D pointing to physical blocks 1 1 2 2
+   respectively, deduplicating B and C will likely result in 1 1 1 2
+   or 1 2 2 2, not 1 1 1 1.
 */
 
 module btrfs_dedup_tree;
