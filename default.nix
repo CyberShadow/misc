@@ -2,7 +2,7 @@
     url = "https://github.com/NixOS/nixpkgs/archive/c00f20377be57a37df5cf7986198aab6051c0057.tar.gz";
     sha256 = "sha256:0y5lxq838rzia2aqf8kh2jdv8hzgi7a6hlswsklzkss27337hrcn";
 }) {}
-, repo ? builtins.fetchGit ./.
+, repo ? builtins.fetchGit { url = ./.; shallow = true; }
 }:
 
 let
