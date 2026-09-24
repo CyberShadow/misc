@@ -136,10 +136,10 @@ unittest
 
 unittest
 {
-	assert(ownerSnapshot("@home-2026-09-24T00:00:00Z.success-backup") == "@home-2026-09-24T00:00:00Z");
-	assert(ownerSnapshot("@home-2026-09-24T00:00:00Z.json") == "@home-2026-09-24T00:00:00Z");
-	assert(ownerSnapshot("@home-2026-09-24T00:00:00Z.partial") is null);
-	assert(ownerSnapshot("@home-2026-09-24T00:00:00Z") is null);
+	assert(ownerSnapshot("@home-20260924000000.success-backup") == "@home-20260924000000");
+	assert(ownerSnapshot("@home-20260924000000.json") == "@home-20260924000000");
+	assert(ownerSnapshot("@home-20260924000000.partial") is null);
+	assert(ownerSnapshot("@home-20260924000000") is null);
 }
 
 int btrfs_snapshot_cleanup(
