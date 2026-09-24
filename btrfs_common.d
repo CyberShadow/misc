@@ -98,9 +98,9 @@ class SSHFS : VFS
 	}
 
 	/// Extract and convert hostname/port from VFS path to ssh command-line parameters.
-	private static string[] parsePath(ref string path)
+	static string[] parsePath(ref string path)
 	{
-		assert(path.skipOver("ssh://"));
+		enforce(path.skipOver("ssh://"), "Not an ssh:// URL: " ~ path);
 		auto parts = path.findSplit("/");
 		path = parts[2];
 		auto host = parts[0];

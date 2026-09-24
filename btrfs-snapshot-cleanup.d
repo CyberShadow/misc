@@ -12,14 +12,19 @@ import core.thread;
 import core.time;
 
 import std.algorithm.comparison;
+import std.algorithm.iteration;
 import std.algorithm.searching;
 import std.algorithm.sorting;
 import std.array;
 import std.conv;
 import std.datetime;
+import std.exception;
 import std.math : isNaN;
 import std.path;
-import std.stdio : stderr, File;
+import std.process : escapeShellFileName;
+import std.regex : ctRegex, matchFirst;
+import std.socket : Socket;
+import std.stdio : stderr, stdout, File;
 import std.string;
 
 import ae.sys.vfs;
@@ -44,6 +49,91 @@ string ownerSnapshot(string fn)
 	return null;
 }
 
+/// Quote `arg` for a POSIX shell, leaving it as-is if it is safe.
+string shellQuote(string arg)
+{
+	if (arg.matchFirst(ctRegex!`^[A-Za-z0-9@%+=:,./_-]+$`))
+		return arg;
+	return escapeShellFileName(arg);
+}
+
+/// Collects commands for deleting copies of snapshots, as recorded
+/// in success marks by btrfs-snapshot-archive.
+struct CopyDeletionCommands
+{
+	/// ssh arguments (space-separated; empty for this host) -> paths of copies.
+	private string[][string] copies;
+	/// Success marks whose copy location was not recorded.
+	private string[] unknown;
+
+	/// `location` is the contents of the success mark `markName`.
+	void add(string markName, string location)
+	{
+		if (!location.length)
+		{
+			unknown ~= markName;
+			return;
+		}
+		auto path = location;
+		auto sshArgs = SSHFS.parsePath(path);
+		enforce(path.isAbsolute, "Relative path in success mark " ~ markName ~ ": " ~ location);
+		if (sshArgs == [Socket.hostName])
+			sshArgs = null;
+		copies[sshArgs.join(" ")] ~= path;
+	}
+
+	/// Write the commands as a shell script snippet.
+	void print(File f)
+	{
+		if (!copies.length && !unknown.length)
+			return;
+		f.writeln("# To also delete copies of the deleted snapshots, run:");
+		foreach (host; copies.keys.sort)
+		{
+			auto sshArgs = host.split(" ");
+			auto paths = copies[host];
+			foreach (command; [
+				["btrfs", "subvolume", "delete", "-c"] ~ paths,
+				["rm", "-f"] ~ paths.map!(path => path ~ ".json").array,
+			])
+			{
+				if (!sshArgs.length || !sshArgs[0].startsWith("root@"))
+					command = "sudo" ~ command;
+				auto words = command.map!shellQuote.array;
+				if (sshArgs.length)
+					words = (["ssh"] ~ sshArgs ~ words).map!shellQuote.array; // ssh passes words to the remote shell
+				f.writeln(words.join(" "));
+			}
+		}
+		foreach (markName; unknown)
+			f.writefln("# %s: unknown destination", markName);
+	}
+}
+
+unittest
+{
+	CopyDeletionCommands c;
+	c.add("@a-1.success-x", "ssh://" ~ Socket.hostName ~ "//mnt/snaps/@a-1");
+	c.add("@a-1.success-y", "ssh://root@remote:2222//mnt/my snaps/@a-1");
+	c.add("@a-2.success-y", "ssh://root@remote:2222//mnt/my snaps/@a-2");
+	c.add("@a-1.success-z", "ssh://user@remote//mnt/snaps/@a-1");
+	c.add("@a-1.success-w", "");
+	auto f = File.tmpfile();
+	c.print(f);
+	f.rewind();
+	auto lines = f.byLineCopy.array;
+	assert(lines == [
+		"# To also delete copies of the deleted snapshots, run:",
+		"sudo btrfs subvolume delete -c /mnt/snaps/@a-1",
+		"sudo rm -f /mnt/snaps/@a-1.json",
+		`ssh root@remote -p 2222 btrfs subvolume delete -c ''\''/mnt/my snaps/@a-1'\''' ''\''/mnt/my snaps/@a-2'\'''`,
+		`ssh root@remote -p 2222 rm -f ''\''/mnt/my snaps/@a-1.json'\''' ''\''/mnt/my snaps/@a-2.json'\'''`,
+		"ssh user@remote sudo btrfs subvolume delete -c /mnt/snaps/@a-1",
+		"ssh user@remote sudo rm -f /mnt/snaps/@a-1.json",
+		"# @a-1.success-w: unknown destination",
+	], lines.join("\n"));
+}
+
 unittest
 {
 	assert(ownerSnapshot("@home-2026-09-24T00:00:00Z.success-backup") == "@home-2026-09-24T00:00:00Z");
@@ -58,6 +148,7 @@ int btrfs_snapshot_cleanup(
 	Switch!("Be more verbose") verbose,
 	Switch!("Delete partially-transferred snapshots, too") deletePartial,
 	Switch!("Delete orphan success marks and metadata sidecars, too") cleanMarks,
+	Switch!("Print commands for deleting the copies of deleted snapshots recorded in their success marks") showCopies,
 	Option!(string[], "Only consider snapshots matching this glob") mask = null,
 	Option!(string[], "Do not consider snapshots matching this glob") notMask = null,
 	Option!(string[], "Only consider snapshots with all of the given marks", "MARK") mark = null,
@@ -103,6 +194,7 @@ int btrfs_snapshot_cleanup(
 	}
 
 	bool error, warning;
+	CopyDeletionCommands copies;
 	auto now = Clock.currTime;
 	auto olderThanDur = olderThan ? olderThan.parseDuration : Duration.init;
 	auto sleepDur = sleep ? sleep.parseDuration : Duration.init;
@@ -261,6 +353,8 @@ int btrfs_snapshot_cleanup(
 					{
 						if (fn.ownerSnapshot == snapshotSubvolume)
 						{
+							if (showCopies && fn.canFind(".success-"))
+								copies.add(fn, buildPath(root, fn).readText);
 							stderr.writefln(">>>> Deleting %s ...", fn);
 							if (!dryRun)
 							{
@@ -325,6 +419,9 @@ int btrfs_snapshot_cleanup(
 			}
 		}
 	}
+
+	if (showCopies)
+		copies.print(stdout);
 
 	if (error)
 		stderr.writeln("> Done with some errors.");
