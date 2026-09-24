@@ -168,6 +168,8 @@ let
         ${lib.optionalString (builtins.match ".*import btrfs_common;.*" (readFile f) != null) ''
           ln -vs ${./btrfs_common.d} ./btrfs_common.d
           ln -vs ${./btrfs_ssh_lock.pl} ./btrfs_ssh_lock.pl
+        ''}${lib.optionalString (builtins.match ".*import btrfs_send_stream;.*" (readFile f) != null) ''
+          ln -vs ${./btrfs_send_stream.d} ./btrfs_send_stream.d
         ''}${lib.optionalString (builtins.match ".*import drunner;.*" (readFile f) != null) ''
           ln -vs ${./drunner.d} ./drunner.d
         ''}${lib.optionalString (builtins.match ".*import linux_config_common;.*" (readFile f) != null) ''
