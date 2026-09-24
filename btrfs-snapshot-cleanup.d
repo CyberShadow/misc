@@ -50,6 +50,10 @@ string ownerSnapshot(string fn)
 }
 
 /// Quote `arg` for a POSIX shell, leaving it as-is if it is safe.
+/// Unlike std.process.escapeShellCommand, this does not quote words
+/// ending with a digit (to disambiguate from `2>file` redirections),
+/// as that would needlessly quote every snapshot path, making the
+/// printed commands (which are also quoted again for ssh) hard to read.
 string shellQuote(string arg)
 {
 	if (arg.matchFirst(ctRegex!`^[A-Za-z0-9@%+=:,./_-]+$`))
