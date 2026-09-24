@@ -10,6 +10,8 @@
 /// ssh://user@host//path/to/btrfs/root URLs.
 module btrfs_snapshot_archive;
 
+import core.sys.posix.signal;
+import core.thread;
 import core.time;
 
 import std.algorithm.iteration;
@@ -23,7 +25,7 @@ import std.format;
 import std.path;
 import std.process;
 import std.range;
-import std.stdio : stderr, File;
+import std.stdio : stderr, stdout, File;
 import std.string : indexOf;
 import std.typecons;
 
@@ -31,12 +33,61 @@ import ae.sys.vfs;
 import ae.utils.aa;
 import ae.utils.array;
 import ae.utils.funopt;
+import ae.utils.json : toJson;
 import ae.utils.main;
 import ae.utils.meta;
 import ae.utils.time.parse;
 import ae.utils.time.parsedur;
 
 import btrfs_common;
+import btrfs_send_stream;
+
+/// Copies a btrfs send stream from `input` to `output`, parsing it along the way.
+final class SendStreamTap : Thread
+{
+	private File input, output;
+	private SendStreamParser parser;
+	/// Set if copying or parsing failed; both ends are then closed,
+	/// so that the sender and receiver fail too instead of blocking.
+	Exception error;
+
+	this(File input, File output)
+	{
+		this.input = input;
+		this.output = output;
+		super(&run);
+	}
+
+	private void run()
+	{
+		scope(exit)
+		{
+			output.close();
+			input.close();
+		}
+		try
+		{
+			ubyte[64 * 1024] buffer;
+			while (true)
+			{
+				auto chunk = input.rawRead(buffer[]);
+				if (chunk.length == 0)
+					break;
+				parser.put(chunk);
+				output.rawWrite(chunk);
+			}
+		}
+		catch (Exception e)
+			error = e;
+	}
+
+	/// Call after the thread finished without error.
+	Delta finish(string parent)
+	{
+		assert(!isRunning && !error);
+		return parser.finish(parent);
+	}
+}
 
 enum RsyncCondition
 {
@@ -71,6 +122,16 @@ int btrfs_snapshot_archive(
 
 	import core.stdc.stdio : _IOLBF;
 	stderr.setvbuf(1024, _IOLBF);
+
+	// Writing to a pipe whose reader exited (e.g. a failed btrfs-receive)
+	// should fail the transfer, not kill the process. Use a no-op handler
+	// rather than SIG_IGN, as the latter would be inherited by child processes.
+	{
+		extern(C) static void onSigPipe(int) nothrow @nogc {}
+		sigaction_t action;
+		action.sa_handler = &onSigPipe;
+		enforce(sigaction(SIGPIPE, &action, null) == 0, "sigaction failed");
+	}
 
 	// Set of snapshots for each subvolume.
 	// Subvolume here means a btrfs subvolume and all/any of its snapshots.
@@ -380,9 +441,10 @@ int btrfs_snapshot_archive(
 							}
 						}
 
-						auto btrfsPipe = pipe();
-						File readEnd = btrfsPipe.readEnd;
-						File writeEnd = btrfsPipe.writeEnd;
+						auto sendPipe = pipe();
+						auto tapPipe = pipe();
+						auto tap = new SendStreamTap(sendPipe.readEnd, tapPipe.writeEnd);
+						File readEnd = tapPipe.readEnd;
 						Pid pvPid;
 
 						if (pv)
@@ -393,18 +455,35 @@ int btrfs_snapshot_archive(
 						}
 
 
-						auto sendPid = spawnProcess(sendArgs, File("/dev/null"), writeEnd);
+						auto sendPid = spawnProcess(sendArgs, File("/dev/null"), sendPipe.writeEnd);
+						tap.start();
 						auto recvPid = spawnProcess(recvArgs, readEnd, stderr);
 						auto recvStatus = recvPid.wait();
 						auto sendStatus = sendPid.wait();
 						int pvStatus;
 						if (pv)
 							pvStatus = pvPid.wait();
-						enforce(recvStatus == 0, "btrfs-receive failed");
-						enforce(sendStatus == 0, "btrfs-send failed");
-						enforce(pvStatus == 0, "pv failed");
+						tap.join();
+
+						// Any one failure can cause the others, so report all of them.
+						string[] failures;
+						if (recvStatus != 0) failures ~= "btrfs-receive failed";
+						if (sendStatus != 0) failures ~= "btrfs-send failed";
+						if (pvStatus != 0) failures ~= "pv failed";
+						if (tap.error) failures ~= "send stream error: " ~ tap.error.msg;
+						enforce(!failures.length, failures.join("; "));
+
+						auto delta = tap.finish(parentSubvolume);
 						enforce(dstPath.exists, "Sent subvolume does not exist: " ~ dstPath);
-						if (verbose) stderr.writeln(">>>> OK");
+
+						// Written before the .partial flag is removed, so that
+						// every completely received snapshot has one.
+						auto metadataPath = dstPath ~ ".json";
+						SnapshotMetadata metadata;
+						metadata.delta = delta;
+						write(metadataPath, metadata.toJson);
+						stdout.writeln(metadataPath);
+						if (verbose) stderr.writefln(">>>> OK (%d bytes of data, %d commands)", delta.dataBytes, delta.commands);
 					}
 					dstDir.add(snapshotSubvolume);
 				}
