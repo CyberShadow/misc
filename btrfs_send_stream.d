@@ -45,6 +45,9 @@ struct SnapshotMetadata
 	Delta delta; ///
 }
 
+/// The bytes a btrfs send stream starts with.
+enum ubyte[13] sendStreamMagic = cast(ubyte[13])"btrfs-stream\0";
+
 /// Push parser: feed the stream with `put`, then call `finish`.
 struct SendStreamParser
 {
@@ -71,12 +74,19 @@ struct SendStreamParser
 	/// `parent` is the name of the snapshot the stream was relative to.
 	Delta finish(string parent)
 	{
+		auto tree = finishTree();
+		enforce(isFull == !parent,
+			isFull ? "Send stream is whole, but a parent was specified" : "Send stream is incremental, but no parent was specified");
+		return Delta(parent, streamBytes, dataBytes, commands, tree);
+	}
+
+	/// Verify that the stream was complete, and return its per-path totals.
+	DeltaTree finishTree()
+	{
 		enforce(streamVersion, "Truncated send stream (no header)");
 		enforce(ended, "Truncated send stream (no end command)");
 		enforce(buf.length == 0, "Truncated send stream (partial command)");
-		enforce(isFull == !parent,
-			isFull ? "Send stream is whole, but a parent was specified" : "Send stream is incremental, but no parent was specified");
-		return Delta(parent, streamBytes, dataBytes, commands, toTree(rootNode));
+		return toTree(rootNode);
 	}
 
 private:
@@ -93,7 +103,7 @@ private:
 		return root;
 	}
 
-	enum ubyte[13] magic = cast(ubyte[13])"btrfs-stream\0";
+	alias magic = sendStreamMagic;
 	enum headerLength = magic.length + 4;
 	enum commandHeaderLength = 4 + 2 + 4; // len, cmd, crc
 	enum maxVersion = 3;
