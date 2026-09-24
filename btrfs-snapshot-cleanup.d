@@ -32,12 +32,32 @@ import ae.utils.time.parsedur;
 
 import btrfs_common;
 
+/// If `fn` is a file belonging to a snapshot (a success mark or a
+/// metadata sidecar), return the snapshot's name; otherwise, null.
+string ownerSnapshot(string fn)
+{
+	auto p = fn.indexOf(".success-");
+	if (p > 0)
+		return fn[0..p];
+	if (fn.endsWith(".json"))
+		return fn[0..$-".json".length];
+	return null;
+}
+
+unittest
+{
+	assert(ownerSnapshot("@home-2026-09-24T00:00:00Z.success-backup") == "@home-2026-09-24T00:00:00Z");
+	assert(ownerSnapshot("@home-2026-09-24T00:00:00Z.json") == "@home-2026-09-24T00:00:00Z");
+	assert(ownerSnapshot("@home-2026-09-24T00:00:00Z.partial") is null);
+	assert(ownerSnapshot("@home-2026-09-24T00:00:00Z") is null);
+}
+
 int btrfs_snapshot_cleanup(
 	Parameter!(string, "Path to btrfs root directory") root,
 	Switch!("Dry run (only pretend to do anything)") dryRun,
 	Switch!("Be more verbose") verbose,
 	Switch!("Delete partially-transferred snapshots, too") deletePartial,
-	Switch!("Delete orphan success marks, too") cleanMarks,
+	Switch!("Delete orphan success marks and metadata sidecars, too") cleanMarks,
 	Option!(string[], "Only consider snapshots matching this glob") mask = null,
 	Option!(string[], "Do not consider snapshots matching this glob") notMask = null,
 	Option!(string[], "Only consider snapshots with all of the given marks", "MARK") mark = null,
@@ -239,10 +259,9 @@ int btrfs_snapshot_cleanup(
 
 					foreach (fn; dir)
 					{
-						auto markName = fn[];
-						if (markName.skipOver(snapshotSubvolume ~ ".success-"))
+						if (fn.ownerSnapshot == snapshotSubvolume)
 						{
-							stderr.writefln(">>>> Deleting success mark %s ...", markName);
+							stderr.writefln(">>>> Deleting %s ...", fn);
 							if (!dryRun)
 							{
 								buildPath(root, fn).remove();
@@ -289,11 +308,11 @@ int btrfs_snapshot_cleanup(
 
 	if (cleanMarks)
 	{
-		stderr.writeln("> Cleaning up orphan marks...");
+		stderr.writeln("> Cleaning up orphan marks and sidecars...");
 		foreach (fn; dir.keys.sort)
 		{
-			auto p = fn.indexOf(".success-");
-			if (p > 0 && fn[0..p] !in dir)
+			auto owner = fn.ownerSnapshot;
+			if (owner.length && owner !in dir)
 			{
 				stderr.writeln(">> ", fn);
 				if (!dryRun)
