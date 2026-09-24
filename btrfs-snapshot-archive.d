@@ -25,6 +25,7 @@ import std.format;
 import std.path;
 import std.process;
 import std.range;
+import std.socket : Socket;
 import std.stdio : stderr, stdout, File;
 import std.string : indexOf;
 import std.typecons;
@@ -41,6 +42,15 @@ import ae.utils.time.parsedur;
 
 import btrfs_common;
 import btrfs_send_stream;
+
+/// Returns an URL identifying `path` independently of the local host,
+/// so that it remains meaningful when read on another machine.
+string toLocationURL(string path)
+{
+	if (path.startsWith("ssh://"))
+		return path;
+	return "ssh://" ~ Socket.hostName ~ "/" ~ path.absolutePath.buildNormalizedPath;
+}
 
 /// Copies a btrfs send stream from `input` to `output`, parsing it along the way.
 final class SendStreamTap : Thread
@@ -274,7 +284,8 @@ int btrfs_snapshot_archive(
 					continue;
 				}
 
-				void createMark()
+				/// Record on the source that the snapshot is now at `dstSubvolumePath`.
+				void createMark(string dstSubvolumePath)
 				{
 					if (successMark)
 					{
@@ -287,7 +298,7 @@ int btrfs_snapshot_archive(
 								// Ensure the destination is durably committed before
 								// recording success on the source.
 								btrfs_filesystem_sync(dstRoot);
-								write(markPath, "");
+								write(markPath, dstSubvolumePath.toLocationURL);
 							}
 						}
 					}
@@ -343,7 +354,7 @@ int btrfs_snapshot_archive(
 						if (haveDst) // dstPath.exists
 						{
 							if (verbose) stderr.writeln(">>> Already in destination, skipping");
-							createMark();
+							createMark(haveSnapshot ? dstPath : dstPath ~ ".rsync");
 							continue;
 						}
 					}
@@ -614,7 +625,7 @@ int btrfs_snapshot_archive(
 					}
 				}
 
-				createMark();
+				createMark(dstPath);
 				limit--;
 			}
 			catch (Exception e)
