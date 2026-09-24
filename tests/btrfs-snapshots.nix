@@ -74,6 +74,7 @@ pkgs.testers.runNixOSTest {
 
         m = metadata(dest, "/mnt/btrfs/pushed/@data-20260101000000.json")
         assert m["version"] == 1, m
+        assert m["delta"]["streamVersion"] == 2, m
         assert m["delta"]["parent"] is None, m
         assert m["delta"]["tree"]["children"]["old"]["size"] == 1048576, m
 

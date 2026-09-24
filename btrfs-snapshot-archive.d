@@ -14,20 +14,23 @@ import core.sys.posix.signal;
 import core.thread;
 import core.time;
 
+import std.algorithm.comparison : min;
 import std.algorithm.iteration;
 import std.algorithm.mutation;
 import std.algorithm.searching;
 import std.algorithm.sorting;
 import std.array;
+import std.conv : to;
 import std.datetime.systime;
 import std.exception;
 import std.format;
 import std.path;
 import std.process;
 import std.range;
+import std.regex : ctRegex, matchFirst;
 import std.socket : Socket;
 import std.stdio : stderr, stdout, File;
-import std.string : indexOf;
+import std.string : indexOf, strip;
 import std.typecons;
 
 import ae.sys.vfs;
@@ -42,6 +45,25 @@ import ae.utils.time.parsedur;
 
 import btrfs_common;
 import btrfs_send_stream;
+
+/// Highest send stream version supported by the btrfs-progs on the host of `path`.
+uint progsStreamVersion(string path)
+{
+	auto output = run(remotifyOn(path, ["btrfs", "--version"]));
+	auto m = output.matchFirst(ctRegex!`^btrfs-progs v(\d+)\.`);
+	enforce(m, "Unexpected btrfs --version output: " ~ output);
+	// btrfs-progs 6.0 added send --proto and version 2 streams.
+	return m[1].to!uint >= 6 ? 2 : 1;
+}
+
+/// Highest send stream version the kernel on the host of `path` can send.
+uint kernelStreamVersion(string path)
+{
+	// Like btrfs-progs, treat a missing sysfs file as a kernel which only supports version 1.
+	enum file = "/sys/fs/btrfs/features/send_stream_version";
+	auto output = run(remotifyOn(path, ["sh", "-c", `if [ -e "$1" ]; then cat "$1"; else echo 1; fi`, "sh", file]));
+	return output.strip.to!uint;
+}
 
 /// Returns an URL identifying `path` independently of the local host,
 /// so that it remains meaningful when read on another machine.
@@ -148,6 +170,14 @@ int btrfs_snapshot_archive(
 	// E.g. srcSubvolumes["@arch"] may consist of the set [null, "20200101000000"],
 	// where `null` indicates the live btrfs subvolume (not a snapshot).
 	HashSet!string[string] srcSubvolumes, allSubvolumes;
+
+	auto streamVersion = min(
+		kernelStreamVersion(srcRoot),
+		progsStreamVersion(srcRoot),
+		progsStreamVersion(dstRoot),
+		maxSendStreamVersion,
+	);
+	if (verbose) stderr.writefln("> Using send stream version %d", streamVersion);
 
 	stderr.writefln("> Enumerating %s", srcRoot);
 	auto srcDir = srcRoot.listDir.toSet;
@@ -419,6 +449,8 @@ int btrfs_snapshot_archive(
 					}
 
 					auto sendArgs = ["btrfs", "send"];
+					if (streamVersion > 1) // older btrfs-progs don't know --proto
+						sendArgs ~= ["--proto", streamVersion.to!string];
 					if (parentSubvolume)
 					{
 						auto srcParentPath = buildPath(srcRoot, parentSubvolume);

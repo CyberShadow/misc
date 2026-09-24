@@ -24,6 +24,8 @@ struct DeltaTree
 /// Describes the btrfs send stream which transferred a snapshot.
 struct Delta
 {
+	/// Version of the send stream protocol.
+	uint streamVersion;
 	/// Name of the snapshot the stream was relative to,
 	/// or null if the stream contained the whole snapshot.
 	string parent;
@@ -44,6 +46,9 @@ struct SnapshotMetadata
 	@JSONName("version") uint formatVersion = 1; ///
 	Delta delta; ///
 }
+
+/// Highest send stream version this parser supports.
+enum maxSendStreamVersion = 3;
 
 /// The bytes a btrfs send stream starts with.
 enum ubyte[13] sendStreamMagic = cast(ubyte[13])"btrfs-stream\0";
@@ -77,7 +82,7 @@ struct SendStreamParser
 		auto tree = finishTree();
 		enforce(isFull == !parent,
 			isFull ? "Send stream is whole, but a parent was specified" : "Send stream is incremental, but no parent was specified");
-		return Delta(parent, streamBytes, dataBytes, commands, tree);
+		return Delta(streamVersion, parent, streamBytes, dataBytes, commands, tree);
 	}
 
 	/// Verify that the stream was complete, and return its per-path totals.
@@ -106,7 +111,7 @@ private:
 	alias magic = sendStreamMagic;
 	enum headerLength = magic.length + 4;
 	enum commandHeaderLength = 4 + 2 + 4; // len, cmd, crc
-	enum maxVersion = 3;
+	alias maxVersion = maxSendStreamVersion;
 
 	// Command and attribute numbers, from linux/fs/btrfs/send.h.
 	enum Cmd : ushort

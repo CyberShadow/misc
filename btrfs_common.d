@@ -147,6 +147,14 @@ struct Lock
 	}
 }
 
+/// Wrap `args` to run on the host of `path` (which may be an ssh:// URL).
+string[] remotifyOn(string path, string[] args)
+{
+	if (!path.startsWith("ssh://"))
+		return args;
+	return ["ssh"] ~ SSHFS.parsePath(path) ~ [escapeShellCommand(args)];
+}
+
 string[] remotify(string[] args)
 {
 	foreach (arg; args)
@@ -154,13 +162,13 @@ string[] remotify(string[] args)
 		{
 			auto path = arg;
 			auto pathArgs = SSHFS.parsePath(path);
-			return ["ssh"] ~ pathArgs ~ [escapeShellCommand(
+			return remotifyOn(arg,
 					args.map!((arg)
 					{
 						if (arg.startsWith("ssh://"))
 							enforce(SSHFS.parsePath(arg) == pathArgs, "Inconsistent sshfs root");
 						return arg;
-					}).array)];
+					}).array);
 		}
 	return args;
 }
