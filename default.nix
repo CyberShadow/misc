@@ -225,5 +225,7 @@ in {
   tests = {
     inherit test-shebang-executable;
     inherit test-shebang-buildable;
-  } // test-all-d-unittests;
+  } // test-all-d-unittests // lib.optionalAttrs pkgs.stdenv.isLinux {
+    btrfs-snapshots = import ./tests/btrfs-snapshots.nix { inherit pkgs programs; };
+  };
 }
