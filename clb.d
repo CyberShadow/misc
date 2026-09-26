@@ -1,6 +1,6 @@
 #!/usr/bin/env dub
 /+ dub.sdl:
- dependency "ae" version="==0.0.3569"
+ dependency "ae" version="==0.0.3876"
 +/
 
 /// Simple HTTP load balancer with auto-scaling.

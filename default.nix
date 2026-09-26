@@ -1,6 +1,6 @@
 { pkgs ? import (builtins.fetchTarball {
-    url = "https://github.com/NixOS/nixpkgs/archive/c00f20377be57a37df5cf7986198aab6051c0057.tar.gz";
-    sha256 = "sha256:0y5lxq838rzia2aqf8kh2jdv8hzgi7a6hlswsklzkss27337hrcn";
+    url = "https://github.com/NixOS/nixpkgs/archive/e94cb152ed51bd6e24eb4a41f1460252beb52cd2.tar.gz";
+    sha256 = "sha256:1c18inq8yb6sm80qzcx5drwlh81irdm1wk1hlsdrfxzjw5zwym2m";
 }) {}
 , repo ? builtins.fetchGit { url = ./.; shallow = true; }
 }:
@@ -87,7 +87,7 @@ let
     paths = [
       pkgs.zlib
       (pkgs.lib.getLib pkgs.openssl)
-      pkgs.xorg.libX11
+      pkgs.libx11
       (pkgs.lib.getLib pkgs.ncurses)
     ];
   };
@@ -225,7 +225,7 @@ in {
   tests = {
     inherit test-shebang-executable;
     inherit test-shebang-buildable;
-  } // test-all-d-unittests // lib.optionalAttrs pkgs.stdenv.isLinux {
+  } // test-all-d-unittests // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
     btrfs-snapshots = import ./tests/btrfs-snapshots.nix { inherit pkgs programs; };
   };
 }
