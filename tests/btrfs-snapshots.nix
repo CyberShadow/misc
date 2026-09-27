@@ -21,7 +21,7 @@ let
       pkgs.perl # for btrfs_ssh_lock.pl
       programs.btrfs-snapshot-archive
       programs.btrfs-snapshot-cleanup
-      programs.btrfs-send-treemap
+      programs.btrfs-snapshot-visualize
     ];
   };
 in
@@ -90,10 +90,10 @@ pkgs.testers.runNixOSTest {
         mark = source.succeed("cat /mnt/btrfs/src/@data-20260102000000.success-push")
         assert mark == "ssh://root@dest//mnt/btrfs/pushed/@data-20260102000000", mark
 
-        dest.succeed("btrfs-send-treemap /mnt/btrfs/pushed/@data-20260102000000.json --out-file-name /tmp/treemap.html")
+        dest.succeed("btrfs-snapshot-visualize /mnt/btrfs/pushed/@data-20260102000000.json --out-file-name /tmp/treemap.html")
         dest.succeed("grep -F subdir /tmp/treemap.html")
         out = dest.succeed(
-            "btrfs-send-treemap --ncdu /mnt/btrfs/pushed/@data-*.json | ncdu -f- -o-"
+            "btrfs-snapshot-visualize --ncdu /mnt/btrfs/pushed/@data-*.json | ncdu -f- -o-"
         )
         assert "subdir" in out and "old" in out, out
 

@@ -6,7 +6,7 @@
 +/
 
 /// Visualize what btrfs send streams contain, as a treemap or in ncdu.
-module btrfs_send_treemap;
+module btrfs_snapshot_visualize;
 
 import core.sys.posix.sys.stat : chmod;
 
@@ -64,7 +64,7 @@ void add(ref DeltaTree a, in DeltaTree b)
 /// additionally counts the approximate size of the stream commands.
 void writeNcdu(File f, string rootName, in DeltaTree tree)
 {
-	f.writeln(`[1,2,{"progname":"btrfs-send-treemap","progver":"1"},`);
+	f.writeln(`[1,2,{"progname":"btrfs-snapshot-visualize","progver":"1"},`);
 	writeNcduEntry(f, rootName, tree);
 	f.writeln("]");
 }
@@ -107,7 +107,7 @@ unittest
 	f.rewind();
 	import std.array : join, array;
 	assert(f.byLineCopy.array.join("\n") ==
-		`[1,2,{"progname":"btrfs-send-treemap","progver":"1"},` ~ "\n" ~
+		`[1,2,{"progname":"btrfs-snapshot-visualize","progver":"1"},` ~ "\n" ~
 		`[{"name":"@x","asize":0,"dsize":128},` ~ "\n" ~
 		`[{"name":"dir","asize":5,"dsize":133},` ~ "\n" ~
 		`{"name":"file","asize":10,"dsize":74}]]]`);
@@ -140,7 +140,7 @@ DeltaTree readTree(File f)
 	}
 }
 
-void btrfs_send_treemap(
+void btrfs_snapshot_visualize(
 	Parameter!(string[], "btrfs send streams, or metadata sidecars written by btrfs-snapshot-archive\n(use /dev/stdin to read from stdin);\nthe totals of multiple inputs are added up") inFileNames,
 	Switch!("Write ncdu's JSON export format (for `ncdu -f`), instead of an HTML treemap") ncdu,
 	Option!(string, "Path to where to save the output\n(by default, the HTML treemap is opened in a browser,\nand ncdu data is written to standard output)") outFileName,
@@ -177,4 +177,4 @@ void btrfs_send_treemap(
 		browse(outFileName);
 }
 
-mixin main!(funopt!btrfs_send_treemap);
+mixin main!(funopt!btrfs_snapshot_visualize);
