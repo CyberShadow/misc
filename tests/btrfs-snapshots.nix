@@ -17,6 +17,7 @@ let
     environment.systemPackages = [
       pkgs.btrfs-progs
       pkgs.jq
+      pkgs.ncdu
       pkgs.perl # for btrfs_ssh_lock.pl
       programs.btrfs-snapshot-archive
       programs.btrfs-snapshot-cleanup
@@ -91,6 +92,10 @@ pkgs.testers.runNixOSTest {
 
         dest.succeed("btrfs-send-treemap /mnt/btrfs/pushed/@data-20260102000000.json --out-file-name /tmp/treemap.html")
         dest.succeed("grep -F subdir /tmp/treemap.html")
+        out = dest.succeed(
+            "btrfs-send-treemap --ncdu /mnt/btrfs/pushed/@data-*.json | ncdu -f- -o-"
+        )
+        assert "subdir" in out and "old" in out, out
 
     with subtest("pull from an ssh source"):
         dest.succeed("mkdir /mnt/btrfs/pulled")
