@@ -61,7 +61,7 @@ uint kernelStreamVersion(string path)
 {
 	// Like btrfs-progs, treat a missing sysfs file as a kernel which only supports version 1.
 	enum file = "/sys/fs/btrfs/features/send_stream_version";
-	auto output = run(remotifyOn(path, ["sh", "-c", `if [ -e "$1" ]; then cat "$1"; else echo 1; fi`, "sh", file]));
+	auto output = run(remotifyOn(path, ["/bin/sh", "-c", `if [ -e "$1" ]; then cat "$1"; else echo 1; fi`, "sh", file]));
 	return output.strip.to!uint;
 }
 
